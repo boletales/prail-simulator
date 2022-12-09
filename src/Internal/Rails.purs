@@ -91,7 +91,7 @@ data JointsPoint       = JointEnter | JointMain | JointSub
 derive instance genericJointsPoint      :: Generic JointsPoint       _
 data JointsDouble      = JointOuterBegin | JointInnerEnd | JointInnerBegin | JointOuterEnd
 derive instance genericJointsDouble     :: Generic JointsDouble      _
-data JointsDoublePoint = JointInnerEnter | JointOuterEnter | JointInnerMain | JointOuterMain | JointInnerSub | JointOuterSub
+data JointsDoublePoint = JointOuterEnter | JointInnerEnter | JointInnerMain | JointOuterMain | JointInnerSub | JointOuterSub
 derive instance genericJointsDoublePoint:: Generic JointsDoublePoint _
 
 

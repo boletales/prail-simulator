@@ -2873,19 +2873,19 @@ var JointSub = /* @__PURE__ */ function() {
   JointSub2.value = new JointSub2();
   return JointSub2;
 }();
-var JointInnerEnter = /* @__PURE__ */ function() {
-  function JointInnerEnter2() {
-  }
-  ;
-  JointInnerEnter2.value = new JointInnerEnter2();
-  return JointInnerEnter2;
-}();
 var JointOuterEnter = /* @__PURE__ */ function() {
   function JointOuterEnter2() {
   }
   ;
   JointOuterEnter2.value = new JointOuterEnter2();
   return JointOuterEnter2;
+}();
+var JointInnerEnter = /* @__PURE__ */ function() {
+  function JointInnerEnter2() {
+  }
+  ;
+  JointInnerEnter2.value = new JointInnerEnter2();
+  return JointInnerEnter2;
 }();
 var JointInnerMain = /* @__PURE__ */ function() {
   function JointInnerMain2() {
@@ -3620,11 +3620,11 @@ var turnOutRPlusRail = /* @__PURE__ */ flipRail(turnOutLPlusRail);
 var genericJointsDoublePoint = {
   to: function(x) {
     if (x instanceof Inl) {
-      return JointInnerEnter.value;
+      return JointOuterEnter.value;
     }
     ;
     if (x instanceof Inr && x.value0 instanceof Inl) {
-      return JointOuterEnter.value;
+      return JointInnerEnter.value;
     }
     ;
     if (x instanceof Inr && (x.value0 instanceof Inr && x.value0.value0 instanceof Inl)) {
@@ -3646,11 +3646,11 @@ var genericJointsDoublePoint = {
     throw new Error("Failed pattern match at Internal.Rails (line 95, column 1 - line 95, column 71): " + [x.constructor.name]);
   },
   from: function(x) {
-    if (x instanceof JointInnerEnter) {
+    if (x instanceof JointOuterEnter) {
       return new Inl(NoArguments.value);
     }
     ;
-    if (x instanceof JointOuterEnter) {
+    if (x instanceof JointInnerEnter) {
       return new Inr(new Inl(NoArguments.value));
     }
     ;

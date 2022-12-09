@@ -74,6 +74,7 @@ rails = [
     , scissorsRail
     , doubleToWideLRail
     , doubleTurnoutLPlusRail
+    , longRail
   ]
 
 type EncodedRail = {name :: String, flipped :: Boolean, opposed :: Boolean}

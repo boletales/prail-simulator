@@ -134,6 +134,9 @@ function onkey(e){
     case "w":
       addRail(P.straightRail);
       break;
+    case "W":
+      addRail(P.longRail);
+      break;
     case "s":
       addRail(P.slopeRail);
       break;

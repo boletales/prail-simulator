@@ -18,6 +18,7 @@ module Internal.Rails
   , doubleTurnoutLPlusRail
   , doubleTurnoutRPlusRail
   , halfRail
+  , longRail
   , outerCurveLRail
   , outerCurveRRail
   , quarterRail
@@ -103,6 +104,29 @@ straightRail =
       r0 = [railShape {start: pb, end:pe}]
   in toRail $ RailGen {
       name : "straight"
+      ,flipped : false
+      ,opposed : false
+      ,getDrawInfo : \_ ->
+         noAdditionals $ blueRail <$> r0
+      ,defaultState : StateSolid
+      ,getJoints    : serialAll
+      ,getStates    : serialAll
+      ,getOrigin    : JointBegin
+      ,getJointPos : \j -> case j of
+        JointBegin -> pb
+        JointEnd   -> pe
+      ,getNewState : \j s -> case j of
+        JointBegin -> {newjoint: JointEnd  , newstate:s, shape: r0}
+        JointEnd   -> {newjoint: JointBegin, newstate:s, shape: reverseShapes r0}
+    }
+
+longRail :: Rail
+longRail = 
+  let pb = RelPos (Pos {coord: Coord{x: 0.0, y: 0.0, z:0.0}, angle: angle8 4, isPlus: false})
+      pe = RelPos (Pos {coord: Coord{x: 2.0, y: 0.0, z:0.0}, angle: angle8 0, isPlus: true})
+      r0 = [railShape {start: pb, end:pe}]
+  in toRail $ RailGen {
+      name : "long"
       ,flipped : false
       ,opposed : false
       ,getDrawInfo : \_ ->
@@ -488,10 +512,10 @@ doubleTurnoutLPlusRail =
   let scale = 1.0 + doubleRailWidth
       poe = RelPos (Pos {coord: Coord{x: 0.0             , y: 0.0                                       , z:0.0}, angle: angle8 4, isPlus: false}) 
       pie = RelPos (Pos {coord: Coord{x: 0.0             , y: -doubleRailWidth                          , z:0.0}, angle: angle8 4, isPlus: false}) 
-      pom = RelPos (Pos {coord: Coord{x: 1.0             , y: 0.0                                       , z:0.0}, angle: angle8 0, isPlus: false}) 
-      pim = RelPos (Pos {coord: Coord{x: 1.0             , y: -doubleRailWidth                          , z:0.0}, angle: angle8 0, isPlus: false}) 
-      pos = RelPos (Pos {coord: Coord{x: (sqrt 0.5)      , y:  1.0 - (sqrt 0.5)                         , z:0.0}, angle: angle8 1, isPlus: false}) 
-      pis = RelPos (Pos {coord: Coord{x: (sqrt 0.5)*scale, y: (1.0 - (sqrt 0.5))*scale -doubleRailWidth , z:0.0}, angle: angle8 1, isPlus: false}) 
+      pom = RelPos (Pos {coord: Coord{x: 1.0             , y: 0.0                                       , z:0.0}, angle: angle8 0, isPlus: true }) 
+      pim = RelPos (Pos {coord: Coord{x: 1.0             , y: -doubleRailWidth                          , z:0.0}, angle: angle8 0, isPlus: true }) 
+      pos = RelPos (Pos {coord: Coord{x: (sqrt 0.5)      , y:  1.0 - (sqrt 0.5)                         , z:0.0}, angle: angle8 1, isPlus: true }) 
+      pis = RelPos (Pos {coord: Coord{x: (sqrt 0.5)*scale, y: (1.0 - (sqrt 0.5))*scale -doubleRailWidth , z:0.0}, angle: angle8 1, isPlus: true }) 
       rom = [railShape {start :poe, end: pom}]
       ros = [railShape {start :poe, end: pos}]
       rim = [railShape {start :pie, end: pim}]

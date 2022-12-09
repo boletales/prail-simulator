@@ -43,8 +43,8 @@
       }
     }
 
-    const width = 1000;
-    const height = 800;
+    const width = window.screen.availWidth - 100;
+    const height = window.screen.availHeight -200;
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera( 75, width / height, 0.1, 8000 );
     camera.position.y = 100;

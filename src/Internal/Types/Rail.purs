@@ -162,7 +162,8 @@ opposeShape (RailShape {start:s, end:e, length:l}) = RailShape {start:opposeRelP
 opposeDrawRail (DrawRail {color : c, shape : s}) = DrawRail {color : c, shape : opposeShape s}
 opposeAdditional (DrawAdditional {parttype: s, pos : p}) = DrawAdditional {parttype: s, pos : opposeRelPos p}
 
-flipRelCoord (Coord {x:x, y:y, z:z}) = Coord {x:x, y:(-y), z:(-z)}
+flipRelCoord ∷ Coord → Coord
+flipRelCoord (Coord {x:x, y:y, z:z}) = Coord {x:x, y:(-y), z:z}
 
 flipRelPos :: RelPos -> RelPos
 flipRelPos (RelPos (Pos p)) = RelPos (Pos {

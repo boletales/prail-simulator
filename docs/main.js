@@ -1832,7 +1832,7 @@ var flipRelCoord = function(v) {
   return {
     x: v.x,
     y: -v.y,
-    z: -v.z
+    z: v.z
   };
 };
 var flipRelPos = function(v) {

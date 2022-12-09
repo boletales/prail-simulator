@@ -1,0 +1,554 @@
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+  <div id="main"></div>
+  <div id="control">
+    <span id="coord"></span><br>
+    <input type="button" value="save" onclick="save();">
+    <input type="button" value="download" onclick="download();">
+    <input id="upload" type="file" accept="application/json" onchange="upload();"><a href="2d.html">2D</a><br>
+    <input id="fakeinput" placeholder="fake input for smartphone">
+  </div>
+  <script src="control.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js" integrity="sha256-80RGv4dbX7Dc2TgZ/+HZ4YLUZjTuhV9dkExsSsfNvJU=" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/FBXLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fflate@0.7.4/umd/index.min.js"></script>
+  <script>
+
+    function v3(v){
+      return new THREE.Vector3(-v.x*RAILLENGTH, v.z*HEIGHTUNIT ,v.y*RAILLENGTH);
+    }
+
+    function a3(v){
+      return [-v.x*RAILLENGTH, v.z*HEIGHTUNIT ,v.y*RAILLENGTH];
+    }
+
+    focusJoint = () => {
+      let pos = P.getJointAbsPos(layout)(selectedJoint.nodeid)(selectedJoint.jointid).value0;
+      if(pos !== undefined){
+        let {x, y, z} = v3(pos.coord);
+        //camera.position.x = x+  60*Math.sin(pos.angle);
+        //camera.position.y = y+ 100;
+        //camera.position.z = z+  60*Math.cos(pos.angle);
+        camera.position.x = x+  60*Math.sin(Math.PI);
+        camera.position.y = y+ 100;
+        camera.position.z = z+  60*Math.cos(Math.PI);
+        camera.lookAt(v3(pos.coord));
+      }
+    }
+
+    const width = 1000;
+    const height = 800;
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera( 75, width / height, 0.1, 8000 );
+    camera.position.y = 100;
+    camera.position.z = -60;
+    camera.lookAt(new THREE.Vector3(0,0,0));
+
+    scene.add(camera);
+    
+    const light = new THREE.DirectionalLight(0xffffff, 1);
+    light.position.set(0, 100, -10);
+    light.castShadow = true;
+    light.shadow.camera.position.set(0, 400, -10);
+    light.shadow.camera.left   = -600;
+    light.shadow.camera.right  =  600;
+    light.shadow.camera.top    =  600;
+    light.shadow.camera.bottom = -600;
+    light.shadow.mapSize.width  = 8192;
+    light.shadow.mapSize.height = 8192;
+    scene.add(light);
+
+    //let cameraHelper = new THREE.CameraHelper(light.shadow.camera);
+    //scene.add(cameraHelper);
+
+    const light2 = new THREE.AmbientLight( 0xffffff, 2.8);
+    scene.add(light2);
+    
+    {
+      const geometry = new THREE.PlaneGeometry( 500, 500);
+      const material = new THREE.MeshStandardMaterial( { color: "#ac8", side:THREE.DoubleSide} );
+      const plane = new THREE.Mesh( geometry, material );
+      plane.receiveShadow = true;
+      plane.position.z = 40;
+      plane.position.y = -0.1
+      plane.rotation.x = Math.PI/2;
+      scene.add( plane );
+    }
+    const renderer = new THREE.WebGLRenderer({antialias: true});
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.physicallyCorrectLights = true;
+    //renderer.outputEncoding = THREE.sRGBEncoding;
+    //renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.setClearColor(0xcceeff, 1);
+    renderer.setSize( width, height );
+    document.getElementById("main").appendChild( renderer.domElement );
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.2;
+
+    const tickrate = 1;
+    let tickcount = 0;
+
+
+    let meshrailmemo = [];
+    let meshtrainmemo = [];
+    let materialmemo = [];
+    let scenememo = {rails: [], trains: []};
+
+    clearCache = () => {
+      meshrailmemo.forEach(r => r.forEach(x => x.forEach(m => {scene.remove(m); m.geometry.dispose();})));
+      meshrailmemo = [];
+      meshtrainmemo = [];
+      scenememo = {rails:[], trains: []};
+    }
+
+    const loader = new THREE.FBXLoader();
+    const models = {};
+
+    function loadModel(name){
+      return new Promise((res)=> 
+        loader.load('./models/'+name+'.fbx', (fbx) => {
+          models[name] = fbx;
+          models[name].scale.set(1/200,1/200,1/200);
+          models[name].position.y = 2.5;
+          models[name].position.z = 7;
+          res();
+        }));
+    }
+
+    function main(){
+      layout = P.defaultLayout;
+      document.onkeydown = onkey;
+      document.getElementById("fakeinput").onkeydown = ()=>{return true;};
+      document.getElementById("fakeinput").onchange = ()=>{document.getElementById("fakeinput").value=""};
+      let onclickold = renderer.domElement.onclick;
+      renderer.domElement.onclick = (e) => {
+        //onclickold(e);
+        onclick(e);
+      };
+
+      Promise.all([
+          loadModel("313_Mc")
+        , loadModel("313_T")
+        , loadModel("312_Tc")
+      ]).then(()=>{
+        load();
+        tick();
+      })
+    }
+    
+    function getfps(){
+      return (time.length - 1) / (time[time.length-1] - time[0]) * 1000;
+    }
+    let time = [];
+    function tick(){
+      tickcount++;
+      time.push(new Date().getTime());
+      if(time.length > 120){
+        time.shift();
+      }
+      layout = P.layoutTick(layout);
+      if(tickcount % tickrate == 0){
+        draw(layout);
+      }
+      requestAnimationFrame(tick);
+    }
+
+    function onclick(e){
+      let rect = renderer.domElement.getBoundingClientRect();
+      const raycaster = new THREE.Raycaster();
+      const vector = new THREE.Vector2(
+        ((e.clientX - rect.left) / renderer.domElement.width ) *  2 - 1,
+        ((e.clientY - rect.top ) / renderer.domElement.height) * -2 + 1
+      );
+      console.log(vector);
+
+      raycaster.setFromCamera(vector, camera);
+
+      const intersects = raycaster.intersectObjects(scene.children.filter(e => e.isJoint));
+
+      if (intersects.length) {
+        selectedJoint.nodeid  = layout.rails.find((v) => v.instanceid == intersects[0].object.jointInfo.instanceid).node.nodeid;
+        selectedJoint.jointid = intersects[0].object.jointInfo.jointid;
+      }
+    }
+
+    const layerheight = 0.002;
+    function draw(layout){
+      let rails_old = Object.assign(scenememo.rails);
+      scenememo.rails = [];
+      let existancememo_rails_old = [];
+      let existancememo_rails = [];
+
+      let trains_old = Object.assign(scenememo.trains);
+      scenememo.trains = [];
+      let existancememo_trains_old = [];
+      let existancememo_trains = [];
+
+
+      let ldi = P.layoutDrawInfo(layout);
+      ldi.rails.forEach((di) => {
+        scenememo.rails[di.instance.instanceid] = meshsRail(di);
+      });
+      rails_old.forEach(r => {
+        existancememo_rails_old[r.instanceid] = r.state
+      });
+      scenememo.rails.forEach(r => {
+        existancememo_rails[r.instanceid] = r.state;
+      });
+      existancememo_rails    .forEach((s, i) =>{if(s !== existancememo_rails_old[i] && s!==undefined && scenememo.rails[i]!==undefined) scenememo.rails[i].meshs.forEach(mesh => scene.add   (mesh))});
+      existancememo_rails_old.forEach((s, i) =>{if(s !== existancememo_rails    [i]                  && rails_old      [i]!==undefined) rails_old      [i].meshs.forEach(mesh => scene.remove(mesh))});
+      
+      
+      ldi.trains.forEach((di) => {
+        scenememo.trains[di.trainid] = meshsTrain(di);
+      });
+      trains_old.forEach(r => {
+        existancememo_trains_old[r.trainid] = true;
+      });
+      scenememo.trains.forEach(r => {
+        existancememo_trains[r.trainid] = true;
+      });
+      existancememo_trains    .forEach((s, i) =>{if(s !== existancememo_trains_old[i] && scenememo.trains[i]!==undefined) scenememo.trains[i].objects.forEach(mesh => scene.add   (mesh))});
+      existancememo_trains_old.forEach((s, i) =>{if(s !== existancememo_trains    [i] && trains_old      [i]!==undefined) trains_old      [i].objects.forEach(mesh => scene.remove(mesh))});
+      
+      updateMeshSelectionMark(layout, selectedJoint);
+
+      renderer.render( scene, camera );
+
+      let p = P.getJointAbsPos(layout)(selectedJoint.nodeid)(selectedJoint.jointid).value0;
+      if(p !== undefined){
+        document.getElementById("coord").innerText = coordStr(p.coord) + "    " + getfps().toFixed(0) + "fps";
+      }
+    }
+
+    function meshsRail({rails : rails, additionals: additionals, joints : joints, instance: instance}){
+      let instanceid = instance.instanceid;
+      let state = instance.node.state;
+      if(meshrailmemo.length <= instanceid){
+        for(let i=meshrailmemo.length-1; i<=instanceid; i++) meshrailmemo.push([]);
+      }
+      if(meshrailmemo[instanceid][state] !== undefined){
+        return {
+            instanceid
+          , state
+          , meshs: meshrailmemo[instanceid][state]
+        };
+      }
+      let meshs = [];
+      rails.forEach((p, i) => meshs.push(meshRailPart(p, i)));
+      joints.forEach((p) => {if(p.isPlus) meshs.push(meshJoint(p)) });
+      joints.forEach((p) => {meshsPier(p).forEach(m => meshs.push(m))});
+      joints.forEach((p, i) => {meshs.push(meshJointButton(p, instanceid, i))});
+
+      meshrailmemo[instanceid][state] = meshs;
+      return {
+          instanceid
+        , state
+        , meshs
+      };
+    }
+
+    function meshRailPart(part, index){
+      let geometry = new THREE.BufferGeometry();
+
+      let tmax = P.splitSize(part.shape);
+      let points = [];
+      for(let i=0;i<=tmax;i++){
+        let c = P.getDividingPoint_rel(part.shape.start)(part.shape.end)( RAILWIDTH/RAILLENGTH/2)(i/tmax*1.02 -0.01).coord;
+        c.z += index * layerheight;
+        points.push(new a3(c));
+      }
+      for(let i=0;i<=tmax;i++){
+        let c = P.getDividingPoint_rel(part.shape.start)(part.shape.end)(-RAILWIDTH/RAILLENGTH/2)(i/tmax*1.02 -0.01).coord;
+        c.z += index * layerheight;
+        points.push(new a3(c));
+      }
+
+      let faces = [];
+      for(let i=0;i<tmax;i++){
+        faces.push([i, i+(tmax+1)+1, i+(tmax+1)  ]);
+        faces.push([i, i+1         , i+(tmax+1)+1]);
+      }
+
+      let vertices = faces.flatMap(f => f.flatMap(i => points[i])).flat();
+      let backpoints = points.map(p => [p[0],p[1]-0.1,p[2]]);
+      let vertices2 = faces.flatMap(f => f.reverse().flatMap(i => backpoints[i])).flat();
+      geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(vertices.concat(vertices2)),3));
+      geometry.computeVertexNormals();
+
+      let color = part.color;
+      if(materialmemo[color] === undefined){
+        materialmemo[color] = new THREE.MeshStandardMaterial({color: color, roughness:1.0})
+      }
+      let mesh = new THREE.Mesh(geometry, materialmemo[color]);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      //let mesh = new THREE.Mesh(geometry, materialmemo[color]);
+
+      return mesh;
+    }
+
+    const jointColor = "#018";
+    function meshJoint(p){
+        let w = RAILWIDTH/RAILLENGTH;
+        let h = 0.1;
+        let d = 0.0;
+        let points = [
+          {x: p.coord.x + Math.sin(p.angle)*w/2 + Math.cos(p.angle)*(  d), y: p.coord.y - Math.cos(p.angle)*w/2 + Math.sin(p.angle)*(  d), z: p.coord.z + layerheight * 10},
+          {x: p.coord.x - Math.sin(p.angle)*w/2 + Math.cos(p.angle)*(  d), y: p.coord.y + Math.cos(p.angle)*w/2 + Math.sin(p.angle)*(  d), z: p.coord.z + layerheight * 10},
+          {x: p.coord.x                         + Math.cos(p.angle)*(h+d), y: p.coord.y                         + Math.sin(p.angle)*(h+d), z: p.coord.z + layerheight * 10},
+        ].map(a3);
+
+        let geometry = new THREE.BufferGeometry();
+        let faces = [[0, 1, 2]];
+        let vertices = new Float32Array(faces.flatMap(f => f.flatMap(i => points[i])).flat());
+        geometry.setAttribute('position',new THREE.BufferAttribute(vertices,3));
+        geometry.computeVertexNormals();
+
+        let color = jointColor;
+        if(materialmemo[color] === undefined){
+          materialmemo[color] = new THREE.MeshBasicMaterial({color: color, side: THREE.DoubleSide});
+        }
+        let mesh = new THREE.Mesh(geometry, materialmemo[color]);
+
+        return mesh;
+    }
+    
+    let transparentButtonMaterial = new THREE.MeshBasicMaterial({visible: false, side: THREE.DoubleSide});
+    function meshJointButton(p, instanceid, jointid){
+        let w = RAILWIDTH/RAILLENGTH;
+        let h = 0.2;
+        let d = -0.2;
+        let points = [
+          {x: p.coord.x + Math.sin(p.angle)*w/2 + Math.cos(p.angle)*(  d), y: p.coord.y - Math.cos(p.angle)*w/2 + Math.sin(p.angle)*(  d), z: p.coord.z + layerheight * 10},
+          {x: p.coord.x - Math.sin(p.angle)*w/2 + Math.cos(p.angle)*(  d), y: p.coord.y + Math.cos(p.angle)*w/2 + Math.sin(p.angle)*(  d), z: p.coord.z + layerheight * 10},
+          {x: p.coord.x + Math.sin(p.angle)*w/2 + Math.cos(p.angle)*(h+d), y: p.coord.y - Math.cos(p.angle)*w/2 + Math.sin(p.angle)*(h+d), z: p.coord.z + layerheight * 10},
+          {x: p.coord.x - Math.sin(p.angle)*w/2 + Math.cos(p.angle)*(h+d), y: p.coord.y + Math.cos(p.angle)*w/2 + Math.sin(p.angle)*(h+d), z: p.coord.z + layerheight * 10},
+        ].map(a3);
+
+        let geometry = new THREE.BufferGeometry();
+        let faces = [[0, 1, 2],[1, 2, 3]];
+        let vertices = new Float32Array(faces.flatMap(f => f.flatMap(i => points[i])).flat());
+        geometry.setAttribute('position',new THREE.BufferAttribute(vertices,3));
+        geometry.computeVertexNormals();
+
+        let mesh = new THREE.Mesh(geometry, transparentButtonMaterial);
+
+        mesh.isJoint = true;
+        mesh.jointInfo = {instanceid: instanceid, jointid:jointid};
+
+        return mesh;
+    }
+
+    const pierColor = "#dddd00";
+    function meshsPier(p){
+      const pierWidth      = 9.5/RAILLENGTH;
+      const pierLength     = 2.0/RAILLENGTH;
+      const pierMarginH    = 0.1/HEIGHTUNIT;
+      const pierThicknessH = 1.0/HEIGHTUNIT;
+      const pierThicknessW = 1.0/RAILLENGTH;
+      const minipierThicknessW = 2.0/RAILLENGTH;
+
+      let meshs = [];
+      let vs = [];
+      let z = 0;
+      for(; z+0.01<Math.floor(p.coord.z); z++){
+        let points = [
+          {x: p.coord.x + Math.sin(p.angle)*pierWidth/2                    + Math.cos(p.angle)*pierLength/2, y: p.coord.y - Math.cos(p.angle)*pierWidth/2                    + Math.sin(p.angle)*pierLength/2, z: z + 1 - pierMarginH    - layerheight * 2},
+          {x: p.coord.x - Math.sin(p.angle)*pierWidth/2                    + Math.cos(p.angle)*pierLength/2, y: p.coord.y + Math.cos(p.angle)*pierWidth/2                    + Math.sin(p.angle)*pierLength/2, z: z + 1 - pierMarginH    - layerheight * 2},
+          {x: p.coord.x - Math.sin(p.angle)*pierWidth/2                    - Math.cos(p.angle)*pierLength/2, y: p.coord.y + Math.cos(p.angle)*pierWidth/2                    - Math.sin(p.angle)*pierLength/2, z: z + 1 - pierMarginH    - layerheight * 2},
+          {x: p.coord.x + Math.sin(p.angle)*pierWidth/2                    - Math.cos(p.angle)*pierLength/2, y: p.coord.y - Math.cos(p.angle)*pierWidth/2                    - Math.sin(p.angle)*pierLength/2, z: z + 1 - pierMarginH    - layerheight * 2},
+          {x: p.coord.x + Math.sin(p.angle)*(pierWidth/2 - pierThicknessW) + Math.cos(p.angle)*pierLength/2, y: p.coord.y - Math.cos(p.angle)*(pierWidth/2 - pierThicknessW) + Math.sin(p.angle)*pierLength/2, z: z + 1 - pierMarginH    - layerheight * 2},
+          {x: p.coord.x - Math.sin(p.angle)*(pierWidth/2 - pierThicknessW) + Math.cos(p.angle)*pierLength/2, y: p.coord.y + Math.cos(p.angle)*(pierWidth/2 - pierThicknessW) + Math.sin(p.angle)*pierLength/2, z: z + 1 - pierMarginH    - layerheight * 2},
+          {x: p.coord.x - Math.sin(p.angle)*(pierWidth/2 - pierThicknessW) - Math.cos(p.angle)*pierLength/2, y: p.coord.y + Math.cos(p.angle)*(pierWidth/2 - pierThicknessW) - Math.sin(p.angle)*pierLength/2, z: z + 1 - pierMarginH    - layerheight * 2},
+          {x: p.coord.x + Math.sin(p.angle)*(pierWidth/2 - pierThicknessW) - Math.cos(p.angle)*pierLength/2, y: p.coord.y - Math.cos(p.angle)*(pierWidth/2 - pierThicknessW) - Math.sin(p.angle)*pierLength/2, z: z + 1 - pierMarginH    - layerheight * 2},
+          {x: p.coord.x + Math.sin(p.angle)*pierWidth/2                    + Math.cos(p.angle)*pierLength/2, y: p.coord.y - Math.cos(p.angle)*pierWidth/2                    + Math.sin(p.angle)*pierLength/2, z: z + 1 - pierThicknessH - layerheight * 2},
+          {x: p.coord.x - Math.sin(p.angle)*pierWidth/2                    + Math.cos(p.angle)*pierLength/2, y: p.coord.y + Math.cos(p.angle)*pierWidth/2                    + Math.sin(p.angle)*pierLength/2, z: z + 1 - pierThicknessH - layerheight * 2},
+          {x: p.coord.x - Math.sin(p.angle)*pierWidth/2                    - Math.cos(p.angle)*pierLength/2, y: p.coord.y + Math.cos(p.angle)*pierWidth/2                    - Math.sin(p.angle)*pierLength/2, z: z + 1 - pierThicknessH - layerheight * 2},
+          {x: p.coord.x + Math.sin(p.angle)*pierWidth/2                    - Math.cos(p.angle)*pierLength/2, y: p.coord.y - Math.cos(p.angle)*pierWidth/2                    - Math.sin(p.angle)*pierLength/2, z: z + 1 - pierThicknessH - layerheight * 2},
+          {x: p.coord.x + Math.sin(p.angle)*(pierWidth/2 - pierThicknessW) + Math.cos(p.angle)*pierLength/2, y: p.coord.y - Math.cos(p.angle)*(pierWidth/2 - pierThicknessW) + Math.sin(p.angle)*pierLength/2, z: z + 1 - pierThicknessH - layerheight * 2},
+          {x: p.coord.x - Math.sin(p.angle)*(pierWidth/2 - pierThicknessW) + Math.cos(p.angle)*pierLength/2, y: p.coord.y + Math.cos(p.angle)*(pierWidth/2 - pierThicknessW) + Math.sin(p.angle)*pierLength/2, z: z + 1 - pierThicknessH - layerheight * 2},
+          {x: p.coord.x - Math.sin(p.angle)*(pierWidth/2 - pierThicknessW) - Math.cos(p.angle)*pierLength/2, y: p.coord.y + Math.cos(p.angle)*(pierWidth/2 - pierThicknessW) - Math.sin(p.angle)*pierLength/2, z: z + 1 - pierThicknessH - layerheight * 2},
+          {x: p.coord.x + Math.sin(p.angle)*(pierWidth/2 - pierThicknessW) - Math.cos(p.angle)*pierLength/2, y: p.coord.y - Math.cos(p.angle)*(pierWidth/2 - pierThicknessW) - Math.sin(p.angle)*pierLength/2, z: z + 1 - pierThicknessH - layerheight * 2},
+          {x: p.coord.x + Math.sin(p.angle)*pierWidth/2                    + Math.cos(p.angle)*pierLength/2, y: p.coord.y - Math.cos(p.angle)*pierWidth/2                    + Math.sin(p.angle)*pierLength/2, z: z                      - layerheight * 2},
+          {x: p.coord.x - Math.sin(p.angle)*pierWidth/2                    + Math.cos(p.angle)*pierLength/2, y: p.coord.y + Math.cos(p.angle)*pierWidth/2                    + Math.sin(p.angle)*pierLength/2, z: z                      - layerheight * 2},
+          {x: p.coord.x - Math.sin(p.angle)*pierWidth/2                    - Math.cos(p.angle)*pierLength/2, y: p.coord.y + Math.cos(p.angle)*pierWidth/2                    - Math.sin(p.angle)*pierLength/2, z: z                      - layerheight * 2},
+          {x: p.coord.x + Math.sin(p.angle)*pierWidth/2                    - Math.cos(p.angle)*pierLength/2, y: p.coord.y - Math.cos(p.angle)*pierWidth/2                    - Math.sin(p.angle)*pierLength/2, z: z                      - layerheight * 2},
+          {x: p.coord.x + Math.sin(p.angle)*(pierWidth/2 - pierThicknessW) + Math.cos(p.angle)*pierLength/2, y: p.coord.y - Math.cos(p.angle)*(pierWidth/2 - pierThicknessW) + Math.sin(p.angle)*pierLength/2, z: z                      - layerheight * 2},
+          {x: p.coord.x - Math.sin(p.angle)*(pierWidth/2 - pierThicknessW) + Math.cos(p.angle)*pierLength/2, y: p.coord.y + Math.cos(p.angle)*(pierWidth/2 - pierThicknessW) + Math.sin(p.angle)*pierLength/2, z: z                      - layerheight * 2},
+          {x: p.coord.x - Math.sin(p.angle)*(pierWidth/2 - pierThicknessW) - Math.cos(p.angle)*pierLength/2, y: p.coord.y + Math.cos(p.angle)*(pierWidth/2 - pierThicknessW) - Math.sin(p.angle)*pierLength/2, z: z                      - layerheight * 2},
+          {x: p.coord.x + Math.sin(p.angle)*(pierWidth/2 - pierThicknessW) - Math.cos(p.angle)*pierLength/2, y: p.coord.y - Math.cos(p.angle)*(pierWidth/2 - pierThicknessW) - Math.sin(p.angle)*pierLength/2, z: z                      - layerheight * 2},
+        ].map(a3);
+
+        let faces = [
+            [0,  1,  2]
+          , [0,  2,  3]
+          , [0,  1,  9]
+          , [0,  9,  8]
+          , [3,  2, 10]
+          , [3, 10, 11]
+          , [0,  4, 20]
+          , [0, 20, 16]
+          , [1,  5, 21]
+          , [1, 21, 17]
+          , [2,  6, 22]
+          , [2, 22, 18]
+          , [3,  7, 23]
+          , [3, 23, 19]
+          , [0,  3, 19]
+          , [0, 19, 16]
+          , [1,  2, 18]
+          , [1, 18, 17]
+        ];
+        vs = vs.concat(faces.flatMap(f => f.flatMap(i => points[i])).flat());
+      }
+      for(; z*4+0.01<Math.floor(p.coord.z*4); z+=0.25){
+        let points = [
+          {x: p.coord.x + Math.sin(p.angle)*pierWidth/2                        + Math.cos(p.angle)*pierLength/2, y: p.coord.y - Math.cos(p.angle)*pierWidth/2                        + Math.sin(p.angle)*pierLength/2, z: z + 0.25 - pierMarginH - layerheight * 2},
+          {x: p.coord.x - Math.sin(p.angle)*pierWidth/2                        + Math.cos(p.angle)*pierLength/2, y: p.coord.y + Math.cos(p.angle)*pierWidth/2                        + Math.sin(p.angle)*pierLength/2, z: z + 0.25 - pierMarginH - layerheight * 2},
+          {x: p.coord.x - Math.sin(p.angle)*pierWidth/2                        - Math.cos(p.angle)*pierLength/2, y: p.coord.y + Math.cos(p.angle)*pierWidth/2                        - Math.sin(p.angle)*pierLength/2, z: z + 0.25 - pierMarginH - layerheight * 2},
+          {x: p.coord.x + Math.sin(p.angle)*pierWidth/2                        - Math.cos(p.angle)*pierLength/2, y: p.coord.y - Math.cos(p.angle)*pierWidth/2                        - Math.sin(p.angle)*pierLength/2, z: z + 0.25 - pierMarginH - layerheight * 2},
+          {x: p.coord.x + Math.sin(p.angle)*pierWidth/2                        + Math.cos(p.angle)*pierLength/2, y: p.coord.y - Math.cos(p.angle)*pierWidth/2                        + Math.sin(p.angle)*pierLength/2, z: z + 0    - pierMarginH - layerheight * 2},
+          {x: p.coord.x - Math.sin(p.angle)*pierWidth/2                        + Math.cos(p.angle)*pierLength/2, y: p.coord.y + Math.cos(p.angle)*pierWidth/2                        + Math.sin(p.angle)*pierLength/2, z: z + 0    - pierMarginH - layerheight * 2},
+          {x: p.coord.x - Math.sin(p.angle)*pierWidth/2                        - Math.cos(p.angle)*pierLength/2, y: p.coord.y + Math.cos(p.angle)*pierWidth/2                        - Math.sin(p.angle)*pierLength/2, z: z + 0    - pierMarginH - layerheight * 2},
+          {x: p.coord.x + Math.sin(p.angle)*pierWidth/2                        - Math.cos(p.angle)*pierLength/2, y: p.coord.y - Math.cos(p.angle)*pierWidth/2                        - Math.sin(p.angle)*pierLength/2, z: z + 0    - pierMarginH - layerheight * 2},
+        ].map(a3);
+
+        let faces = [
+            [0,  1,  2]
+          , [0,  2,  3]
+          , [0,  3,  7]
+          , [0,  7,  4]
+          , [2,  1,  5]
+          , [2,  5,  6]
+          , [1,  0,  4]
+          , [1,  4,  5]
+          , [3,  2,  6]
+          , [3,  6,  7]
+        ];
+        vs = vs.concat(faces.flatMap(f => f.flatMap(i => points[i])).flat());
+      }
+
+      if(vs.length > 0){
+        let geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(vs),3));
+        geometry.computeVertexNormals();
+
+        let color = pierColor;
+        if(materialmemo[color] === undefined){
+          materialmemo[color] = new THREE.MeshStandardMaterial({color: color, side: THREE.DoubleSide});
+        }
+        return [new THREE.Mesh(geometry, materialmemo[color])];
+      }
+
+      return [];
+    }
+
+    function easeFlash(_t){
+      const a = 0.5;
+      let t = _t%1;
+      return t*(a*2-t)/(a*a);
+    }
+
+    const selectionColor = "#ffff00";
+    const selectionMaterial = new THREE.MeshBasicMaterial({color: selectionColor, transparent:true, side: THREE.DoubleSide});
+    const meshSelectionMark = (()=>{
+        let w = 0.1;
+        let h = 0.1;
+        let d = -0.15;
+        let points = [
+          {x: + Math.sin(0)*w/2 + Math.cos(0)*(  d), y: - Math.cos(0)*w/2 + Math.sin(0)*(  d), z: 0 + layerheight * 12},
+          {x: - Math.sin(0)*w/2 + Math.cos(0)*(  d), y: + Math.cos(0)*w/2 + Math.sin(0)*(  d), z: 0 + layerheight * 12},
+          {x:                   + Math.cos(0)*(h+d), y:                   + Math.sin(0)*(h+d), z: 0 + layerheight * 12},
+        ].map(a3);
+
+        let geometry = new THREE.BufferGeometry();
+        let faces = [[0, 1, 2]];
+        let vertices = new Float32Array(faces.flatMap(f => f.flatMap(i => points[i])).flat());
+        geometry.setAttribute('position',new THREE.BufferAttribute(vertices,3));
+        geometry.computeVertexNormals();
+
+        let mesh = new THREE.Mesh(geometry, selectionMaterial);
+
+        return mesh;
+    })();
+    scene.add(meshSelectionMark);
+
+    function updateMeshSelectionMark(layout, selectedJoint){
+      let p = P.getJointAbsPos(layout)(selectedJoint.nodeid)(selectedJoint.jointid).value0;
+      if(p !== undefined){
+        //camera.lookAt(v3(p.coord));
+        let a = a3(p.coord);
+        meshSelectionMark.position.set(a[0], a[1], a[2]);
+        meshSelectionMark.rotation.y = p.angle;
+      }
+
+      selectionMaterial.opacity = easeFlash(tickcount/60 /1);
+    }
+
+
+
+    function meshsTrain({cars, trainid}){
+      if(meshtrainmemo.length <= trainid){
+        for(let i=meshtrainmemo.length; i<=trainid; i++) meshtrainmemo.push([]);
+      }
+      if(meshtrainmemo[trainid].length == cars.length){
+        cars.forEach((c,i) => {
+            let chead = v3(c.head.r.coord).add(v3(c.head.l.coord)).divideScalar(2);
+            let ctail = v3(c.tail.r.coord).add(v3(c.tail.l.coord)).divideScalar(2);
+            let n = chead.clone().sub(ctail).normalize();
+            meshtrainmemo[trainid][i].position.copy(chead);
+
+            meshtrainmemo[trainid][i].rotation.copy(new THREE.Euler( Math.asin(n.y), Math.atan2(-n.x, -n.z), 0, 'ZYX' ));
+          });
+        return {
+            trainid
+          , objects: meshtrainmemo[trainid]
+        };
+      }
+      cars.forEach((c,i) => {
+          let obj = new THREE.Object3D();
+
+          if(models.hasOwnProperty(c.type.type)){
+            obj.add(models[c.type.type].clone(true));
+          }else{
+            const geometry = new THREE.BoxGeometry( 3.8, 5.0, 10.0 );
+            const material = new THREE.MeshStandardMaterial( { color: 0x442200 * (6 - i) } );
+            const cube = new THREE.Mesh( geometry, material );
+            cube.position.set(0, 3.0, -7.0);
+            obj.add(cube);
+          }
+
+          meshtrainmemo[trainid][i] = obj;
+          let chead = v3(c.head.r.coord).add(c.head.l.coord).divideScalar(2);
+          let ctail = v3(c.tail.r.coord).add(c.tail.l.coord).divideScalar(2);
+          let n = chead.clone().sub(ctail).normalize();
+          meshtrainmemo[trainid][i].position.copy(chead);
+          meshtrainmemo[trainid][i].rotation = new THREE.Euler( Math.asin(n.y), Math.atan2(n.x, n.z), 0, 'ZYX' );;
+        });
+
+
+      return {
+          trainid
+        , objects: meshtrainmemo[trainid]
+      };
+    }
+
+  </script>
+  <script defer>
+    import("./main.js").then((e)=>{P = e; main();});
+  </script>
+  <span id="coord"></span>
+</body>
+</html>

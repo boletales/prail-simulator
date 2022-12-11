@@ -3866,7 +3866,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
         if (j instanceof JointOuterMain) {
           if (v.outerturnout) {
             return {
-              newjoint: JointOuterSub.value,
+              newjoint: JointOuterEnter.value,
               newstate: {
                 innerturnout: v.innerturnout,
                 outerturnout: false
@@ -3876,7 +3876,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
           }
           ;
           return {
-            newjoint: JointOuterMain.value,
+            newjoint: JointOuterEnter.value,
             newstate: {
               innerturnout: v.innerturnout,
               outerturnout: false
@@ -3888,7 +3888,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
         if (j instanceof JointOuterSub) {
           if (v.outerturnout) {
             return {
-              newjoint: JointOuterSub.value,
+              newjoint: JointOuterEnter.value,
               newstate: {
                 innerturnout: v.innerturnout,
                 outerturnout: true
@@ -3898,7 +3898,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
           }
           ;
           return {
-            newjoint: JointOuterMain.value,
+            newjoint: JointOuterEnter.value,
             newstate: {
               innerturnout: v.innerturnout,
               outerturnout: true
@@ -3926,7 +3926,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
         if (j instanceof JointInnerMain) {
           if (v.innerturnout) {
             return {
-              newjoint: JointInnerSub.value,
+              newjoint: JointOuterEnter.value,
               newstate: {
                 innerturnout: false,
                 outerturnout: v.outerturnout
@@ -3936,7 +3936,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
           }
           ;
           return {
-            newjoint: JointInnerMain.value,
+            newjoint: JointOuterEnter.value,
             newstate: {
               innerturnout: false,
               outerturnout: v.outerturnout
@@ -3948,7 +3948,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
         if (j instanceof JointInnerSub) {
           if (v.innerturnout) {
             return {
-              newjoint: JointInnerSub.value,
+              newjoint: JointOuterEnter.value,
               newstate: {
                 innerturnout: true,
                 outerturnout: v.outerturnout
@@ -3958,7 +3958,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
           }
           ;
           return {
-            newjoint: JointInnerMain.value,
+            newjoint: JointOuterEnter.value,
             newstate: {
               innerturnout: true,
               outerturnout: v.outerturnout
@@ -3967,7 +3967,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 566, column 7 - line 590, column 116): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 566, column 7 - line 590, column 117): " + [j.constructor.name]);
       };
     }
   });

@@ -566,28 +566,28 @@ doubleTurnoutLPlusRail =
       case j of
         JointOuterEnter -> 
           if s.outerturnout
-            then {newjoint: JointOuterSub , newstate: (StateDP s), shape: ros}
-            else {newjoint: JointOuterMain, newstate: (StateDP s), shape: rom}
+            then {newjoint: JointOuterSub  , newstate: (StateDP s), shape: ros}
+            else {newjoint: JointOuterMain , newstate: (StateDP s), shape: rom}
         JointOuterMain  -> 
           if s.outerturnout
-            then {newjoint: JointOuterSub , newstate: (StateDP $ s{outerturnout = false}), shape: reverseShapes rom}
-            else {newjoint: JointOuterMain, newstate: (StateDP $ s{outerturnout = false}), shape: reverseShapes rom}
+            then {newjoint: JointOuterEnter, newstate: (StateDP $ s{outerturnout = false}), shape: reverseShapes rom}
+            else {newjoint: JointOuterEnter, newstate: (StateDP $ s{outerturnout = false}), shape: reverseShapes rom}
         JointOuterSub   -> 
           if s.outerturnout
-            then {newjoint: JointOuterSub , newstate: (StateDP $ s{outerturnout = true}), shape: reverseShapes ros}
-            else {newjoint: JointOuterMain, newstate: (StateDP $ s{outerturnout = true}), shape: reverseShapes ros}
+            then {newjoint: JointOuterEnter, newstate: (StateDP $ s{outerturnout = true}), shape: reverseShapes ros}
+            else {newjoint: JointOuterEnter, newstate: (StateDP $ s{outerturnout = true}), shape: reverseShapes ros}
         JointInnerEnter -> 
           if s.innerturnout
-            then {newjoint: JointInnerSub , newstate: (StateDP s), shape: ris}
-            else {newjoint: JointInnerMain, newstate: (StateDP s), shape: rim}
+            then {newjoint: JointInnerSub  , newstate: (StateDP s), shape: ris}
+            else {newjoint: JointInnerMain , newstate: (StateDP s), shape: rim}
         JointInnerMain  -> 
           if s.innerturnout
-            then {newjoint: JointInnerSub , newstate: (StateDP $ s{innerturnout = false}), shape: reverseShapes rim}
-            else {newjoint: JointInnerMain, newstate: (StateDP $ s{innerturnout = false}), shape: reverseShapes rim}
+            then {newjoint: JointOuterEnter, newstate: (StateDP $ s{innerturnout = false}), shape: reverseShapes rim}
+            else {newjoint: JointOuterEnter, newstate: (StateDP $ s{innerturnout = false}), shape: reverseShapes rim}
         JointInnerSub   -> 
           if s.innerturnout
-            then {newjoint: JointInnerSub , newstate: (StateDP $ s{innerturnout = true}), shape: reverseShapes ris}
-            else {newjoint: JointInnerMain, newstate: (StateDP $ s{innerturnout = true}), shape: reverseShapes ris}
+            then {newjoint: JointOuterEnter, newstate: (StateDP $ s{innerturnout = true}), shape: reverseShapes ris}
+            else {newjoint: JointOuterEnter, newstate: (StateDP $ s{innerturnout = true}), shape: reverseShapes ris}
   }
 
 doubleTurnoutRPlusRail = flipRail doubleTurnoutLPlusRail

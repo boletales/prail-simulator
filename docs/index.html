@@ -18,6 +18,7 @@
   <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js" integrity="sha256-80RGv4dbX7Dc2TgZ/+HZ4YLUZjTuhV9dkExsSsfNvJU=" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/FBXLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/utils/BufferGeometryUtils.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/fflate@0.7.4/umd/index.min.js"></script>
   <script>
 
@@ -101,15 +102,42 @@
 
 
     let meshrailmemo = [];
+    let geometryrailmemo = [];
     let meshtrainmemo = [];
     let materialmemo = [];
+    let staticgeometrymemo = [];
+    let staticmeshmemo = [];
+    function mergeMeshData(mds){
+      return mds.reduce((d, e)=>{
+        Object.keys(e.geometry).forEach(c=>{
+                  if(d.geometry[c] === undefined){
+                    d.geometry[c] = [];
+                  }
+                  d.geometry[c].push(...e.geometry[c]);
+              });
+        Object.keys(e.geometryshadow).forEach(c=>{
+                  if(d.geometryshadow[c] === undefined){
+                    d.geometryshadow[c] = [];
+                  }
+                  d.geometryshadow[c].push(...e.geometryshadow[c]);
+              });
+        d.mesh.push(...e.mesh);
+        return d;
+      },{geometry: {}, geometryshadow:{}, mesh:[]});
+    }
+
+    let lastupdate = -1;
     let scenememo = {rails: [], trains: []};
 
     clearCache = () => {
       meshrailmemo.forEach(r => r.forEach(x => x.forEach(m => {scene.remove(m); m.geometry.dispose();})));
       meshrailmemo = [];
+      geometryrailmemo = [];
       meshtrainmemo = [];
+      staticgeometrymemo = [];
+      staticmeshmemo = [];
       scenememo = {rails:[], trains: []};
+      lastupdate = -1;
     }
 
     const loader = new THREE.FBXLoader();
@@ -195,19 +223,46 @@
       let existancememo_trains_old = [];
       let existancememo_trains = [];
 
-
       let ldi = P.layoutDrawInfo(layout);
-      ldi.rails.forEach((di) => {
-        scenememo.rails[di.instance.instanceid] = meshsRail(di);
-      });
-      rails_old.forEach(r => {
-        existancememo_rails_old[r.instanceid] = r.state
-      });
-      scenememo.rails.forEach(r => {
-        existancememo_rails[r.instanceid] = r.state;
-      });
-      existancememo_rails    .forEach((s, i) =>{if(s !== existancememo_rails_old[i] && s!==undefined && scenememo.rails[i]!==undefined) scenememo.rails[i].meshs.forEach(mesh => scene.add   (mesh))});
-      existancememo_rails_old.forEach((s, i) =>{if(s !== existancememo_rails    [i]                  && rails_old      [i]!==undefined) rails_old      [i].meshs.forEach(mesh => scene.remove(mesh))});
+
+      if(lastupdate != layout.updatecount){
+        lastupdate = layout.updatecount;
+        staticgeometrymemo.forEach(g => {g.dispose(); });
+        let railexists = Array(layout.instancecount).fill(false);
+        layout.rails.forEach(r=>railexists[r.node.nodeid] = true);
+        railexists.forEach((e,i) => {if(!e && meshrailmemo[i] !== undefined) meshrailmemo[i].forEach(d => {
+          Object.keys(d.geometry).forEach(c => d.geometry[c].forEach(g => g.dispose()));
+          d.mesh.forEach(m => m.geometry.dispose());
+        })});
+        staticmeshmemo.forEach(m => {scene.remove(m); });
+        let data = mergeMeshData(ldi.rails.map(updateRailGeometory));
+        Object.keys(data.geometry).forEach(c => {
+          if(materialmemo[c] === undefined){
+            materialmemo[c] = new THREE.MeshStandardMaterial({color: c, side: THREE.DoubleSide});
+          }
+          let geometry = THREE.BufferGeometryUtils.mergeBufferGeometries(data.geometry[c])
+          let mesh = new THREE.Mesh(geometry, materialmemo[c]);
+          staticgeometrymemo.push(geometry);
+          staticmeshmemo.push(mesh);
+          scene.add(mesh);
+        });
+        Object.keys(data.geometryshadow).forEach(c => {
+          if(materialmemo[c] === undefined){
+            materialmemo[c] = new THREE.MeshStandardMaterial({color: c, side: THREE.DoubleSide});
+          }
+          let geometry = THREE.BufferGeometryUtils.mergeBufferGeometries(data.geometryshadow[c]);
+          let mesh = new THREE.Mesh(geometry, materialmemo[c]);
+          staticgeometrymemo.push(geometry);
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+          staticmeshmemo.push(mesh);
+          scene.add(mesh);
+        });
+        data.mesh.forEach((mesh)=>{
+          staticmeshmemo.push(mesh);
+          scene.add(mesh);
+        })
+      }
       
       
       ldi.trains.forEach((di) => {
@@ -232,31 +287,24 @@
       }
     }
 
-    function meshsRail({rails : rails, additionals: additionals, joints : joints, instance: instance}){
+    function updateRailGeometory({rails : rails, additionals: additionals, joints : joints, instance: instance}){
       let instanceid = instance.instanceid;
       let state = instance.node.state;
       if(meshrailmemo.length <= instanceid){
         for(let i=meshrailmemo.length-1; i<=instanceid; i++) meshrailmemo.push([]);
       }
-      if(meshrailmemo[instanceid][state] !== undefined){
-        return {
-            instanceid
-          , state
-          , meshs: meshrailmemo[instanceid][state]
-        };
-      }
-      let meshs = [];
-      rails.forEach((p, i) => meshs.push(meshRailPart(p, i)));
-      joints.forEach((p) => {if(p.isPlus) meshs.push(meshJoint(p)) });
-      joints.forEach((p) => {meshsPier(p).forEach(m => meshs.push(m))});
-      joints.forEach((p, i) => {meshs.push(meshJointButton(p, instanceid, i))});
 
-      meshrailmemo[instanceid][state] = meshs;
-      return {
-          instanceid
-        , state
-        , meshs
-      };
+      if(meshrailmemo[instanceid][state] !== undefined){
+        return meshrailmemo[instanceid][state];
+      }
+      let data = [];
+      rails.forEach((p, i) => data.push(meshRailPart(p, i)));
+      joints.forEach((p) => {if(p.isPlus) data.push(meshJoint(p)) });
+      joints.forEach((p) => {data.push(meshsPier(p))});
+      joints.forEach((p, i) => {data.push(meshJointButton(p, instanceid, i))});
+
+      meshrailmemo[instanceid][state] = mergeMeshData(data.flat());
+      return meshrailmemo[instanceid][state];
     }
 
     function meshRailPart(part, index){
@@ -291,14 +339,15 @@
       if(materialmemo[color] === undefined){
         materialmemo[color] = new THREE.MeshStandardMaterial({color: color, roughness:1.0})
       }
-      let mesh = new THREE.Mesh(geometry, materialmemo[color]);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      mesh.matrixAutoUpdate = false;
-
       //let mesh = new THREE.Mesh(geometry, materialmemo[color]);
-
-      return mesh;
+      //mesh.castShadow = true;
+      //mesh.receiveShadow = true;
+      //mesh.matrixAutoUpdate = false;
+      
+      //let mesh = new THREE.Mesh(geometry, materialmemo[color]);
+      let data = {mesh: [], geometry: {}, geometryshadow:{}};
+      data.geometryshadow[color] = [geometry];
+      return data;
     }
 
     const jointColor = "#018";
@@ -322,10 +371,11 @@
         if(materialmemo[color] === undefined){
           materialmemo[color] = new THREE.MeshBasicMaterial({color: color, side: THREE.DoubleSide});
         }
-        let mesh = new THREE.Mesh(geometry, materialmemo[color]);
-        mesh.matrixAutoUpdate = false;
 
-        return mesh;
+        let data = {mesh: [], geometry: {}, geometryshadow:{}};
+        data.geometry[color] = [geometry];
+        return data;
+
     }
     
     let transparentButtonMaterial = new THREE.MeshBasicMaterial({visible: false, side: THREE.DoubleSide});
@@ -352,7 +402,8 @@
         mesh.isJoint = true;
         mesh.jointInfo = {instanceid: instanceid, jointid:jointid};
 
-        return mesh;
+        let data = {mesh: [mesh], geometry: {}, geometryshadow:{}};
+        return data;
     }
 
     const pierColor = "#dddd00";
@@ -453,9 +504,10 @@
         if(materialmemo[color] === undefined){
           materialmemo[color] = new THREE.MeshStandardMaterial({color: color, side: THREE.DoubleSide});
         }
-        let mesh = new THREE.Mesh(geometry, materialmemo[color]);
-        mesh.matrixAutoUpdate = false;
-        return [mesh];
+
+        let data = {mesh: [], geometry: {}, geometryshadow:{}};
+        data.geometry[color] = [geometry];
+        return data;
       }
 
       return [];

@@ -31,15 +31,16 @@ module Internal.Layout
   where
 
 import Data.Array
+import Data.Either
 import Data.Int
 import Data.Maybe
-import Data.Either
 import Data.Newtype
 import Internal.Types
 import Prelude
 
 import Control.Monad.List.Trans (foldl')
 import Data.Foldable (foldM, sum)
+import Data.Function (on)
 
 newtype SectionArray a = SectionArray {
     arraydata :: Array a,
@@ -113,7 +114,7 @@ newtype Layout = Layout {
     trains :: Array Trainset,
     instancecount :: Int,
     traincount :: Int,
-    lastupdate :: Int,
+    updatecount :: Int,
     jointData :: SectionArray (SectionArray (SectionArray (Array JointData)))
   }
 derive instance Newtype Layout _
@@ -326,7 +327,8 @@ addRailWithPos (Layout layout) (RailNode node) pos =
               <> [RailInstance {node:newnode, instanceid: layout.instancecount, pos:pos}]
         in Just $ (\l -> foldl (\l' {jointid: j, pos: p} -> addJoint l' p node.nodeid j) l joints)
                     $ Layout $ layout{
-                            rails = newrails
+                            updatecount = layout.updatecount + 1
+                          , rails = newrails
                           , instancecount =  layout.instancecount + 1
                     }
       else Nothing
@@ -363,6 +365,7 @@ shiftRailIndex deleted (RailInstance r) =
 
 removeRail :: Layout -> Int -> Layout
 removeRail (Layout layout) nodeid = Layout $ layout {
+    updatecount = layout.updatecount + 1,
     rails = (\(RailInstance r) -> 
               shiftRailIndex nodeid $ 
               RailInstance $ r {
@@ -411,8 +414,8 @@ moveTrains dt (Layout layout) =
       in Layout $ (unwrap newlayout) {trains = (unwrap newlayout).trains <> [newtrainset]}
     ) (Layout $ layout {trains = []}) (layout.trains)
 
-flipTrain :: Layout -> Trainset -> Trainset
-flipTrain (Layout layout) (Trainset t0) = Trainset $ t0 {
+flipTrain :: Trainset -> Trainset
+flipTrain (Trainset t0) = Trainset $ t0 {
     --  types = reverse $ (\(CarType t) -> CarType $ t {flipped = not t.flipped}) <$> t0.types
       route = reverse $ (\(Route r) -> Route $ r {jointid = (updateRailInstance r.railinstance r.jointid).newjoint, shapes = reverseShapes r.shapes}) <$> t0.route 
     , distanceToNext     = t0.distanceFromOldest
@@ -451,7 +454,16 @@ movefoward (Layout layout) (Trainset t0) dt =
                         ] <> t2.route
                     , distanceToNext = t2.distanceToNext + slength
                   }
-                Just {newlayout : Layout $ layout {rails = fromMaybe layout.rails $ updateAt cdata.nodeid routedata.instance layout.rails}, newtrainset : t3}
+                Just {newlayout :
+                  let oldrail = layout.rails !! cdata.nodeid
+                  in  if on (==) (map (\x -> (unwrap (unwrap x).node).state)) oldrail (Just routedata.instance)
+                        then Layout layout
+                        else 
+                          Layout $ layout {
+                              updatecount = layout.updatecount + 1
+                            , rails = fromMaybe layout.rails $ updateAt cdata.nodeid routedata.instance layout.rails
+                          }
+                , newtrainset : t3}
               ) of
             Just x -> x
             Nothing -> 

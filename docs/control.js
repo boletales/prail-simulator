@@ -3,6 +3,7 @@ const RAILLENGTH = 21.4;
 const RAILWIDTH = 3.8;
 const HEIGHTUNIT = 7.5;
 
+let stopped = false;
 let P, layout;
 let selectedJoint = {nodeid:0, jointid:1};
 let from = 0;
@@ -213,6 +214,9 @@ function onkey(e){
     
     case "4":
       focusJoint();
+      break;
+    case " ":
+      stopped = !stopped;
       break;
   
     default:

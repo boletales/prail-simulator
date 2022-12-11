@@ -157,7 +157,7 @@
       if(time.length > 120){
         time.shift();
       }
-      layout = P.layoutTick(layout);
+      if(!stopped ) layout = P.layoutTick(layout);
       if(tickcount % tickrate == 0){
         draw(layout);
       }

@@ -5064,7 +5064,7 @@ var splitSize = function(shape) {
     return 1;
   }
   ;
-  return 10;
+  return 5;
 };
 var shapeToData = function(v) {
   var a2 = toRadian(v.end.angle);

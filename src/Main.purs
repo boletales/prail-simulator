@@ -242,7 +242,7 @@ splitSize shape =
   if    on (==) (\p -> (unwrap (unwrap p).coord).z) (unwrap shape).start (unwrap shape).end
      && reverseAngle (unwrap (unwrap shape).start).angle == (unwrap (unwrap shape).end).angle
   then 1
-  else 10
+  else 5
 
 shapeToData ::  RailShape Pos -> Foreign
 shapeToData (RailShape shape) = 

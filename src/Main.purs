@@ -49,6 +49,7 @@ defaultLayout =
     in ((\l -> foldl (\l' j -> addJoint l' (jrel j) node.nodeid j) l (unwrap node.rail).getJoints) $ Layout {
           instancecount: 1,
           traincount: 0,
+          lastupdate: 0,
           rails : [rinst],
           trains : [],
           jointData : saEmpty,
@@ -99,6 +100,7 @@ encodeTrainset (Trainset {
     , distanceFromOldest
     , speed
     , trainid
+    , flipped
   }) = Trainset {
       types
     , route : encodeRoute <$> route
@@ -106,6 +108,7 @@ encodeTrainset (Trainset {
     , distanceFromOldest
     , speed
     , trainid
+    , flipped
   }
 
 encodeRoute :: Route -> EncodedRoute
@@ -153,6 +156,7 @@ decodeTrainset rs (Trainset {
     , distanceFromOldest
     , speed
     , trainid
+    , flipped
   }) = Trainset {
       types
     , route : decodeRoute rs <$> route
@@ -160,6 +164,7 @@ decodeTrainset rs (Trainset {
     , distanceFromOldest
     , speed
     , trainid
+    , flipped
   }
 
 decodeRoute :: Array RailInstance ->  EncodedRoute -> Route
@@ -219,6 +224,7 @@ decodeLayout' {rails: rarr, trains: tarr, version: ver} =
           jointData:saEmpty, 
           rails:(\(RailInstance ri) -> RailInstance $ ri {instanceid = (unwrap (ri.node)).nodeid})<$>rs,
           trains : ts,
+          lastupdate: 0,
           instancecount: length rs,
           traincount: 1 + foldl (\x (Trainset t) -> Prelude.max x t.trainid) (-1) ts,
           version: ver

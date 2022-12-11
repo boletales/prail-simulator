@@ -16,6 +16,7 @@ module Internal.Layout
   , addRail
   , addTrainset
   , autoAdd
+  , flipTrain
   , getJointAbsPos
   , getJoints
   , getNewRailPos
@@ -112,6 +113,7 @@ newtype Layout = Layout {
     trains :: Array Trainset,
     instancecount :: Int,
     traincount :: Int,
+    lastupdate :: Int,
     jointData :: SectionArray (SectionArray (SectionArray (Array JointData)))
   }
 derive instance Newtype Layout _
@@ -132,6 +134,7 @@ wheelMargin = 2.0 / 21.4
 newtype TrainsetDrawInfo = TrainsetDrawInfo ({
       trainid :: Int
     , cars :: Array {head :: {r :: Pos, l :: Pos}, tail :: {r :: Pos, l :: Pos}, type :: CarType}
+    , flipped :: Boolean
   })
 trainsetDrawInfo :: Trainset -> TrainsetDrawInfo
 trainsetDrawInfo (Trainset t) =
@@ -157,8 +160,8 @@ trainsetDrawInfo (Trainset t) =
       getpos d w = getpos' w d 0
 
       -- headpos = (fromMaybe 0.0 (((flip bind) (unwrap >>> _.shapes) >>> head >>> map (unwrap >>> _.length)) t.route)) - 
-  in  TrainsetDrawInfo $ {trainid : t.trainid, cars: mapWithIndex (\i ct -> 
-          let d = ((toNumber i) * (carLength + carMargin) - carMargin) + t.distanceToNext
+  in  TrainsetDrawInfo $ {flipped : t.flipped, trainid : t.trainid, cars: mapWithIndex (\i ct -> 
+          let d = ((toNumber i) * (carLength + carMargin)) + t.distanceToNext
               dh = d + wheelMargin
               dt = d + carLength - wheelMargin
           in {type : ct, head : {r : getpos dh (-wheelWidth/2.0), l : getpos dh ( wheelWidth/2.0)}, tail : {r : getpos dt (-wheelWidth/2.0), l : getpos dt ( wheelWidth/2.0)}}
@@ -196,6 +199,7 @@ addTrainset (Layout layout) nodeid jointid types =
                 , distanceFromOldest : 0.0
                 , speed : 0.0
                 , trainid : layout.traincount
+                , flipped : false
               }
           
   in  fromMaybe (Layout layout) (do
@@ -396,6 +400,7 @@ newtype Trainset_ x = Trainset {
     , distanceFromOldest :: Number
     , speed :: Number
     , trainid :: Int
+    , flipped :: Boolean
   }
 derive instance Newtype (Trainset_ x) _
 
@@ -405,6 +410,15 @@ moveTrains dt (Layout layout) =
       let {newlayout, newtrainset} = movefoward l t dt
       in Layout $ (unwrap newlayout) {trains = (unwrap newlayout).trains <> [newtrainset]}
     ) (Layout $ layout {trains = []}) (layout.trains)
+
+flipTrain :: Layout -> Trainset -> Trainset
+flipTrain (Layout layout) (Trainset t0) = Trainset $ t0 {
+    --  types = reverse $ (\(CarType t) -> CarType $ t {flipped = not t.flipped}) <$> t0.types
+      route = reverse $ (\(Route r) -> Route $ r {jointid = (updateRailInstance r.railinstance r.jointid).newjoint, shapes = reverseShapes r.shapes}) <$> t0.route 
+    , distanceToNext     = t0.distanceFromOldest
+    , distanceFromOldest = t0.distanceToNext
+    , flipped = not t0.flipped
+  }
 
 movefoward :: Layout -> Trainset -> Number -> {newlayout :: Layout, newtrainset :: Trainset}
 movefoward (Layout layout) (Trainset t0) dt =

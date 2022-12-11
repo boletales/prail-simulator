@@ -2102,8 +2102,8 @@ var updateRailInstance = function(v) {
 };
 var shiftIndex = function(deleted) {
   return function(i) {
-    var $121 = i < deleted;
-    if ($121) {
+    var $127 = i < deleted;
+    if ($127) {
       return i;
     }
     ;
@@ -2137,8 +2137,8 @@ var saModifyAt = function(i) {
   return function(d) {
     return function(f) {
       return function(v) {
-        var $128 = i < v.head;
-        if ($128) {
+        var $134 = i < v.head;
+        if ($134) {
           return {
             arraydata: append2([f(Nothing.value)])(append2(replicate((v.head - i | 0) - 1 | 0)(d))(v.arraydata)),
             head: i,
@@ -2146,8 +2146,8 @@ var saModifyAt = function(i) {
           };
         }
         ;
-        var $129 = v.end <= i;
-        if ($129) {
+        var $135 = v.end <= i;
+        if ($135) {
           return {
             arraydata: append2(v.arraydata)(append2(replicate(i - v.end | 0)(d))([f(Nothing.value)])),
             head: v.head,
@@ -2156,8 +2156,8 @@ var saModifyAt = function(i) {
         }
         ;
         return {
-          arraydata: fromMaybe(v.arraydata)(modifyAt(i - v.head | 0)(function($240) {
-            return f(Just.create($240));
+          arraydata: fromMaybe(v.arraydata)(modifyAt(i - v.head | 0)(function($249) {
+            return f(Just.create($249));
           })(v.arraydata)),
           head: v.head,
           end: v.end
@@ -2200,19 +2200,20 @@ var removeRail = function(v) {
       trains: v.trains,
       instancecount: v.instancecount,
       traincount: v.traincount,
+      lastupdate: v.lastupdate,
       jointData: map22(map22(map22(function() {
-        var $241 = map5(function(v2) {
+        var $250 = map5(function(v2) {
           return {
             pos: v2.pos,
             nodeid: shiftIndex(nodeid)(v2.nodeid),
             jointid: v2.jointid
           };
         });
-        var $242 = filter(function(v2) {
+        var $251 = filter(function(v2) {
           return v2.nodeid !== nodeid;
         });
-        return function($243) {
-          return $241($242($243));
+        return function($252) {
+          return $250($251($252));
         };
       }())))(v.jointData)
     };
@@ -2233,7 +2234,8 @@ var movefoward = function($copy_v) {
           distanceToNext: v1.distanceToNext - dx,
           distanceFromOldest: v1.distanceFromOldest + dx,
           speed: v1.speed,
-          trainid: v1.trainid
+          trainid: v1.trainid,
+          flipped: v1.flipped
         };
         var v3 = function() {
           var v42 = unsnoc(v2.route);
@@ -2242,8 +2244,8 @@ var movefoward = function($copy_v) {
           }
           ;
           if (v42 instanceof Just) {
-            var $144 = v2.distanceFromOldest <= v42.value0.last.length;
-            if ($144) {
+            var $150 = v2.distanceFromOldest <= v42.value0.last.length;
+            if ($150) {
               return v2;
             }
             ;
@@ -2253,14 +2255,15 @@ var movefoward = function($copy_v) {
               distanceToNext: v2.distanceToNext,
               distanceFromOldest: v2.distanceFromOldest - v42.value0.last.length,
               speed: v2.speed,
-              trainid: v2.trainid
+              trainid: v2.trainid,
+              flipped: v2.flipped
             };
           }
           ;
-          throw new Error("Failed pattern match at Internal.Layout (line 414, column 9 - line 419, column 101): " + [v42.constructor.name]);
+          throw new Error("Failed pattern match at Internal.Layout (line 428, column 9 - line 433, column 101): " + [v42.constructor.name]);
         }();
-        var $149 = 0 <= v3.distanceToNext;
-        if ($149) {
+        var $155 = 0 <= v3.distanceToNext;
+        if ($155) {
           $tco_done = true;
           return {
             newlayout: v,
@@ -2287,7 +2290,8 @@ var movefoward = function($copy_v) {
                 distanceToNext: v3.distanceToNext + slength,
                 distanceFromOldest: v3.distanceFromOldest,
                 speed: v3.speed,
-                trainid: v3.trainid
+                trainid: v3.trainid,
+                flipped: v3.flipped
               };
               return new Just({
                 newlayout: {
@@ -2296,6 +2300,7 @@ var movefoward = function($copy_v) {
                   trains: v.trains,
                   instancecount: v.instancecount,
                   traincount: v.traincount,
+                  lastupdate: v.lastupdate,
                   jointData: v.jointData
                 },
                 newtrainset: t3
@@ -2309,8 +2314,8 @@ var movefoward = function($copy_v) {
         }
         ;
         if (v4 instanceof Nothing) {
-          var $153 = v3.distanceToNext === 0;
-          if ($153) {
+          var $159 = v3.distanceToNext === 0;
+          if ($159) {
             $tco_done = true;
             return {
               newlayout: v,
@@ -2324,7 +2329,7 @@ var movefoward = function($copy_v) {
           return;
         }
         ;
-        throw new Error("Failed pattern match at Internal.Layout (line 423, column 13 - line 444, column 185): " + [v4.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Layout (line 437, column 13 - line 458, column 185): " + [v4.constructor.name]);
       }
       ;
       while (!$tco_done) {
@@ -2347,6 +2352,7 @@ var moveTrains = function(dt) {
           trains: append2(unwrap4(v1.newlayout).trains)([v1.newtrainset]),
           instancecount: v2.instancecount,
           traincount: v2.traincount,
+          lastupdate: v2.lastupdate,
           jointData: v2.jointData
         };
       };
@@ -2356,6 +2362,7 @@ var moveTrains = function(dt) {
       trains: [],
       instancecount: v.instancecount,
       traincount: v.traincount,
+      lastupdate: v.lastupdate,
       jointData: v.jointData
     })(v.trains);
   };
@@ -2375,13 +2382,13 @@ var getJoints = function(v) {
   return function(joint) {
     var getrange = function(r) {
       var i = round2(r);
-      var $162 = round2(r - 0.1) < i;
-      if ($162) {
+      var $168 = round2(r - 0.1) < i;
+      if ($168) {
         return [i - 1 | 0, i];
       }
       ;
-      var $163 = i < round2(r + 0.1);
-      if ($163) {
+      var $169 = i < round2(r + 0.1);
+      if ($169) {
         return [i, i + 1 | 0];
       }
       ;
@@ -2425,17 +2432,38 @@ var getNewRailPos = function(v) {
         }
         ;
         if (mposofzero instanceof Just) {
-          var $171 = fromMaybe(false)(map14(canJoin(toAbsPos(mposofzero.value0)(jrel(v2.from))))(getJointAbsPos(v)(v2.nodeid)(v2.jointid)));
-          if ($171) {
+          var $177 = fromMaybe(false)(map14(canJoin(toAbsPos(mposofzero.value0)(jrel(v2.from))))(getJointAbsPos(v)(v2.nodeid)(v2.jointid)));
+          if ($177) {
             return new Just(mposofzero);
           }
           ;
           return Nothing.value;
         }
         ;
-        throw new Error("Failed pattern match at Internal.Layout (line 273, column 11 - line 280, column 27): " + [mposofzero.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Layout (line 277, column 11 - line 284, column 27): " + [mposofzero.constructor.name]);
       };
     })(Nothing.value)(v1.connections));
+  };
+};
+var flipTrain = function(v) {
+  return function(v1) {
+    return {
+      types: v1.types,
+      route: reverse(map5(function(v3) {
+        return {
+          nodeid: v3.nodeid,
+          jointid: updateRailInstance(v3.railinstance)(v3.jointid).newjoint,
+          railinstance: v3.railinstance,
+          shapes: reverseShapes(v3.shapes),
+          length: v3.length
+        };
+      })(v1.route)),
+      distanceToNext: v1.distanceFromOldest,
+      distanceFromOldest: v1.distanceToNext,
+      speed: v1.speed,
+      trainid: v1.trainid,
+      flipped: !v1.flipped
+    };
   };
 };
 var carMargin = /* @__PURE__ */ function() {
@@ -2458,8 +2486,8 @@ var trainsetDrawInfo = function(v) {
         function $tco_loop(w, d$prime, i) {
           var v1 = index(shapes)(i);
           if (v1 instanceof Just) {
-            var $179 = v1.value0.length < d$prime;
-            if ($179) {
+            var $188 = v1.value0.length < d$prime;
+            if ($188) {
               $tco_var_w = w;
               $tco_var_d$prime = d$prime - v1.value0.length;
               $copy_i = i + 1 | 0;
@@ -2475,7 +2503,7 @@ var trainsetDrawInfo = function(v) {
             return poszero;
           }
           ;
-          throw new Error("Failed pattern match at Internal.Layout (line 150, column 9 - line 155, column 29): " + [v1.constructor.name]);
+          throw new Error("Failed pattern match at Internal.Layout (line 153, column 9 - line 158, column 29): " + [v1.constructor.name]);
         }
         ;
         while (!$tco_done) {
@@ -2492,10 +2520,11 @@ var trainsetDrawInfo = function(v) {
     };
   };
   return {
+    flipped: v.flipped,
     trainid: v.trainid,
     cars: mapWithIndex(function(i) {
       return function(ct) {
-        var d = toNumber(i) * (carLength + carMargin) - carMargin + v.distanceToNext;
+        var d = toNumber(i) * (carLength + carMargin) + v.distanceToNext;
         var dh = d + wheelMargin;
         var dt = d + carLength - wheelMargin;
         return {
@@ -2541,8 +2570,8 @@ var addTrainset = function(v) {
                 return bind2(index(v.rails)(nid))(function(rail) {
                   var info = updateRailInstance(rail)(jid);
                   var lenhere = sum2(map5(shapeLength)(info.shapes));
-                  var $188 = lenhere < len;
-                  if ($188) {
+                  var $197 = lenhere < len;
+                  if ($197) {
                     return bind2(find2(function(c) {
                       return c.from === info.newjoint;
                     })(unwrap4(unwrap4(rail).node).connections))(function(cdata) {
@@ -2568,7 +2597,8 @@ var addTrainset = function(v) {
                     distanceToNext: lenhere - len,
                     distanceFromOldest: 0,
                     speed: 0,
-                    trainid: v.traincount
+                    trainid: v.traincount,
+                    flipped: false
                   });
                 });
               };
@@ -2586,6 +2616,7 @@ var addTrainset = function(v) {
                 trains: append2(v.trains)([newtrain]),
                 instancecount: v.instancecount,
                 traincount: v.traincount + 1 | 0,
+                lastupdate: v.lastupdate,
                 jointData: v.jointData
               });
             });
@@ -2606,23 +2637,24 @@ var addJoint = function(v) {
           trains: v.trains,
           instancecount: v.instancecount,
           traincount: v.traincount,
+          lastupdate: v.lastupdate,
           jointData: saModifyAt(round2(coord.z))(saEmpty)(function() {
-            var $246 = saModifyAt(round2(coord.x))(saEmpty)(function() {
-              var $249 = saModifyAt(round2(coord.y))([])(function(ma) {
+            var $255 = saModifyAt(round2(coord.x))(saEmpty)(function() {
+              var $258 = saModifyAt(round2(coord.y))([])(function(ma) {
                 return append2(fromMaybe([])(ma))([{
                   pos,
                   nodeid,
                   jointid
                 }]);
               });
-              var $250 = fromMaybe(saEmpty);
-              return function($251) {
-                return $249($250($251));
+              var $259 = fromMaybe(saEmpty);
+              return function($260) {
+                return $258($259($260));
               };
             }());
-            var $247 = fromMaybe(saEmpty);
-            return function($248) {
-              return $246($247($248));
+            var $256 = fromMaybe(saEmpty);
+            return function($257) {
+              return $255($256($257));
             };
           }())(v.jointData)
         };
@@ -2656,20 +2688,20 @@ var addRailWithPos = function(v) {
         return v2.from;
       })(v1.connections);
       var newconnections = catMaybes(map5(function(v2) {
-        var $203 = elem3(v2.jointid)(cfroms);
-        if ($203) {
+        var $212 = elem3(v2.jointid)(cfroms);
+        if ($212) {
           return Nothing.value;
         }
         ;
         return function() {
-          var $252 = map14(function(jdata) {
+          var $261 = map14(function(jdata) {
             return {
               jointData: jdata,
               jointid: v2.jointid
             };
           });
-          return function($253) {
-            return $252(head($253));
+          return function($262) {
+            return $261(head($262));
           };
         }()(filter(function(v3) {
           return canJoin(v2.pos)(v3.pos);
@@ -2734,6 +2766,7 @@ var addRailWithPos = function(v) {
           trains: v.trains,
           instancecount: v.instancecount + 1 | 0,
           traincount: v.traincount,
+          lastupdate: v.lastupdate,
           jointData: v.jointData
         }));
       }
@@ -2754,8 +2787,8 @@ var autoAdd = function(v) {
         return function(from2) {
           return fromMaybe(v)(bind2(getJointAbsPos(v)(selectednode)(selectedjoint))(function(v1) {
             var rail$prime = function() {
-              var $239 = v1.isPlus === unwrap4(unwrap4(unwrap4(rail).getJointPos(from2))).isPlus;
-              if ($239) {
+              var $248 = v1.isPlus === unwrap4(unwrap4(unwrap4(rail).getJointPos(from2))).isPlus;
+              if ($248) {
                 return opposeRail(rail);
               }
               ;
@@ -2963,7 +2996,7 @@ var genericStatesscissors = {
       return StateSP_N.value;
     }
     ;
-    throw new Error("Failed pattern match at Internal.Rails (line 83, column 1 - line 83, column 70): " + [x.constructor.name]);
+    throw new Error("Failed pattern match at Internal.Rails (line 84, column 1 - line 84, column 70): " + [x.constructor.name]);
   },
   from: function(x) {
     if (x instanceof StateSP_P) {
@@ -2978,7 +3011,7 @@ var genericStatesscissors = {
       return new Inr(new Inr(NoArguments.value));
     }
     ;
-    throw new Error("Failed pattern match at Internal.Rails (line 83, column 1 - line 83, column 70): " + [x.constructor.name]);
+    throw new Error("Failed pattern match at Internal.Rails (line 84, column 1 - line 84, column 70): " + [x.constructor.name]);
   }
 };
 var intSerialize2 = /* @__PURE__ */ intSerialize(genericStatesscissors)(intSerializeSum22);
@@ -3043,7 +3076,7 @@ var genericJointsSimple = {
       return JointEnd.value;
     }
     ;
-    throw new Error("Failed pattern match at Internal.Rails (line 89, column 1 - line 89, column 71): " + [x.constructor.name]);
+    throw new Error("Failed pattern match at Internal.Rails (line 90, column 1 - line 90, column 71): " + [x.constructor.name]);
   },
   from: function(x) {
     if (x instanceof JointBegin) {
@@ -3054,7 +3087,7 @@ var genericJointsSimple = {
       return new Inr(NoArguments.value);
     }
     ;
-    throw new Error("Failed pattern match at Internal.Rails (line 89, column 1 - line 89, column 71): " + [x.constructor.name]);
+    throw new Error("Failed pattern match at Internal.Rails (line 90, column 1 - line 90, column 71): " + [x.constructor.name]);
   }
 };
 var intSerialize5 = /* @__PURE__ */ intSerialize(genericJointsSimple)(intSerializeSum1);
@@ -3103,7 +3136,7 @@ var halfRail = /* @__PURE__ */ function() {
         return pe;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 161, column 28 - line 163, column 25): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 162, column 28 - line 164, column 25): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(s) {
@@ -3123,7 +3156,7 @@ var halfRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 164, column 30 - line 166, column 82): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 165, column 30 - line 167, column 82): " + [j.constructor.name]);
       };
     }
   });
@@ -3171,7 +3204,7 @@ var longRail = /* @__PURE__ */ function() {
         return pe;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 138, column 28 - line 140, column 25): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 139, column 28 - line 141, column 25): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(s) {
@@ -3191,7 +3224,7 @@ var longRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 141, column 30 - line 143, column 82): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 142, column 30 - line 144, column 82): " + [j.constructor.name]);
       };
     }
   });
@@ -3239,7 +3272,7 @@ var quarterRail = /* @__PURE__ */ function() {
         return pe;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 184, column 28 - line 186, column 25): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 185, column 28 - line 187, column 25): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(s) {
@@ -3259,7 +3292,7 @@ var quarterRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 187, column 30 - line 189, column 82): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 188, column 30 - line 190, column 82): " + [j.constructor.name]);
       };
     }
   });
@@ -3307,7 +3340,7 @@ var slopeCurveLRail = /* @__PURE__ */ function() {
         return pe;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 277, column 26 - line 279, column 23): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 278, column 26 - line 280, column 23): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(s) {
@@ -3327,7 +3360,7 @@ var slopeCurveLRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 280, column 28 - line 282, column 82): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 281, column 28 - line 283, column 82): " + [j.constructor.name]);
       };
     }
   });
@@ -3376,7 +3409,7 @@ var slopeRail = /* @__PURE__ */ function() {
         return pe;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 228, column 28 - line 230, column 25): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 229, column 28 - line 231, column 25): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(s) {
@@ -3396,7 +3429,7 @@ var slopeRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 231, column 30 - line 233, column 82): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 232, column 30 - line 234, column 82): " + [j.constructor.name]);
       };
     }
   });
@@ -3444,7 +3477,7 @@ var straightRail = /* @__PURE__ */ function() {
         return pe;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 115, column 28 - line 117, column 25): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 116, column 28 - line 118, column 25): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(s) {
@@ -3464,7 +3497,7 @@ var straightRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 118, column 30 - line 120, column 82): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 119, column 30 - line 121, column 82): " + [j.constructor.name]);
       };
     }
   });
@@ -3483,7 +3516,7 @@ var genericJointsPoint = {
       return JointSub.value;
     }
     ;
-    throw new Error("Failed pattern match at Internal.Rails (line 91, column 1 - line 91, column 71): " + [x.constructor.name]);
+    throw new Error("Failed pattern match at Internal.Rails (line 92, column 1 - line 92, column 71): " + [x.constructor.name]);
   },
   from: function(x) {
     if (x instanceof JointEnter) {
@@ -3498,7 +3531,7 @@ var genericJointsPoint = {
       return new Inr(new Inr(NoArguments.value));
     }
     ;
-    throw new Error("Failed pattern match at Internal.Rails (line 91, column 1 - line 91, column 71): " + [x.constructor.name]);
+    throw new Error("Failed pattern match at Internal.Rails (line 92, column 1 - line 92, column 71): " + [x.constructor.name]);
   }
 };
 var intSerialize6 = /* @__PURE__ */ intSerialize(genericJointsPoint)(intSerializeSum22);
@@ -3571,7 +3604,7 @@ var turnOutLPlusRail = /* @__PURE__ */ function() {
         return ps;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 306, column 28 - line 309, column 25): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 307, column 28 - line 310, column 25): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(v) {
@@ -3611,7 +3644,7 @@ var turnOutLPlusRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 310, column 43 - line 316, column 73): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 311, column 43 - line 317, column 73): " + [j.constructor.name]);
       };
     }
   });
@@ -3643,7 +3676,7 @@ var genericJointsDoublePoint = {
       return JointOuterSub.value;
     }
     ;
-    throw new Error("Failed pattern match at Internal.Rails (line 95, column 1 - line 95, column 71): " + [x.constructor.name]);
+    throw new Error("Failed pattern match at Internal.Rails (line 96, column 1 - line 96, column 71): " + [x.constructor.name]);
   },
   from: function(x) {
     if (x instanceof JointOuterEnter) {
@@ -3670,7 +3703,7 @@ var genericJointsDoublePoint = {
       return new Inr(new Inr(new Inr(new Inr(new Inr(NoArguments.value)))));
     }
     ;
-    throw new Error("Failed pattern match at Internal.Rails (line 95, column 1 - line 95, column 71): " + [x.constructor.name]);
+    throw new Error("Failed pattern match at Internal.Rails (line 96, column 1 - line 96, column 71): " + [x.constructor.name]);
   }
 };
 var intSerialize7 = /* @__PURE__ */ intSerialize(genericJointsDoublePoint)(/* @__PURE__ */ intSerializeSum2(/* @__PURE__ */ intSerializeSum2(intSerializeSum3)));
@@ -3692,7 +3725,7 @@ var genericJointsDouble = {
       return JointOuterEnd.value;
     }
     ;
-    throw new Error("Failed pattern match at Internal.Rails (line 93, column 1 - line 93, column 71): " + [x.constructor.name]);
+    throw new Error("Failed pattern match at Internal.Rails (line 94, column 1 - line 94, column 71): " + [x.constructor.name]);
   },
   from: function(x) {
     if (x instanceof JointOuterBegin) {
@@ -3711,7 +3744,7 @@ var genericJointsDouble = {
       return new Inr(new Inr(new Inr(NoArguments.value)));
     }
     ;
-    throw new Error("Failed pattern match at Internal.Rails (line 93, column 1 - line 93, column 71): " + [x.constructor.name]);
+    throw new Error("Failed pattern match at Internal.Rails (line 94, column 1 - line 94, column 71): " + [x.constructor.name]);
   }
 };
 var intSerialize8 = /* @__PURE__ */ intSerialize(genericJointsDouble)(intSerializeSum3);
@@ -3843,7 +3876,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
         return pis;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 558, column 26 - line 564, column 29): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 559, column 26 - line 565, column 29): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(v) {
@@ -3926,7 +3959,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
         if (j instanceof JointInnerMain) {
           if (v.innerturnout) {
             return {
-              newjoint: JointOuterEnter.value,
+              newjoint: JointInnerEnter.value,
               newstate: {
                 innerturnout: false,
                 outerturnout: v.outerturnout
@@ -3936,7 +3969,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
           }
           ;
           return {
-            newjoint: JointOuterEnter.value,
+            newjoint: JointInnerEnter.value,
             newstate: {
               innerturnout: false,
               outerturnout: v.outerturnout
@@ -3948,7 +3981,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
         if (j instanceof JointInnerSub) {
           if (v.innerturnout) {
             return {
-              newjoint: JointOuterEnter.value,
+              newjoint: JointInnerEnter.value,
               newstate: {
                 innerturnout: true,
                 outerturnout: v.outerturnout
@@ -3958,7 +3991,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
           }
           ;
           return {
-            newjoint: JointOuterEnter.value,
+            newjoint: JointInnerEnter.value,
             newstate: {
               innerturnout: true,
               outerturnout: v.outerturnout
@@ -3967,7 +4000,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 566, column 7 - line 590, column 117): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 567, column 7 - line 591, column 117): " + [j.constructor.name]);
       };
     }
   });
@@ -4017,7 +4050,7 @@ var outerCurveLRail = /* @__PURE__ */ function() {
         return pe;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 431, column 26 - line 433, column 23): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 432, column 26 - line 434, column 23): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(s) {
@@ -4037,7 +4070,7 @@ var outerCurveLRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 434, column 28 - line 436, column 80): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 435, column 28 - line 437, column 80): " + [j.constructor.name]);
       };
     }
   });
@@ -4149,7 +4182,7 @@ var scissorsRail = /* @__PURE__ */ function() {
         return noAdditionals(append3(map6(grayRail)(ri))(append3(map6(grayRail)(ro))(append3(map6(grayRail)(rp))(map6(blueRail)(rn)))));
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 461, column 7 - line 476, column 43): " + [s.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 462, column 7 - line 477, column 43): " + [s.constructor.name]);
     },
     defaultState: StateSP_S.value,
     getJoints: serialAll5,
@@ -4172,7 +4205,7 @@ var scissorsRail = /* @__PURE__ */ function() {
         return pie;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 482, column 26 - line 486, column 29): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 483, column 26 - line 487, column 29): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(s) {
@@ -4209,7 +4242,7 @@ var scissorsRail = /* @__PURE__ */ function() {
             };
           }
           ;
-          throw new Error("Failed pattern match at Internal.Rails (line 490, column 11 - line 494, column 105): " + [j.constructor.name]);
+          throw new Error("Failed pattern match at Internal.Rails (line 491, column 11 - line 495, column 105): " + [j.constructor.name]);
         }
         ;
         if (s instanceof StateSP_S) {
@@ -4245,7 +4278,7 @@ var scissorsRail = /* @__PURE__ */ function() {
             };
           }
           ;
-          throw new Error("Failed pattern match at Internal.Rails (line 496, column 11 - line 500, column 105): " + [j.constructor.name]);
+          throw new Error("Failed pattern match at Internal.Rails (line 497, column 11 - line 501, column 105): " + [j.constructor.name]);
         }
         ;
         if (s instanceof StateSP_N) {
@@ -4260,7 +4293,7 @@ var scissorsRail = /* @__PURE__ */ function() {
           if (j instanceof JointInnerEnd) {
             return {
               newjoint: JointOuterEnd.value,
-              newstate: StateSP_P.value,
+              newstate: StateSP_N.value,
               shape: rn
             };
           }
@@ -4276,15 +4309,15 @@ var scissorsRail = /* @__PURE__ */ function() {
           if (j instanceof JointOuterEnd) {
             return {
               newjoint: JointInnerEnd.value,
-              newstate: StateSP_P.value,
+              newstate: StateSP_N.value,
               shape: reverseShapes(rn)
             };
           }
           ;
-          throw new Error("Failed pattern match at Internal.Rails (line 502, column 11 - line 506, column 105): " + [j.constructor.name]);
+          throw new Error("Failed pattern match at Internal.Rails (line 503, column 11 - line 507, column 105): " + [j.constructor.name]);
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 488, column 7 - line 506, column 105): " + [s.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 489, column 7 - line 507, column 105): " + [s.constructor.name]);
       };
     }
   });
@@ -4332,7 +4365,7 @@ var curveLRail = /* @__PURE__ */ function() {
         return pe;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 251, column 26 - line 253, column 23): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 252, column 26 - line 254, column 23): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(s) {
@@ -4352,7 +4385,7 @@ var curveLRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 254, column 28 - line 256, column 82): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 255, column 28 - line 257, column 82): " + [j.constructor.name]);
       };
     }
   });
@@ -4401,7 +4434,7 @@ var converterRail = /* @__PURE__ */ function() {
         return pe;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 206, column 28 - line 208, column 25): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 207, column 28 - line 209, column 25): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(s) {
@@ -4421,7 +4454,7 @@ var converterRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 209, column 30 - line 211, column 82): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 210, column 30 - line 212, column 82): " + [j.constructor.name]);
       };
     }
   });
@@ -4562,7 +4595,7 @@ var doubleToWideLRail = /* @__PURE__ */ function() {
         return pie;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 643, column 26 - line 647, column 29): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 644, column 26 - line 648, column 29): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(v) {
@@ -4606,7 +4639,7 @@ var doubleToWideLRail = /* @__PURE__ */ function() {
               };
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 653, column 11 - line 657, column 129): " + [j.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 654, column 11 - line 658, column 129): " + [j.constructor.name]);
           }
           ;
           if (j instanceof JointInnerBegin) {
@@ -4647,7 +4680,7 @@ var doubleToWideLRail = /* @__PURE__ */ function() {
             };
           }
           ;
-          throw new Error("Failed pattern match at Internal.Rails (line 659, column 11 - line 663, column 129): " + [j.constructor.name]);
+          throw new Error("Failed pattern match at Internal.Rails (line 660, column 11 - line 664, column 129): " + [j.constructor.name]);
         }
         ;
         if (v.innerturnout) {
@@ -4689,7 +4722,7 @@ var doubleToWideLRail = /* @__PURE__ */ function() {
             };
           }
           ;
-          throw new Error("Failed pattern match at Internal.Rails (line 667, column 11 - line 671, column 129): " + [j.constructor.name]);
+          throw new Error("Failed pattern match at Internal.Rails (line 668, column 11 - line 672, column 129): " + [j.constructor.name]);
         }
         ;
         if (j instanceof JointInnerBegin) {
@@ -4724,7 +4757,7 @@ var doubleToWideLRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 673, column 11 - line 677, column 129): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 674, column 11 - line 678, column 129): " + [j.constructor.name]);
       };
     }
   });
@@ -4815,7 +4848,7 @@ var toDoubleLPlusRail = /* @__PURE__ */ function() {
         return ps;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 399, column 28 - line 402, column 25): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 400, column 28 - line 403, column 25): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(v) {
@@ -4855,7 +4888,7 @@ var toDoubleLPlusRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 403, column 43 - line 409, column 73): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 404, column 43 - line 410, column 73): " + [j.constructor.name]);
       };
     }
   });
@@ -4978,7 +5011,7 @@ var autoTurnOutLPlusRail = /* @__PURE__ */ function() {
         return ps;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 349, column 26 - line 352, column 23): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 350, column 26 - line 353, column 23): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(v) {
@@ -5036,7 +5069,7 @@ var autoTurnOutLPlusRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 353, column 38 - line 365, column 79): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 354, column 38 - line 366, column 79): " + [j.constructor.name]);
       };
     }
   });
@@ -5117,7 +5150,8 @@ var encodeTrainset = function(v) {
     distanceToNext: v.distanceToNext,
     distanceFromOldest: v.distanceFromOldest,
     speed: v.speed,
-    trainid: v.trainid
+    trainid: v.trainid,
+    flipped: v.flipped
   };
 };
 var encodeRail = function(v) {
@@ -5173,6 +5207,7 @@ var defaultLayout = /* @__PURE__ */ function() {
   }({
     instancecount: 1,
     traincount: 0,
+    lastupdate: 0,
     rails: [rinst],
     trains: [],
     jointData: saEmpty,
@@ -5209,28 +5244,29 @@ var decodeTrainset = function(rs) {
       distanceToNext: v.distanceToNext,
       distanceFromOldest: v.distanceFromOldest,
       speed: v.speed,
-      trainid: v.trainid
+      trainid: v.trainid,
+      flipped: v.flipped
     };
   };
 };
 var decodeRail = function(v) {
   return map15(function() {
-    var $120 = function() {
+    var $122 = function() {
       if (v.opposed) {
         return opposeRail;
       }
       ;
       return identity4;
     }();
-    var $121 = function() {
+    var $123 = function() {
       if (v.flipped) {
         return flipRail;
       }
       ;
       return identity4;
     }();
-    return function($122) {
-      return $120($121($122));
+    return function($124) {
+      return $122($123($124));
     };
   }())(find2(function(v1) {
     return v1.name === v.name;
@@ -5269,6 +5305,7 @@ var decodeLayout$prime = function(v) {
       };
     })(rs),
     trains: ts,
+    lastupdate: 0,
     instancecount: length(rs),
     traincount: 1 + foldl2(function(x) {
       return function(v12) {
@@ -5278,14 +5315,14 @@ var decodeLayout$prime = function(v) {
     version: v.version
   };
   var deleted = function() {
-    var $123 = map7(function(r) {
+    var $125 = map7(function(r) {
       return r.index;
     });
-    var $124 = filter(function(r) {
+    var $126 = filter(function(r) {
       return r.isdeleted;
     });
-    return function($125) {
-      return $123($124($125));
+    return function($127) {
+      return $125($126($127));
     };
   }()(mapWithIndex(function(i) {
     return function(r) {
@@ -5324,8 +5361,8 @@ var decodeLayout$prime = function(v) {
       return addJoint(l)(j.pos)(j.nodeid)(j.jointid);
     };
   })(v1)(joints);
-  var $111 = length(v2.rails) === 0;
-  if ($111) {
+  var $113 = length(v2.rails) === 0;
+  if ($113) {
     return defaultLayout;
   }
   ;
@@ -5335,8 +5372,8 @@ var decodeLayout = function(v) {
   return decodeLayout$prime({
     rails: map7(unsafeFromForeign)(v.rails),
     trains: function() {
-      var $116 = isArray(v.trains);
-      if ($116) {
+      var $118 = isArray(v.trains);
+      if ($118) {
         return unsafeFromForeign(v.trains);
       }
       ;
@@ -5380,6 +5417,9 @@ export {
   StateCO,
   StateDP,
   StatePoint,
+  StateSP_N,
+  StateSP_P,
+  StateSP_S,
   StateSolid,
   Trainset,
   TrainsetDrawInfo,
@@ -5409,6 +5449,7 @@ export {
   doubleTurnoutRPlusRail,
   encodeLayout,
   flipRail,
+  flipTrain,
   fromRadian,
   getDividingPoint_rel,
   getJointAbsPos,

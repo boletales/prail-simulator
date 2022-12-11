@@ -8,6 +8,7 @@ module Internal.Rails
   , StatesDoublePoint(..)
   , StatesPoint(..)
   , StatesSolid(..)
+  , Statesscissors(..)
   , autoTurnOutLPlusRail
   , autoTurnOutRPlusRail
   , converterRail
@@ -501,9 +502,9 @@ scissorsRail =
         StateSP_N ->
           case j of
             JointInnerBegin -> {newjoint: JointInnerEnd   , newstate:StateSP_S, shape:               ri}
-            JointInnerEnd   -> {newjoint: JointOuterEnd   , newstate:StateSP_P, shape:               rn}
+            JointInnerEnd   -> {newjoint: JointOuterEnd   , newstate:StateSP_N, shape:               rn}
             JointOuterBegin -> {newjoint: JointOuterEnd   , newstate:StateSP_S, shape:               ro}
-            JointOuterEnd   -> {newjoint: JointInnerEnd   , newstate:StateSP_P, shape: reverseShapes rn}
+            JointOuterEnd   -> {newjoint: JointInnerEnd   , newstate:StateSP_N, shape: reverseShapes rn}
   }
 
 
@@ -582,12 +583,12 @@ doubleTurnoutLPlusRail =
             else {newjoint: JointInnerMain , newstate: (StateDP s), shape: rim}
         JointInnerMain  -> 
           if s.innerturnout
-            then {newjoint: JointOuterEnter, newstate: (StateDP $ s{innerturnout = false}), shape: reverseShapes rim}
-            else {newjoint: JointOuterEnter, newstate: (StateDP $ s{innerturnout = false}), shape: reverseShapes rim}
+            then {newjoint: JointInnerEnter, newstate: (StateDP $ s{innerturnout = false}), shape: reverseShapes rim}
+            else {newjoint: JointInnerEnter, newstate: (StateDP $ s{innerturnout = false}), shape: reverseShapes rim}
         JointInnerSub   -> 
           if s.innerturnout
-            then {newjoint: JointOuterEnter, newstate: (StateDP $ s{innerturnout = true}), shape: reverseShapes ris}
-            else {newjoint: JointOuterEnter, newstate: (StateDP $ s{innerturnout = true}), shape: reverseShapes ris}
+            then {newjoint: JointInnerEnter, newstate: (StateDP $ s{innerturnout = true}), shape: reverseShapes ris}
+            else {newjoint: JointInnerEnter, newstate: (StateDP $ s{innerturnout = true}), shape: reverseShapes ris}
   }
 
 doubleTurnoutRPlusRail = flipRail doubleTurnoutLPlusRail

@@ -76,7 +76,7 @@
       const material = new THREE.MeshStandardMaterial( { color: "#ac8", side:THREE.DoubleSide} );
       const plane = new THREE.Mesh( geometry, material );
       plane.receiveShadow = true;
-      plane.position.z = 40;
+      plane.position.z = 0;
       plane.position.y = -0.1
       plane.rotation.x = Math.PI/2;
       scene.add( plane );
@@ -121,7 +121,7 @@
           models[name] = fbx;
           models[name].scale.set(1/200,1/200,1/200);
           models[name].position.y = 2.5;
-          models[name].position.z = 7;
+          models[name].position.z = 5;
           res();
         }));
     }
@@ -294,6 +294,8 @@
       let mesh = new THREE.Mesh(geometry, materialmemo[color]);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
+      mesh.matrixAutoUpdate = false;
+
       //let mesh = new THREE.Mesh(geometry, materialmemo[color]);
 
       return mesh;
@@ -321,6 +323,7 @@
           materialmemo[color] = new THREE.MeshBasicMaterial({color: color, side: THREE.DoubleSide});
         }
         let mesh = new THREE.Mesh(geometry, materialmemo[color]);
+        mesh.matrixAutoUpdate = false;
 
         return mesh;
     }
@@ -344,6 +347,7 @@
         geometry.computeVertexNormals();
 
         let mesh = new THREE.Mesh(geometry, transparentButtonMaterial);
+        mesh.matrixAutoUpdate = false;
 
         mesh.isJoint = true;
         mesh.jointInfo = {instanceid: instanceid, jointid:jointid};
@@ -449,7 +453,9 @@
         if(materialmemo[color] === undefined){
           materialmemo[color] = new THREE.MeshStandardMaterial({color: color, side: THREE.DoubleSide});
         }
-        return [new THREE.Mesh(geometry, materialmemo[color])];
+        let mesh = new THREE.Mesh(geometry, materialmemo[color]);
+        mesh.matrixAutoUpdate = false;
+        return [mesh];
       }
 
       return [];
@@ -499,19 +505,27 @@
 
 
 
-    function meshsTrain({cars, trainid}){
+    function meshsTrain({cars, trainid, flipped}){
+      let setpos = (c,i)=>{
+        let chead = v3(c.head.r.coord).add(v3(c.head.l.coord)).divideScalar(2);
+        let ctail = v3(c.tail.r.coord).add(v3(c.tail.l.coord)).divideScalar(2);
+        let n = chead.clone().sub(ctail).normalize();
+
+        if(flipped){
+          meshtrainmemo[trainid][cars.length-i-1].children.forEach(c=>c.position.z = 2);
+          meshtrainmemo[trainid][cars.length-i-1].position.copy(chead);
+          meshtrainmemo[trainid][cars.length-i-1].rotation.copy(new THREE.Euler( Math.asin(-n.y), Math.atan2( n.x,  n.z), 0, 'ZYX' ));
+        }else{
+          meshtrainmemo[trainid][i].children.forEach(c=>c.position.z = 8);
+          meshtrainmemo[trainid][i].position.copy(chead);
+          meshtrainmemo[trainid][i].rotation.copy(new THREE.Euler( Math.asin( n.y), Math.atan2(-n.x, -n.z), 0, 'ZYX' ));
+        }
+      };
       if(meshtrainmemo.length <= trainid){
         for(let i=meshtrainmemo.length; i<=trainid; i++) meshtrainmemo.push([]);
       }
       if(meshtrainmemo[trainid].length == cars.length){
-        cars.forEach((c,i) => {
-            let chead = v3(c.head.r.coord).add(v3(c.head.l.coord)).divideScalar(2);
-            let ctail = v3(c.tail.r.coord).add(v3(c.tail.l.coord)).divideScalar(2);
-            let n = chead.clone().sub(ctail).normalize();
-            meshtrainmemo[trainid][i].position.copy(chead);
-
-            meshtrainmemo[trainid][i].rotation.copy(new THREE.Euler( Math.asin(n.y), Math.atan2(-n.x, -n.z), 0, 'ZYX' ));
-          });
+        cars.forEach(setpos);
         return {
             trainid
           , objects: meshtrainmemo[trainid]
@@ -526,18 +540,14 @@
             const geometry = new THREE.BoxGeometry( 3.8, 5.0, 10.0 );
             const material = new THREE.MeshStandardMaterial( { color: 0x442200 * (6 - i) } );
             const cube = new THREE.Mesh( geometry, material );
-            cube.position.set(0, 3.0, -7.0);
+            cube.position.set(0, 3.0, -8.0);
             obj.add(cube);
           }
 
           meshtrainmemo[trainid][i] = obj;
-          let chead = v3(c.head.r.coord).add(c.head.l.coord).divideScalar(2);
-          let ctail = v3(c.tail.r.coord).add(c.tail.l.coord).divideScalar(2);
-          let n = chead.clone().sub(ctail).normalize();
-          meshtrainmemo[trainid][i].position.copy(chead);
-          meshtrainmemo[trainid][i].rotation = new THREE.Euler( Math.asin(n.y), Math.atan2(n.x, n.z), 0, 'ZYX' );;
         });
 
+      cars.forEach(setpos);
 
       return {
           trainid

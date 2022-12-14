@@ -44,7 +44,7 @@
       }
     }
 
-    const width = window.screen.availWidth - 100;
+    const width = window.screen.availWidth - 20;
     const height = window.screen.availHeight -200;
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera( 75, width / height, 0.1, 8000 );
@@ -107,6 +107,8 @@
     let materialmemo = [];
     let staticgeometrymemo = [];
     let staticmeshmemo = [];
+    let meshsignalmemo = [];
+    let meshsignalplatememo = [];
     function mergeMeshData(mds){
       return mds.reduce((d, e)=>{
         Object.keys(e.geometry).forEach(c=>{
@@ -130,12 +132,22 @@
     let scenememo = {rails: [], trains: []};
 
     clearCache = () => {
-      meshrailmemo.forEach(r => r.forEach(x => x.forEach(m => {scene.remove(m); m.geometry.dispose();})));
+      meshrailmemo.forEach(r => r.forEach(x => {
+        Object.keys(x.geometry).forEach(c => x.geometry[c].forEach(g => {g.dispose();}));
+        Object.keys(x.geometryshadow).forEach(c => x.geometryshadow[c].forEach(g => {g.dispose();}));
+        x.mesh.forEach(m => {scene.remove(m); m.geometry.dispose();});
+      }));
+      staticgeometrymemo.forEach(g => {g.dispose(); });
+      staticmeshmemo.forEach(m => {scene.remove(m); });
+      meshsignalmemo.forEach(mss => mss.forEach(ms => ms.forEach(m => {scene.remove(m); m.geometry.dispose()})));
+      meshsignalplatememo.forEach(ms => ms.forEach(m => {scene.remove(m); m.geometry.dispose()}));
       meshrailmemo = [];
       geometryrailmemo = [];
       meshtrainmemo = [];
       staticgeometrymemo = [];
       staticmeshmemo = [];
+      meshsignalmemo = [];
+      meshsignalplatememo = [];
       scenememo = {rails:[], trains: []};
       lastupdate = -1;
     }
@@ -186,6 +198,7 @@
         time.shift();
       }
       if(!stopped ) layout = P.layoutTick(layout);
+      layout = P.layoutUpdate(layout);
       if(tickcount % tickrate == 0){
         draw(layout);
       }
@@ -228,6 +241,7 @@
       if(lastupdate != layout.updatecount){
         lastupdate = layout.updatecount;
         staticgeometrymemo.forEach(g => {g.dispose(); });
+        staticgeometrymemo = [];
         let railexists = Array(layout.instancecount).fill(false);
         layout.rails.forEach(r=>railexists[r.node.nodeid] = true);
         railexists.forEach((e,i) => {if(!e && meshrailmemo[i] !== undefined) meshrailmemo[i].forEach(d => {
@@ -235,6 +249,7 @@
           d.mesh.forEach(m => m.geometry.dispose());
         })});
         staticmeshmemo.forEach(m => {scene.remove(m); });
+        staticmeshmemo = [];
         let data = mergeMeshData(ldi.rails.map(updateRailGeometory));
         Object.keys(data.geometry).forEach(c => {
           if(materialmemo[c] === undefined){
@@ -261,9 +276,13 @@
         data.mesh.forEach((mesh)=>{
           staticmeshmemo.push(mesh);
           scene.add(mesh);
-        })
+        });
+        meshsignalmemo.forEach(mss => mss.forEach(ms => ms.forEach(m => {scene.remove(m); m.geometry.dispose()})));
+        meshsignalplatememo.forEach(ms => ms.forEach(m => {scene.remove(m); m.geometry.dispose()}));
+        ldi.signals.forEach(r => r.forEach(({indication, pos, signal}) => {scene.add(meshSignalPlate(pos, signal.nodeid, signal.jointid)) ;indication.forEach((c,i) => scene.add(meshSignal(pos, signal.nodeid, signal.jointid, i)))}));
       }
       
+      ldi.signals.forEach(r => r.forEach(({indication, pos, signal}) => indication.forEach((color, i) => meshsignalmemo[signal.nodeid][signal.jointid][i].material = signalMaterials[color])));
       
       ldi.trains.forEach((di) => {
         scenememo.trains[di.trainid] = meshsTrain(di);
@@ -304,6 +323,7 @@
       joints.forEach((p, i) => {data.push(meshJointButton(p, instanceid, i))});
 
       meshrailmemo[instanceid][state] = mergeMeshData(data.flat());
+      data = null;
       return meshrailmemo[instanceid][state];
     }
 
@@ -405,6 +425,72 @@
         let data = {mesh: [mesh], geometry: {}, geometryshadow:{}};
         return data;
     }
+
+    const signalColors = ["#f00", "#ff0", "#ff0", "#8f0", "#0ea"];
+    const signalMaterials = 
+      signalColors.map (c => new THREE.MeshBasicMaterial({color: c, side: THREE.DoubleSide}));
+    const signalPlateMaterial = new THREE.MeshBasicMaterial({color: "#222", side: THREE.DoubleSide});
+    
+    function meshSignal(p, nodeid, jointid, routeid){
+        let w = 0.03;
+        let h = 0.03;
+        let d = -0.2;
+        let dw = -0.07 + 0.05 * routeid;
+        let points = [
+          {x: p.coord.x + Math.sin(p.angle)*(-dw+w/2) + Math.cos(p.angle)*(  d), y: p.coord.y + Math.cos(p.angle)*(dw-w/2) + Math.sin(p.angle)*(  d), z: p.coord.z + layerheight * 13},
+          {x: p.coord.x + Math.sin(p.angle)*(-dw-w/2) + Math.cos(p.angle)*(  d), y: p.coord.y + Math.cos(p.angle)*(dw+w/2) + Math.sin(p.angle)*(  d), z: p.coord.z + layerheight * 13},
+          {x: p.coord.x + Math.sin(p.angle)*(-dw+w/2) + Math.cos(p.angle)*(h+d), y: p.coord.y + Math.cos(p.angle)*(dw-w/2) + Math.sin(p.angle)*(h+d), z: p.coord.z + layerheight * 13},
+          {x: p.coord.x + Math.sin(p.angle)*(-dw-w/2) + Math.cos(p.angle)*(h+d), y: p.coord.y + Math.cos(p.angle)*(dw+w/2) + Math.sin(p.angle)*(h+d), z: p.coord.z + layerheight * 13},
+        ].map(a3);
+        let geometry = new THREE.BufferGeometry();
+        let faces = [[0, 1, 2],[1, 2, 3]];
+        let vertices = new Float32Array(faces.flatMap(f => f.flatMap(i => points[i])).flat());
+        geometry.setAttribute('position',new THREE.BufferAttribute(vertices,3));
+        geometry.computeVertexNormals();
+
+        let mesh = new THREE.Mesh(geometry, signalMaterials[0]);
+        mesh.matrixAutoUpdate = false;
+
+
+        if(meshsignalmemo.length <= nodeid){
+          for(let i=meshsignalmemo.length; i<=nodeid; i++) meshsignalmemo.push([]);
+        }
+        if(meshsignalmemo[nodeid].length <= jointid){
+          for(let i=meshsignalmemo[nodeid].length; i<=jointid; i++) meshsignalmemo[nodeid].push([]);
+        }
+        meshsignalmemo[nodeid][jointid][routeid] = mesh;
+
+        return mesh;
+    }
+    function meshSignalPlate(p, nodeid, jointid){
+        let w = RAILWIDTH/RAILLENGTH;
+        let h = 0.2;
+        let d = -0.2;
+        let points = [
+          {x: p.coord.x + Math.sin(p.angle)*(+w/2) + Math.cos(p.angle)*(  d), y: p.coord.y + Math.cos(p.angle)*(-w/2) + Math.sin(p.angle)*(  d), z: p.coord.z + layerheight * 10},
+          {x: p.coord.x + Math.sin(p.angle)*(-w/2) + Math.cos(p.angle)*(  d), y: p.coord.y + Math.cos(p.angle)*(+w/2) + Math.sin(p.angle)*(  d), z: p.coord.z + layerheight * 10},
+          {x: p.coord.x + Math.sin(p.angle)*(+w/2) + Math.cos(p.angle)*(h+d), y: p.coord.y + Math.cos(p.angle)*(-w/2) + Math.sin(p.angle)*(h+d), z: p.coord.z + layerheight * 10},
+          {x: p.coord.x + Math.sin(p.angle)*(-w/2) + Math.cos(p.angle)*(h+d), y: p.coord.y + Math.cos(p.angle)*(+w/2) + Math.sin(p.angle)*(h+d), z: p.coord.z + layerheight * 10},
+        ].map(a3);
+
+        let geometry = new THREE.BufferGeometry();
+        let faces = [[0, 1, 2],[1, 2, 3]];
+        let vertices = new Float32Array(faces.flatMap(f => f.flatMap(i => points[i])).flat());
+        geometry.setAttribute('position',new THREE.BufferAttribute(vertices,3));
+        geometry.computeVertexNormals();
+
+        let mesh = new THREE.Mesh(geometry, signalPlateMaterial);
+        mesh.matrixAutoUpdate = false;
+
+
+        if(meshsignalplatememo.length <= nodeid){
+          for(let i=meshsignalplatememo.length; i<=nodeid; i++) meshsignalplatememo.push([]);
+        }
+        meshsignalplatememo[nodeid][jointid] = mesh;
+
+        return mesh;
+    }
+
 
     const pierColor = "#dddd00";
     function meshsPier(p){

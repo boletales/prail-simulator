@@ -3,12 +3,12 @@ module Internal.Rails
   , JointsDoublePoint(..)
   , JointsPoint(..)
   , JointsSimple(..)
+  , StateScissors(..)
   , StatesAutoPoint(..)
   , StatesCrossOver(..)
   , StatesDoublePoint(..)
   , StatesPoint(..)
   , StatesSolid(..)
-  , Statesscissors(..)
   , autoTurnOutLPlusRail
   , autoTurnOutRPlusRail
   , converterRail
@@ -18,6 +18,8 @@ module Internal.Rails
   , doubleToWideRRail
   , doubleTurnoutLPlusRail
   , doubleTurnoutRPlusRail
+  , doubleWidthSLRail
+  , doubleWidthSRRail
   , halfRail
   , longRail
   , outerCurveLRail
@@ -55,44 +57,58 @@ import Internal.Types
 
 
 data StatesSolid       = StateSolid
+derive instance Eq StatesSolid
 derive instance genericStatesSolid       :: Generic StatesSolid       _
 instance Default StatesSolid       where
   default = StateSolid
 
 newtype StatesPoint       = StatePoint {turnout :: Boolean}
+derive instance Eq StatesPoint
+derive instance Newtype StatesPoint _
 derive instance genericStatesPoint       :: Generic StatesPoint       _
 instance Default  StatesPoint       where
   default = StatePoint {turnout : false}
 
 newtype StatesDoublePoint = StateDP {innerturnout :: Boolean, outerturnout :: Boolean}
+derive instance Eq StatesDoublePoint
+derive instance Newtype StatesDoublePoint _
 derive instance genericStatesDoublePoint :: Generic StatesDoublePoint _
 instance Default  StatesDoublePoint where
   default = StateDP {innerturnout : false, outerturnout : false}
 
 newtype StatesCrossOver   = StateCO {innerturnout :: Boolean, outerturnout :: Boolean}
+derive instance Eq StatesCrossOver
+derive instance Newtype StatesCrossOver _
 derive instance genericStatesCrossOver   :: Generic StatesCrossOver   _
 instance Default  StatesCrossOver   where
   default = StateCO {innerturnout : false, outerturnout : false}
 
 newtype StatesAutoPoint   = StateAP {turnout :: Boolean, auto :: Boolean}
+derive instance Eq StatesAutoPoint
+derive instance Newtype StatesAutoPoint _
 derive instance genericStatesAutoPoint   :: Generic StatesAutoPoint   _
 instance Default  StatesAutoPoint   where
   default = StateAP {turnout : false, auto : false}
 
 
-data Statesscissors   = StateSP_P | StateSP_S | StateSP_N
-derive instance genericStatesscissors   :: Generic Statesscissors   _
-instance Default  Statesscissors   where
+data StateScissors   = StateSP_P | StateSP_S | StateSP_N
+derive instance Eq StateScissors
+derive instance genericStateScissors   :: Generic StateScissors   _
+instance Default  StateScissors   where
   default = StateSP_S
 
 
 data JointsSimple      = JointBegin | JointEnd
+derive instance Eq JointsSimple
 derive instance genericJointsSimple     :: Generic JointsSimple      _
 data JointsPoint       = JointEnter | JointMain | JointSub
+derive instance Eq JointsPoint
 derive instance genericJointsPoint      :: Generic JointsPoint       _
 data JointsDouble      = JointOuterBegin | JointInnerEnd | JointInnerBegin | JointOuterEnd
+derive instance Eq JointsDouble
 derive instance genericJointsDouble     :: Generic JointsDouble      _
 data JointsDoublePoint = JointOuterEnter | JointInnerEnter | JointInnerMain | JointOuterMain | JointInnerSub | JointOuterSub
+derive instance Eq JointsDoublePoint
 derive instance genericJointsDoublePoint:: Generic JointsDoublePoint _
 
 
@@ -119,6 +135,11 @@ straightRail =
       ,getNewState : \j s -> case j of
         JointBegin -> {newjoint: JointEnd  , newstate:s, shape: r0}
         JointEnd   -> {newjoint: JointBegin, newstate:s, shape: reverseShapes r0}
+
+      ,getRoute  : \s f t  -> if f /= t then Just s else Nothing
+      ,isLocked  : \j s s' -> false
+      ,isBlocked : \j s j' -> true
+      ,isSimple  : true
     }
 
 longRail :: Rail
@@ -142,6 +163,11 @@ longRail =
       ,getNewState : \j s -> case j of
         JointBegin -> {newjoint: JointEnd  , newstate:s, shape: r0}
         JointEnd   -> {newjoint: JointBegin, newstate:s, shape: reverseShapes r0}
+
+      ,getRoute  : \s f t  -> if f /= t then Just s else Nothing
+      ,isLocked  : \j s s' -> false
+      ,isBlocked : \j s j' -> true
+      ,isSimple  : true
     }
 
 halfRail :: Rail
@@ -165,6 +191,11 @@ halfRail =
       ,getNewState : \j s -> case j of
         JointBegin -> {newjoint: JointEnd  , newstate:s, shape: r0}
         JointEnd   -> {newjoint: JointBegin, newstate:s, shape: reverseShapes r0}
+        
+      ,getRoute  : \s f t  -> if f /= t then Just s else Nothing
+      ,isLocked  : \j s s' -> false
+      ,isBlocked : \j s j' -> true
+      ,isSimple  : true
     }
 
 quarterRail :: Rail
@@ -188,6 +219,11 @@ quarterRail =
       ,getNewState : \j s -> case j of
         JointBegin -> {newjoint: JointEnd  , newstate:s, shape: r0}
         JointEnd   -> {newjoint: JointBegin, newstate:s, shape: reverseShapes r0}
+        
+      ,getRoute  : \s f t  -> if f /= t then Just s else Nothing
+      ,isLocked  : \j s s' -> false
+      ,isBlocked : \j s j' -> true
+      ,isSimple  : true
     }
 converterRail :: Rail
 converterRail = 
@@ -210,6 +246,11 @@ converterRail =
       ,getNewState : \j s -> case j of
         JointBegin -> {newjoint: JointEnd  , newstate:s, shape: r0}
         JointEnd   -> {newjoint: JointBegin, newstate:s, shape: reverseShapes r0}
+        
+      ,getRoute  : \s f t  -> if f /= t then Just s else Nothing
+      ,isLocked  : \j s s' -> false
+      ,isBlocked : \j s j' -> true
+      ,isSimple  : true
     }
 slopeRail :: Rail
 slopeRail = 
@@ -232,6 +273,11 @@ slopeRail =
       ,getNewState : \j s -> case j of
         JointBegin -> {newjoint: JointEnd  , newstate:s, shape:               r0}
         JointEnd   -> {newjoint: JointBegin, newstate:s, shape: reverseShapes r0}
+        
+      ,getRoute  : \s f t  -> if f /= t then Just s else Nothing
+      ,isLocked  : \j s s' -> false
+      ,isBlocked : \j s j' -> true
+      ,isSimple  : true
     }
 
 curveLRail :: Rail
@@ -255,6 +301,11 @@ curveLRail =
     ,getNewState : \j s -> case j of
         JointBegin -> {newjoint: JointEnd  , newstate:s, shape:               r0}
         JointEnd   -> {newjoint: JointBegin, newstate:s, shape: reverseShapes r0}
+        
+    ,getRoute  : \s f t  -> if f /= t then Just s else Nothing
+    ,isLocked  : \j s s' -> false
+    ,isBlocked : \j s j' -> true
+    ,isSimple  : true
   }
 
 curveRRail ∷ RailGen Int Int
@@ -281,9 +332,88 @@ slopeCurveLRail =
     ,getNewState : \j s -> case j of
         JointBegin -> {newjoint: JointEnd  , newstate:s, shape:               r0}
         JointEnd   -> {newjoint: JointBegin, newstate:s, shape: reverseShapes r0}
+        
+    ,getRoute  : \s f t  -> if f /= t then Just s else Nothing
+    ,isLocked  : \j s s' -> false
+    ,isBlocked : \j s j' -> true
+    ,isSimple  : true
   }
 slopeCurveRRail ∷ RailGen Int Int
 slopeCurveRRail = flipRail slopeCurveLRail
+
+outerCurveLRail :: Rail
+outerCurveLRail = 
+  let scale = 1.0 + doubleRailWidth
+      pb = RelPos (Pos {coord: Coord{x: 0.0             , y: 0.0                   , z:0.0}, angle: angle8 4, isPlus: false})
+      pe = RelPos (Pos {coord: Coord{x: (sqrt 0.5)*scale, y: (1.0 - sqrt 0.5)*scale, z:0.0}, angle: angle8 1, isPlus: true}) 
+      r0 = [railShape {start :pb, end: pe}]
+  in toRail $ RailGen {
+    name : "outercurve"
+    ,flipped : false
+    ,opposed : false
+    ,getDrawInfo : \_ ->
+      noAdditionals $ blueRail <$> r0
+    ,defaultState : StateSolid
+    ,getJoints    : serialAll
+    ,getStates    : serialAll
+    ,getOrigin    : JointBegin
+    ,getJointPos : \j -> case j of
+      JointBegin -> pb
+      JointEnd   -> pe
+    ,getNewState : \j s -> case j of
+      JointBegin -> {newjoint: JointEnd  , newstate:s, shape: r0}
+      JointEnd   -> {newjoint: JointBegin, newstate:s, shape: reverseShapes r0}
+
+    ,getRoute  : \s f t  -> if f /= t then Just s else Nothing
+    ,isLocked  : \j s s' -> false
+    ,isBlocked : \j s j' -> true
+    ,isSimple  : true
+  }
+
+outerCurveRRail = flipRail outerCurveLRail
+
+
+doubleWidthSLRail :: Rail
+doubleWidthSLRail = 
+  let anglep = fromRadian $ calcMidAngle 1.0 doubleRailWidth
+      pe  = RelPos (Pos {coord: Coord{x: 0.0, y: 0.0                , z:0.0}, angle: angle8 4            , isPlus: false})
+      ps  = RelPos (Pos {coord: Coord{x: 1.0, y: doubleRailWidth    , z:0.0}, angle: angle8 0            , isPlus: true })
+      r1 = slipShapes {start: pe, end: ps}
+  in toRail $ RailGen {
+      name : "doublewidths"
+      ,flipped : false
+      ,opposed : false
+      ,getDrawInfo : \_ ->
+        noAdditionals $ blueRail <$> r1
+      ,defaultState : StateSolid
+      ,getJoints    : serialAll
+      ,getStates    : serialAll
+      ,getOrigin    : JointBegin
+      ,getJointPos : \j -> case j of
+        JointBegin -> pe
+        JointEnd   -> ps
+      ,getNewState : \j s -> case j of
+        JointEnd   -> {newjoint: JointBegin, newstate: s, shape: reverseShapes r1}
+        JointBegin -> 
+             {newjoint: JointEnd , newstate:s, shape: r1}
+
+      ,getRoute  : \s f t  -> 
+                      case f of
+                        JointBegin ->
+                          case t of
+                            JointBegin -> Nothing
+                            JointEnd   -> Just s
+                        JointEnd ->
+                          case t of
+                            JointBegin -> Just s
+                            JointEnd   -> Nothing
+      ,isLocked  : \j s s' -> false
+      ,isBlocked : \j s j' -> true
+      ,isSimple  : true
+    }
+
+doubleWidthSRRail ∷ RailGen Int Int
+doubleWidthSRRail = flipRail doubleWidthSLRail
 
 turnOutLPlusRail :: Rail
 turnOutLPlusRail = 
@@ -315,6 +445,27 @@ turnOutLPlusRail =
           if s.turnout
             then {newjoint: JointSub , newstate:StatePoint s, shape: r1}
             else {newjoint: JointMain, newstate:StatePoint s, shape: r0}
+        
+      ,getRoute  : \s f t  -> 
+                      case f of
+                        JointEnter ->
+                          case t of
+                            JointEnter -> Nothing
+                            JointMain  -> Just $ StatePoint $ (unwrap s) {turnout= false}
+                            JointSub   -> Just $ StatePoint $ (unwrap s) {turnout= true}
+                        JointMain ->
+                          case t of
+                            JointEnter -> Just $ StatePoint $ (unwrap s) {turnout= false}
+                            JointMain  -> Nothing
+                            JointSub   -> Nothing
+                        JointSub ->
+                          case t of
+                            JointEnter -> Just $ StatePoint $ (unwrap s) {turnout= true}
+                            JointMain  -> Nothing
+                            JointSub   -> Nothing
+      ,isLocked  : \j s s' -> (unwrap s).turnout /= (unwrap s').turnout
+      ,isBlocked : \j s j' -> true
+      ,isSimple  : false
     }
 
 turnOutRPlusRail = flipRail turnOutLPlusRail
@@ -364,6 +515,27 @@ autoTurnOutLPlusRail =
             if s.turnout
               then {newjoint: JointSub , newstate: StateAP s, shape: r_ <> r1}
               else {newjoint: JointMain, newstate: StateAP s, shape: r_ <> r0}
+
+    ,getRoute  : \s f t  -> 
+                    case f of
+                      JointEnter ->
+                        case t of
+                          JointEnter -> Nothing
+                          JointMain  -> Just $ StateAP $ (unwrap s) {turnout= false , auto=false}
+                          JointSub   -> Just $ StateAP $ (unwrap s) {turnout= true  , auto=false}
+                      JointMain ->
+                        case t of
+                          JointEnter -> Just $ StateAP $ (unwrap s) {turnout= false , auto=false}
+                          JointMain  -> Nothing
+                          JointSub   -> Nothing
+                      JointSub ->
+                        case t of
+                          JointEnter -> Just $ StateAP $ (unwrap s) {turnout= true , auto=false}
+                          JointMain  -> Nothing
+                          JointSub   -> Nothing
+    ,isLocked  : \j s s' -> (unwrap s).turnout /= (unwrap s').turnout
+    ,isBlocked : \j s j' -> true
+    ,isSimple  : false
   }
 
 autoTurnOutRPlusRail = flipRail autoTurnOutLPlusRail
@@ -408,36 +580,31 @@ toDoubleLPlusRail =
           if s.turnout
             then {newjoint: JointSub , newstate:StatePoint s, shape: r1}
             else {newjoint: JointMain, newstate:StatePoint s, shape: r0}
+
+      ,getRoute  : \s f t  -> 
+                      case f of
+                        JointEnter ->
+                          case t of
+                            JointEnter -> Nothing
+                            JointMain  -> Just $ StatePoint $ (unwrap s) {turnout= false}
+                            JointSub   -> Just $ StatePoint $ (unwrap s) {turnout= true}
+                        JointMain ->
+                          case t of
+                            JointEnter -> Just $ StatePoint $ (unwrap s) {turnout= false}
+                            JointMain  -> Nothing
+                            JointSub   -> Nothing
+                        JointSub ->
+                          case t of
+                            JointEnter -> Just $ StatePoint $ (unwrap s) {turnout= true}
+                            JointMain  -> Nothing
+                            JointSub   -> Nothing
+      ,isLocked  : \j s s' -> (unwrap s).turnout /= (unwrap s').turnout
+      ,isBlocked : \j s j' -> true
+      ,isSimple  : false
     }
 
 toDoubleRPlusRail ∷ RailGen Int Int
 toDoubleRPlusRail = flipRail toDoubleLPlusRail
-
-outerCurveLRail :: Rail
-outerCurveLRail = 
-  let scale = 1.0 + doubleRailWidth
-      pb = RelPos (Pos {coord: Coord{x: 0.0             , y: 0.0                   , z:0.0}, angle: angle8 4, isPlus: false})
-      pe = RelPos (Pos {coord: Coord{x: (sqrt 0.5)*scale, y: (1.0 - sqrt 0.5)*scale, z:0.0}, angle: angle8 1, isPlus: true}) 
-      r0 = [railShape {start :pb, end: pe}]
-  in toRail $ RailGen {
-    name : "outercurve"
-    ,flipped : false
-    ,opposed : false
-    ,getDrawInfo : \_ ->
-      noAdditionals $ blueRail <$> r0
-    ,defaultState : StateSolid
-    ,getJoints    : serialAll
-    ,getStates    : serialAll
-    ,getOrigin    : JointBegin
-    ,getJointPos : \j -> case j of
-      JointBegin -> pb
-      JointEnd   -> pe
-    ,getNewState : \j s -> case j of
-      JointBegin -> {newjoint: JointEnd  , newstate:s, shape: r0}
-      JointEnd   -> {newjoint: JointBegin, newstate:s, shape: reverseShapes r0}
-  }
-
-outerCurveRRail = flipRail outerCurveLRail
 
 
 scissorsRail :: Rail
@@ -505,6 +672,42 @@ scissorsRail =
             JointInnerEnd   -> {newjoint: JointOuterEnd   , newstate:StateSP_N, shape:               rn}
             JointOuterBegin -> {newjoint: JointOuterEnd   , newstate:StateSP_S, shape:               ro}
             JointOuterEnd   -> {newjoint: JointInnerEnd   , newstate:StateSP_N, shape: reverseShapes rn}
+
+      ,getRoute  : \s f t  -> 
+                      case f of
+                        JointInnerBegin -> 
+                          case t of
+                            JointInnerBegin -> Nothing
+                            JointInnerEnd   -> Just StateSP_S
+                            JointOuterBegin -> Just StateSP_P
+                            JointOuterEnd   -> Nothing
+                        JointInnerEnd   -> 
+                          case t of
+                            JointInnerBegin -> Just StateSP_S
+                            JointInnerEnd   -> Nothing
+                            JointOuterBegin -> Nothing
+                            JointOuterEnd   -> Just StateSP_N
+                        JointOuterBegin -> 
+                          case t of
+                            JointInnerBegin -> Just StateSP_P
+                            JointInnerEnd   -> Nothing
+                            JointOuterBegin -> Nothing
+                            JointOuterEnd   -> Just StateSP_S
+                        JointOuterEnd   -> 
+                          case t of
+                            JointInnerBegin -> Nothing
+                            JointInnerEnd   -> Just StateSP_N
+                            JointOuterBegin -> Just StateSP_S
+                            JointOuterEnd   -> Nothing
+      ,isLocked  : \j s s' -> s /= s'
+      ,isBlocked : \j s j' -> 
+                      if s /= StateSP_S then true
+                        else case j' of
+                              JointInnerBegin -> j == JointInnerEnd
+                              JointInnerEnd   -> j == JointInnerBegin
+                              JointOuterBegin -> j == JointOuterEnd
+                              JointOuterEnd   -> j == JointOuterBegin
+      ,isSimple  : false
   }
 
 
@@ -589,6 +792,116 @@ doubleTurnoutLPlusRail =
           if s.innerturnout
             then {newjoint: JointInnerEnter, newstate: (StateDP $ s{innerturnout = true}), shape: reverseShapes ris}
             else {newjoint: JointInnerEnter, newstate: (StateDP $ s{innerturnout = true}), shape: reverseShapes ris}
+
+      ,getRoute  : \s f t  -> 
+                      case f of
+                        JointOuterEnter -> 
+                          case t of
+                            JointOuterEnter -> Nothing
+                            JointOuterMain  -> Just $ StateDP $ (unwrap s){innerturnout = false}
+                            JointOuterSub   -> Just $ StateDP $ (unwrap s){innerturnout = true}
+                            JointInnerEnter -> Nothing
+                            JointInnerMain  -> Nothing
+                            JointInnerSub   -> Nothing
+                        JointOuterMain  -> 
+                          case t of
+                            JointOuterEnter -> Just $ StateDP $ (unwrap s){innerturnout = false}
+                            JointOuterMain  -> Nothing
+                            JointOuterSub   -> Nothing
+                            JointInnerEnter -> Nothing
+                            JointInnerMain  -> Nothing
+                            JointInnerSub   -> Nothing
+                        JointOuterSub   -> 
+                          case t of
+                            JointOuterEnter -> Just $ StateDP $ (unwrap s){innerturnout = true}
+                            JointOuterMain  -> Nothing
+                            JointOuterSub   -> Nothing
+                            JointInnerEnter -> Nothing
+                            JointInnerMain  -> Nothing
+                            JointInnerSub   -> Nothing
+                        JointInnerEnter -> 
+                          case t of
+                            JointOuterEnter -> Nothing
+                            JointOuterMain  -> Nothing
+                            JointOuterSub   -> Nothing
+                            JointInnerEnter -> Nothing
+                            JointInnerMain  -> Just $ StateDP $ (unwrap s){outerturnout = false}
+                            JointInnerSub   -> Just $ StateDP $ (unwrap s){outerturnout = true}
+                        JointInnerMain  -> 
+                          case t of
+                            JointOuterEnter -> Nothing
+                            JointOuterMain  -> Nothing
+                            JointOuterSub   -> Nothing
+                            JointInnerEnter -> Just $ StateDP $ (unwrap s){outerturnout = false}
+                            JointInnerMain  -> Nothing
+                            JointInnerSub   -> Nothing
+                        JointInnerSub   -> 
+                          case t of
+                            JointOuterEnter -> Nothing
+                            JointOuterMain  -> Nothing
+                            JointOuterSub   -> Nothing
+                            JointInnerEnter -> Just $ StateDP $ (unwrap s){outerturnout = true}
+                            JointInnerMain  -> Nothing
+                            JointInnerSub   -> Nothing
+      ,isLocked  : \j s s' ->
+                      case j of
+                        JointOuterEnter -> (unwrap s).outerturnout /= (unwrap s).outerturnout
+                        JointOuterMain  -> (unwrap s).outerturnout /= (unwrap s).outerturnout
+                        JointOuterSub   -> (unwrap s).outerturnout /= (unwrap s).outerturnout
+                        JointInnerEnter -> (unwrap s).innerturnout /= (unwrap s).innerturnout
+                        JointInnerMain  -> (unwrap s).innerturnout /= (unwrap s).innerturnout
+                        JointInnerSub   -> (unwrap s).innerturnout /= (unwrap s).innerturnout
+      ,isBlocked : \j s j' -> 
+                      case j of
+                        JointOuterEnter -> 
+                          case j' of
+                            JointOuterEnter -> true
+                            JointOuterMain  -> true
+                            JointOuterSub   -> true
+                            JointInnerEnter -> not (unwrap s).outerturnout && (unwrap s).innerturnout
+                            JointInnerMain  -> false
+                            JointInnerSub   -> not (unwrap s).outerturnout
+                        JointOuterMain  -> 
+                          case j' of
+                            JointOuterEnter -> true
+                            JointOuterMain  -> true
+                            JointOuterSub   -> true
+                            JointInnerEnter -> (unwrap s).innerturnout
+                            JointInnerMain  -> false
+                            JointInnerSub   -> true
+                        JointOuterSub   -> 
+                          case j' of
+                            JointOuterEnter -> true
+                            JointOuterMain  -> true
+                            JointOuterSub   -> true
+                            JointInnerEnter -> false
+                            JointInnerMain  -> false
+                            JointInnerSub   -> false
+                        JointInnerEnter -> 
+                          case j' of
+                            JointOuterEnter -> not (unwrap s).outerturnout && (unwrap s).innerturnout
+                            JointOuterMain  -> (unwrap s).innerturnout
+                            JointOuterSub   -> false
+                            JointInnerEnter -> true
+                            JointInnerMain  -> true
+                            JointInnerSub   -> true
+                        JointInnerMain  -> 
+                          case j' of
+                            JointOuterEnter -> false
+                            JointOuterMain  -> false
+                            JointOuterSub   -> false
+                            JointInnerEnter -> true
+                            JointInnerMain  -> true
+                            JointInnerSub   -> true
+                        JointInnerSub   -> 
+                          case j' of
+                            JointOuterEnter -> not (unwrap s).outerturnout
+                            JointOuterMain  -> true
+                            JointOuterSub   -> false
+                            JointInnerEnter -> true
+                            JointInnerMain  -> true
+                            JointInnerSub   -> true
+      ,isSimple  : false
   }
 
 doubleTurnoutRPlusRail = flipRail doubleTurnoutLPlusRail
@@ -676,6 +989,47 @@ doubleToWideLRail =
             JointInnerEnd   -> {newjoint: JointInnerBegin , newstate:(StateDP s                      ), shape: reverseShapes ri}
             JointOuterBegin -> {newjoint: JointOuterEnd   , newstate:(StateDP s                      ), shape:               ro}
             JointOuterEnd   -> {newjoint: JointOuterBegin , newstate:(StateDP s                      ), shape: reverseShapes ro}
+
+      ,getRoute  : \s f t  -> 
+                      case f of
+                        JointInnerBegin -> 
+                          case t of
+                            JointInnerBegin -> Nothing
+                            JointInnerEnd   -> Just $ StateDP $ (unwrap s) {innerturnout = false}
+                            JointOuterBegin -> Nothing
+                            JointOuterEnd   -> Nothing
+                        JointInnerEnd   -> 
+                          case t of
+                            JointInnerBegin -> Just $ StateDP $ (unwrap s) {innerturnout = false}
+                            JointInnerEnd   -> Nothing
+                            JointOuterBegin -> Nothing
+                            JointOuterEnd   -> Just $ StateDP $ (unwrap s) {innerturnout = true, outerturnout = true}
+                        JointOuterBegin -> 
+                          case t of
+                            JointInnerBegin -> Nothing
+                            JointInnerEnd   -> Nothing
+                            JointOuterBegin -> Nothing
+                            JointOuterEnd   -> Just $ StateDP $ (unwrap s) {outerturnout = false}
+                        JointOuterEnd   -> 
+                          case t of
+                            JointInnerBegin -> Nothing
+                            JointInnerEnd   -> Just $ StateDP $ (unwrap s) {innerturnout = true, outerturnout = true}
+                            JointOuterBegin -> Just $ StateDP $ (unwrap s) {outerturnout = false}
+                            JointOuterEnd   -> Nothing
+      ,isLocked  : \j s s' ->
+                      case j of
+                        JointInnerBegin -> (unwrap s).innerturnout /= (unwrap s).innerturnout
+                        JointInnerEnd   -> (unwrap s).innerturnout /= (unwrap s).innerturnout
+                        JointOuterBegin -> (unwrap s).outerturnout /= (unwrap s).outerturnout
+                        JointOuterEnd   -> (unwrap s).outerturnout /= (unwrap s).outerturnout
+      ,isBlocked : \j s j' -> 
+                      if (unwrap s).innerturnout || (unwrap s).outerturnout then true
+                        else case j' of
+                              JointInnerBegin -> j == JointInnerEnd
+                              JointInnerEnd   -> j == JointInnerBegin
+                              JointOuterBegin -> j == JointOuterEnd
+                              JointOuterEnd   -> j == JointOuterBegin
+      ,isSimple  : false
   }
 
 doubleToWideRRail = flipRail doubleToWideLRail

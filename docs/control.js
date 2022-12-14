@@ -52,6 +52,16 @@ function addRail(rail, _f = 0){
   requestSave();
 }
 
+function addSignal(){
+  layout = P.addSignal(layout)(selectedJoint.nodeid)(selectedJoint.jointid);
+  requestSave();
+}
+function removeSignal(){
+  layout = P.removeSignal(layout)(selectedJoint.nodeid)(selectedJoint.jointid);
+  requestSave();
+}
+
+
 function removeRail(){
   if(layout.rails.length>1 && layout.rails[selectedJoint.nodeid] !== undefined){
     layout_ = P.removeRail(layout)(selectedJoint.nodeid);
@@ -100,6 +110,7 @@ function rotateRail(){
 function changeState(){
   if(layout.rails[selectedJoint.nodeid] !== undefined){
     layout.rails[selectedJoint.nodeid].node.state = (layout.rails[selectedJoint.nodeid].node.state+1) % layout.rails[selectedJoint.nodeid].node.rail.getStates.length;
+    layout = P.forceUpdate(layout);
   }
 }
 function onkey(e){
@@ -209,6 +220,13 @@ function onkey(e){
       break;
     case "Y":
       addRail(P.converterRail);
+      break;
+
+    case "0":
+      addSignal();
+      break;
+    case "-":
+      removeSignal();
       break;
     
     

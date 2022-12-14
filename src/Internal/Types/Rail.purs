@@ -10,7 +10,7 @@ import Prelude
 import Prelude
 import Type.Proxy
 
-import Data.Array (reverse)
+import Data.Array (reverse, any)
 import Data.Symbol (class IsSymbol)
 import Data.Traversable (scanl)
 import Record as R
@@ -92,9 +92,24 @@ newtype RailGen joint state = RailGen {
     getOrigin    :: joint,
     getJointPos  :: joint -> RelPos,
     getNewState  :: joint -> state -> {newjoint :: joint, newstate :: state, shape :: Array (RailShape RelPos)},
-    getDrawInfo  :: state -> (DrawInfo RelPos)
+    getDrawInfo  :: state -> (DrawInfo RelPos),
+    getRoute     :: state -> joint -> joint -> Maybe state,
+    isLocked     :: joint -> state -> state -> Boolean,
+    isBlocked    :: joint -> state -> joint -> Boolean,
+    isSimple     :: Boolean
   }
 derive instance Newtype (RailGen a b) _
+
+interlockRoute :: forall j s. RailGen j s -> Array j -> s -> j -> j -> Maybe s
+interlockRoute (RailGen rail) locks now from to = 
+  case rail.getRoute now from to of
+    Nothing -> Nothing
+    Just newstate ->
+      if any (\l -> rail.isLocked l now newstate) locks
+      then Nothing
+      else if any (\l -> rail.isBlocked l newstate from) locks
+           then Nothing
+           else Just newstate
 
 type Rail = RailGen Int Int
 
@@ -123,7 +138,12 @@ toRail (RailGen rgen) = RailGen {
 
     getDrawInfo: \s -> fromMaybe
                             brokenDrawInfo
-                            (rgen.getDrawInfo <$> fromSerial s)
+                            (rgen.getDrawInfo <$> fromSerial s),
+
+    getRoute : \s f t  -> toSerial <$>   (rgen.getRoute  <$> fromSerial s <*> fromSerial f <*> fromSerial t ),
+    isLocked : \j s s' -> fromMaybe true (rgen.isLocked  <$> fromSerial j <*> fromSerial s <*> fromSerial s'),
+    isBlocked: \j s j' -> fromMaybe true (rgen.isBlocked <$> fromSerial j <*> fromSerial s <*> fromSerial j'),
+    isSimple : rgen.isSimple
   }
 
 {-

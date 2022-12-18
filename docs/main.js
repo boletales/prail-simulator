@@ -96,6 +96,14 @@ var $$Proxy = /* @__PURE__ */ function() {
 var map = function(dict) {
   return dict.map;
 };
+var mapFlipped = function(dictFunctor) {
+  var map16 = map(dictFunctor);
+  return function(fa) {
+    return function(f) {
+      return map16(f)(fa);
+    };
+  };
+};
 var $$void = function(dictFunctor) {
   return map(dictFunctor)($$const(unit));
 };
@@ -498,12 +506,12 @@ var append = function(dict) {
 
 // output/Control.Monad/index.js
 var ap = function(dictMonad) {
-  var bind4 = bind(dictMonad.Bind1());
+  var bind5 = bind(dictMonad.Bind1());
   var pure4 = pure(dictMonad.Applicative0());
   return function(f) {
     return function(a) {
-      return bind4(f)(function(f$prime) {
-        return bind4(a)(function(a$prime) {
+      return bind5(f)(function(f$prime) {
+        return bind5(a)(function(a$prime) {
           return pure4(f$prime(a$prime));
         });
       });
@@ -521,17 +529,18 @@ var bottomNumber = Number.NEGATIVE_INFINITY;
 
 // output/Data.Ord/foreign.js
 var unsafeCompareImpl = function(lt) {
-  return function(eq5) {
+  return function(eq8) {
     return function(gt) {
       return function(x) {
         return function(y) {
-          return x < y ? lt : x === y ? eq5 : gt;
+          return x < y ? lt : x === y ? eq8 : gt;
         };
       };
     };
   };
 };
 var ordIntImpl = unsafeCompareImpl;
+var ordNumberImpl = unsafeCompareImpl;
 
 // output/Data.Eq/foreign.js
 var refEq = function(r1) {
@@ -542,6 +551,19 @@ var refEq = function(r1) {
 var eqBooleanImpl = refEq;
 var eqIntImpl = refEq;
 var eqNumberImpl = refEq;
+var eqArrayImpl = function(f) {
+  return function(xs) {
+    return function(ys) {
+      if (xs.length !== ys.length)
+        return false;
+      for (var i = 0; i < xs.length; i++) {
+        if (!f(xs[i])(ys[i]))
+          return false;
+      }
+      return true;
+    };
+  };
+};
 
 // output/Data.Eq/index.js
 var eqNumber = {
@@ -557,11 +579,16 @@ var eq = function(dict) {
   return dict.eq;
 };
 var eq2 = /* @__PURE__ */ eq(eqBoolean);
+var eqArray = function(dictEq) {
+  return {
+    eq: eqArrayImpl(eq(dictEq))
+  };
+};
 var notEq = function(dictEq) {
-  var eq32 = eq(dictEq);
+  var eq33 = eq(dictEq);
   return function(x) {
     return function(y) {
-      return eq2(eq32(x)(y))(false);
+      return eq2(eq33(x)(y))(false);
     };
   };
 };
@@ -687,6 +714,14 @@ var negate = function(dictRing) {
 };
 
 // output/Data.Ord/index.js
+var ordNumber = /* @__PURE__ */ function() {
+  return {
+    compare: ordNumberImpl(LT.value)(EQ.value)(GT.value),
+    Eq0: function() {
+      return eqNumber;
+    }
+  };
+}();
 var ordInt = /* @__PURE__ */ function() {
   return {
     compare: ordIntImpl(LT.value)(EQ.value)(GT.value),
@@ -835,30 +870,6 @@ var maybe = function(v) {
 };
 var isNothing = /* @__PURE__ */ maybe(true)(/* @__PURE__ */ $$const(false));
 var isJust = /* @__PURE__ */ maybe(false)(/* @__PURE__ */ $$const(true));
-var genericMaybe = {
-  to: function(x) {
-    if (x instanceof Inl) {
-      return Nothing.value;
-    }
-    ;
-    if (x instanceof Inr) {
-      return new Just(x.value0);
-    }
-    ;
-    throw new Error("Failed pattern match at Data.Maybe (line 227, column 1 - line 227, column 52): " + [x.constructor.name]);
-  },
-  from: function(x) {
-    if (x instanceof Nothing) {
-      return new Inl(NoArguments.value);
-    }
-    ;
-    if (x instanceof Just) {
-      return new Inr(x.value0);
-    }
-    ;
-    throw new Error("Failed pattern match at Data.Maybe (line 227, column 1 - line 227, column 52): " + [x.constructor.name]);
-  }
-};
 var functorMaybe = {
   map: function(v) {
     return function(v1) {
@@ -884,7 +895,7 @@ var fromJust = function() {
   };
 };
 var eqMaybe = function(dictEq) {
-  var eq5 = eq(dictEq);
+  var eq8 = eq(dictEq);
   return {
     eq: function(x) {
       return function(y) {
@@ -893,7 +904,7 @@ var eqMaybe = function(dictEq) {
         }
         ;
         if (x instanceof Just && y instanceof Just) {
-          return eq5(x.value0)(y.value0);
+          return eq8(x.value0)(y.value0);
         }
         ;
         return false;
@@ -1298,11 +1309,44 @@ var over = function() {
 };
 
 // output/Data.Foldable/index.js
+var eq12 = /* @__PURE__ */ eq(eqOrdering);
 var foldr = function(dict) {
   return dict.foldr;
 };
 var foldl = function(dict) {
   return dict.foldl;
+};
+var maximumBy = function(dictFoldable) {
+  var foldl22 = foldl(dictFoldable);
+  return function(cmp) {
+    var max$prime = function(v) {
+      return function(v1) {
+        if (v instanceof Nothing) {
+          return new Just(v1);
+        }
+        ;
+        if (v instanceof Just) {
+          return new Just(function() {
+            var $303 = eq12(cmp(v.value0)(v1))(GT.value);
+            if ($303) {
+              return v.value0;
+            }
+            ;
+            return v1;
+          }());
+        }
+        ;
+        throw new Error("Failed pattern match at Data.Foldable (line 441, column 3 - line 441, column 27): " + [v.constructor.name, v1.constructor.name]);
+      };
+    };
+    return foldl22(max$prime)(Nothing.value);
+  };
+};
+var maximum = function(dictOrd) {
+  var compare2 = compare(dictOrd);
+  return function(dictFoldable) {
+    return maximumBy(dictFoldable)(compare2);
+  };
 };
 var sum = function(dictFoldable) {
   var foldl22 = foldl(dictFoldable);
@@ -1334,13 +1378,13 @@ var foldableArray = {
 var foldM = function(dictFoldable) {
   var foldl22 = foldl(dictFoldable);
   return function(dictMonad) {
-    var bind4 = bind(dictMonad.Bind1());
+    var bind5 = bind(dictMonad.Bind1());
     var pure4 = pure(dictMonad.Applicative0());
     return function(f) {
       return function(b0) {
         return foldl22(function(b) {
           return function(a) {
-            return bind4(b)(flip(f)(a));
+            return bind5(b)(flip(f)(a));
           };
         })(pure4(b0));
       };
@@ -1370,7 +1414,7 @@ var traverseArrayImpl = function() {
       return xs.concat(ys);
     };
   }
-  return function(apply6) {
+  return function(apply5) {
     return function(map9) {
       return function(pure4) {
         return function(f) {
@@ -1382,12 +1426,12 @@ var traverseArrayImpl = function() {
                 case 1:
                   return map9(array1)(f(array[bot]));
                 case 2:
-                  return apply6(map9(array2)(f(array[bot])))(f(array[bot + 1]));
+                  return apply5(map9(array2)(f(array[bot])))(f(array[bot + 1]));
                 case 3:
-                  return apply6(apply6(map9(array3)(f(array[bot])))(f(array[bot + 1])))(f(array[bot + 2]));
+                  return apply5(apply5(map9(array3)(f(array[bot])))(f(array[bot + 1])))(f(array[bot + 2]));
                 default:
                   var pivot = bot + Math.floor((top3 - bot) / 4) * 2;
-                  return apply6(map9(concat2)(go(bot, pivot)))(go(pivot, top3));
+                  return apply5(map9(concat2)(go(bot, pivot)))(go(pivot, top3));
               }
             }
             return go(0, array.length);
@@ -1407,7 +1451,7 @@ var map1 = /* @__PURE__ */ map(functorMaybe);
 var map22 = /* @__PURE__ */ map(functorArray);
 var fromJust2 = /* @__PURE__ */ fromJust();
 var notEq2 = /* @__PURE__ */ notEq(eqOrdering);
-var eq12 = /* @__PURE__ */ eq(eqOrdering);
+var eq13 = /* @__PURE__ */ eq(eqOrdering);
 var updateAt = /* @__PURE__ */ function() {
   return _updateAt(Just.create)(Nothing.value);
 }();
@@ -1547,7 +1591,7 @@ var insertBy = function(cmp) {
       var i = maybe(0)(function(v) {
         return v + 1 | 0;
       })(findLastIndex(function(y) {
-        return eq12(cmp(x)(y))(GT.value);
+        return eq13(cmp(x)(y))(GT.value);
       })(ys));
       return fromJust2(insertAt(i)(x)(ys));
     };
@@ -1565,10 +1609,10 @@ var find2 = function(f) {
   };
 };
 var elemIndex = function(dictEq) {
-  var eq22 = eq(dictEq);
+  var eq23 = eq(dictEq);
   return function(x) {
     return findIndex(function(v) {
-      return eq22(v)(x);
+      return eq23(v)(x);
     });
   };
 };
@@ -1616,6 +1660,12 @@ var sqrt = Math.sqrt;
 var pi = 3.141592653589793;
 
 // output/Foreign/foreign.js
+function isNull(value) {
+  return value === null;
+}
+function isUndefined(value) {
+  return value === void 0;
+}
 var isArray = Array.isArray || function(value) {
   return Object.prototype.toString.call(value) === "[object Array]";
 };
@@ -1692,6 +1742,9 @@ var unwrap2 = /* @__PURE__ */ unwrap();
 var foldrWithIndex = function(dict) {
   return dict.foldrWithIndex;
 };
+var foldlWithIndex = function(dict) {
+  return dict.foldlWithIndex;
+};
 var foldMapWithIndexDefaultR = function(dictFoldableWithIndex) {
   var foldrWithIndex1 = foldrWithIndex(dictFoldableWithIndex);
   return function(dictMonoid) {
@@ -1744,6 +1797,26 @@ var foldableWithIndexArray = {
 };
 var foldMapWithIndex = function(dict) {
   return dict.foldMapWithIndex;
+};
+var findWithIndex = function(dictFoldableWithIndex) {
+  var foldlWithIndex1 = foldlWithIndex(dictFoldableWithIndex);
+  return function(p) {
+    var go = function(v) {
+      return function(v1) {
+        return function(v2) {
+          if (v1 instanceof Nothing && p(v)(v2)) {
+            return new Just({
+              index: v,
+              value: v2
+            });
+          }
+          ;
+          return v1;
+        };
+      };
+    };
+    return foldlWithIndex1(go)(Nothing.value);
+  };
 };
 var allWithIndex = function(dictFoldableWithIndex) {
   var foldMapWithIndex1 = foldMapWithIndex(dictFoldableWithIndex);
@@ -1872,10 +1945,10 @@ var eqAngle = {
     };
   }
 };
-var eq13 = /* @__PURE__ */ eq(eqAngle);
+var eq14 = /* @__PURE__ */ eq(eqAngle);
 var canJoin = function(p1) {
   return function(p2) {
-    return eq13(reverseAngle(unwrap3(p1).angle))(unwrap3(p2).angle) && (planeDistance(p1)(p2) < 0.05 && (on(eq3)(function(v) {
+    return eq14(reverseAngle(unwrap3(p1).angle))(unwrap3(p2).angle) && (planeDistance(p1)(p2) < 0.05 && (on(eq3)(function(v) {
       return v.coord.z;
     })(p1)(p2) && on(notEq3)(function(v) {
       return v.isPlus;
@@ -1899,7 +1972,7 @@ var getDividingPoint_rel = function(v) {
         var a2 = toRadian(v1.angle);
         var a1 = toRadian(reverseAngle(v.angle));
         var at = a1 + toRadian(angleSub(v1.angle)(reverseAngle(v.angle))) * t;
-        var $76 = eq13(reverseAngle(v.angle))(v1.angle);
+        var $76 = eq14(reverseAngle(v.angle))(v1.angle);
         if ($76) {
           return {
             angle: v1.angle,
@@ -1937,7 +2010,7 @@ var partLength = function(v) {
     var a2 = toRadian(v1.angle);
     var a1 = toRadian(reverseAngle(v.angle));
     var pd = function() {
-      var $79 = eq13(reverseAngle(v.angle))(v1.angle);
+      var $79 = eq14(reverseAngle(v.angle))(v1.angle);
       if ($79) {
         return planeDistance(v)(v1);
       }
@@ -2229,10 +2302,10 @@ var unwrap4 = /* @__PURE__ */ unwrap();
 var negate2 = /* @__PURE__ */ negate(ringNumber);
 var over3 = /* @__PURE__ */ over()();
 var wrap2 = /* @__PURE__ */ wrap();
+var mapFlipped2 = /* @__PURE__ */ mapFlipped(functorArray);
 var map13 = /* @__PURE__ */ map(functorMaybe);
-var apply4 = /* @__PURE__ */ apply(applyMaybe);
-var intSerialize2 = /* @__PURE__ */ intSerialize(genericMaybe);
-var intSerializeSum2 = /* @__PURE__ */ intSerializeSum(/* @__PURE__ */ intSerializeConstructor(intSerializeNoArguments));
+var bind2 = /* @__PURE__ */ bind(bindMaybe);
+var join2 = /* @__PURE__ */ join(bindMaybe);
 var RailShape = function(x) {
   return x;
 };
@@ -2252,15 +2325,15 @@ var shapeLength = function(v) {
   return partLength(v.start)(v.end);
 };
 var reverseShapes = /* @__PURE__ */ function() {
-  var $133 = map5(function(v) {
+  var $121 = map5(function(v) {
     return {
       start: v.end,
       end: v.start,
       length: v.length
     };
   });
-  return function($134) {
-    return $133(reverse($134));
+  return function($122) {
+    return $121(reverse($122));
   };
 }();
 var railShape = function() {
@@ -2308,8 +2381,8 @@ var opposeRail = function(v) {
     getJoints: v.getJoints,
     getStates: v.getStates,
     getOrigin: v.getOrigin,
-    getJointPos: function($135) {
-      return opposeRelPos(v.getJointPos($135));
+    getJointPos: function($123) {
+      return opposeRelPos(v.getJointPos($123));
     },
     getNewState: v.getNewState,
     getDrawInfo: function(x) {
@@ -2320,7 +2393,8 @@ var opposeRail = function(v) {
       };
     },
     getRoute: v.getRoute,
-    isLocked: v.isLocked,
+    isLegal: v.isLegal,
+    lockedBy: v.lockedBy,
     isBlocked: v.isBlocked,
     isSimple: v.isSimple
   };
@@ -2374,8 +2448,8 @@ var flipRail = function(v) {
     getJoints: v.getJoints,
     getStates: v.getStates,
     getOrigin: v.getOrigin,
-    getJointPos: function($136) {
-      return flipRelPos(v.getJointPos($136));
+    getJointPos: function($124) {
+      return flipRelPos(v.getJointPos($124));
     },
     getNewState: function(x) {
       return function(y) {
@@ -2396,7 +2470,8 @@ var flipRail = function(v) {
       };
     },
     getRoute: v.getRoute,
-    isLocked: v.isLocked,
+    isLegal: v.isLegal,
+    lockedBy: v.lockedBy,
     isBlocked: v.isBlocked,
     isSimple: v.isSimple
   };
@@ -2411,15 +2486,15 @@ var slipShapes = function() {
   return function(v) {
     var pp = wrap2(wrap2(function() {
       var v1 = unwrap4(getDividingPoint_rel(unwrap4(v.start))(unwrap4(v.end))(0)(0.5));
-      var $110 = {};
-      for (var $111 in v1) {
-        if ({}.hasOwnProperty.call(v1, $111)) {
-          $110[$111] = v1[$111];
+      var $98 = {};
+      for (var $99 in v1) {
+        if ({}.hasOwnProperty.call(v1, $99)) {
+          $98[$99] = v1[$99];
         }
         ;
       }
       ;
-      $110.angle = function() {
+      $98.angle = function() {
         var c2 = unwrap4(unwrap4(unwrap4(v.end)).coord);
         var c1 = unwrap4(unwrap4(unwrap4(v.start)).coord);
         var dx = c2.x - c1.x;
@@ -2427,7 +2502,7 @@ var slipShapes = function() {
         var a2 = toRadian(unwrap4(unwrap4(v.end)).angle);
         return fromRadian(toRadian(unwrap4(unwrap4(v.end)).angle) + calcMidAngle(cos(a2) * dx + sin(a2) * dy)(cos(a2) * dy - sin(a2) * dx));
       }();
-      return $110;
+      return $98;
     }()));
     return [railShape1({
       start: v.start,
@@ -2444,22 +2519,58 @@ var brokenDrawInfo = {
 };
 var toRail = function(dictIntSerialize) {
   var toSerial2 = toSerial(dictIntSerialize);
-  var fromSerial2 = fromSerial(dictIntSerialize);
   return function(dictIntSerialize1) {
     var toSerial1 = toSerial(dictIntSerialize1);
-    var fromSerial1 = fromSerial(dictIntSerialize1);
-    var toSerial22 = toSerial(intSerialize2(intSerializeSum2(intSerializeConstructor(intSerializeArgument(dictIntSerialize1)))));
     return function(v) {
+      var lockedBy_memo = mapFlipped2(v.getStates)(function(x) {
+        return mapFlipped2(v.getStates)(function(y) {
+          return map5(toSerial2)(v.lockedBy(x)(y));
+        });
+      });
+      var isLegal_memo = mapFlipped2(v.getJoints)(function(x) {
+        return mapFlipped2(v.getStates)(function(y) {
+          return v.isLegal(x)(y);
+        });
+      });
+      var isBlocked_memo = mapFlipped2(v.getJoints)(function(x) {
+        return mapFlipped2(v.getStates)(function(y) {
+          return mapFlipped2(v.getJoints)(function(z) {
+            return v.isBlocked(x)(y)(z);
+          });
+        });
+      });
+      var getStates = mapFlipped2(v.getStates)(toSerial1);
+      var getRoute_memo = mapFlipped2(v.getStates)(function(x) {
+        return mapFlipped2(v.getJoints)(function(y) {
+          return mapFlipped2(v.getJoints)(function(z) {
+            return map13(toSerial1)(v.getRoute(x)(y)(z));
+          });
+        });
+      });
+      var getNewState_memo = mapFlipped2(v.getJoints)(function(j) {
+        return mapFlipped2(v.getStates)(function(s) {
+          return function(ns) {
+            return {
+              newjoint: toSerial2(ns.newjoint),
+              newstate: toSerial1(ns.newstate),
+              shape: ns.shape
+            };
+          }(v.getNewState(j)(s));
+        });
+      });
+      var getJoints2 = mapFlipped2(v.getJoints)(toSerial2);
+      var getJointPos_memo = mapFlipped2(v.getJoints)(v.getJointPos);
+      var getDrawInfo_memo = mapFlipped2(v.getStates)(v.getDrawInfo);
       return {
         name: v.name,
         flipped: v.flipped,
         opposed: v.opposed,
         defaultState: toSerial1(v.defaultState),
-        getJoints: map5(toSerial2)(v.getJoints),
-        getStates: map5(toSerial1)(v.getStates),
+        getJoints: getJoints2,
+        getStates,
         getOrigin: toSerial2(v.getOrigin),
         getJointPos: function(j) {
-          return fromMaybe(poszero)(map13(v.getJointPos)(fromSerial2(j)));
+          return fromMaybe(poszero)(index(getJointPos_memo)(j));
         },
         getNewState: function(j) {
           return function(s) {
@@ -2467,36 +2578,47 @@ var toRail = function(dictIntSerialize) {
               newjoint: j,
               newstate: s,
               shape: []
-            })(map13(function(ns) {
-              return {
-                newjoint: toSerial2(ns.newjoint),
-                newstate: toSerial1(ns.newstate),
-                shape: ns.shape
-              };
-            })(apply4(map13(v.getNewState)(fromSerial2(j)))(fromSerial1(s))));
+            })(bind2(index(getNewState_memo)(j))(function(v1) {
+              return index(v1)(s);
+            }));
           };
         },
         getDrawInfo: function(s) {
-          return fromMaybe(brokenDrawInfo)(map13(v.getDrawInfo)(fromSerial1(s)));
+          return fromMaybe(brokenDrawInfo)(index(getDrawInfo_memo)(s));
         },
         getRoute: function(s) {
           return function(f) {
             return function(t) {
-              return map13(toSerial22)(apply4(apply4(map13(v.getRoute)(fromSerial1(s)))(fromSerial2(f)))(fromSerial2(t)));
+              return join2(bind2(bind2(index(getRoute_memo)(s))(function(v1) {
+                return index(v1)(f);
+              }))(function(v1) {
+                return index(v1)(t);
+              }));
             };
           };
         },
-        isLocked: function(j) {
+        isLegal: function(j) {
           return function(s) {
-            return function(s$prime) {
-              return fromMaybe(true)(apply4(apply4(map13(v.isLocked)(fromSerial2(j)))(fromSerial1(s)))(fromSerial1(s$prime)));
-            };
+            return fromMaybe(false)(bind2(index(isLegal_memo)(j))(function(v1) {
+              return index(v1)(s);
+            }));
+          };
+        },
+        lockedBy: function(s) {
+          return function(s$prime) {
+            return fromMaybe([])(bind2(index(lockedBy_memo)(s))(function(v1) {
+              return index(v1)(s$prime);
+            }));
           };
         },
         isBlocked: function(j) {
           return function(s) {
             return function(j$prime) {
-              return fromMaybe(true)(apply4(apply4(map13(v.isBlocked)(fromSerial2(j)))(fromSerial1(s)))(fromSerial2(j$prime)));
+              return fromMaybe(false)(bind2(bind2(index(isBlocked_memo)(j))(function(v1) {
+                return index(v1)(s);
+              }))(function(v1) {
+                return index(v1)(j$prime);
+              }));
             };
           };
         },
@@ -2550,27 +2672,34 @@ var absDrawInfo = function(p) {
 var map6 = /* @__PURE__ */ map(functorArray);
 var append2 = /* @__PURE__ */ append(semigroupArray);
 var unwrap5 = /* @__PURE__ */ unwrap();
+var bind3 = /* @__PURE__ */ bind(bindMaybe);
+var findWithIndex2 = /* @__PURE__ */ findWithIndex(foldableWithIndexArray);
+var pure2 = /* @__PURE__ */ pure(applicativeMaybe);
 var bindFlipped2 = /* @__PURE__ */ bindFlipped(bindArray);
 var conj2 = /* @__PURE__ */ conj(heytingAlgebraBoolean);
 var allWithIndex2 = /* @__PURE__ */ allWithIndex(foldableWithIndexArray)(heytingAlgebraBoolean);
 var map14 = /* @__PURE__ */ map(functorMaybe);
 var bindFlipped1 = /* @__PURE__ */ bindFlipped(bindMaybe);
-var bind2 = /* @__PURE__ */ bind(bindMaybe);
+var notEq4 = /* @__PURE__ */ notEq(/* @__PURE__ */ eqArray(eqBoolean));
 var identity4 = /* @__PURE__ */ identity(categoryFn);
 var nub3 = /* @__PURE__ */ nub(ordInt);
 var elem3 = /* @__PURE__ */ elem2(eqInt);
 var insert3 = /* @__PURE__ */ insert(ordInt);
+var join3 = /* @__PURE__ */ join(bindMaybe);
 var sum2 = /* @__PURE__ */ sum(foldableArray)(semiringNumber);
-var eq14 = /* @__PURE__ */ eq(/* @__PURE__ */ eqMaybe(eqInt));
-var join2 = /* @__PURE__ */ join(bindMaybe);
 var join1 = /* @__PURE__ */ join(bindArray);
-var apply5 = /* @__PURE__ */ apply(applyArray);
+var apply4 = /* @__PURE__ */ apply(applyArray);
 var composeKleisli2 = /* @__PURE__ */ composeKleisli(bindMaybe);
 var foldM3 = /* @__PURE__ */ foldM(foldableArray)(monadMaybe);
 var apply1 = /* @__PURE__ */ apply(applyMaybe);
-var pure2 = /* @__PURE__ */ pure(applicativeMaybe);
+var maximum2 = /* @__PURE__ */ maximum(ordInt)(foldableArray);
+var max3 = /* @__PURE__ */ max(ordNumber);
+var eq15 = /* @__PURE__ */ eq(/* @__PURE__ */ eqMaybe(eqInt));
 var show2 = /* @__PURE__ */ show(showInt);
 var discard2 = /* @__PURE__ */ discard(discardUnit)(bindMaybe);
+var TrainRoute = function(x) {
+  return x;
+};
 var SignalRoute = function(x) {
   return x;
 };
@@ -2580,16 +2709,16 @@ var Signal = function(x) {
 var SectionArray = function(x) {
   return x;
 };
-var Route = function(x) {
+var JointData = function(x) {
+  return x;
+};
+var InvalidRoute = function(x) {
   return x;
 };
 var RailNode = function(x) {
   return x;
 };
 var RailInstance = function(x) {
-  return x;
-};
-var JointData = function(x) {
   return x;
 };
 var CarType = function(x) {
@@ -2660,12 +2789,12 @@ var updateRailInstance = function(v) {
             nodeid: v3.nodeid,
             rail: v3.rail,
             state: v1.newstate,
+            signals: v3.signals,
+            invalidRoutes: v3.invalidRoutes,
             connections: v3.connections
           };
         }(),
         instanceid: v.instanceid,
-        signals: v.signals,
-        wrongways: v.wrongways,
         pos: v.pos
       },
       newjoint: v1.newjoint,
@@ -2673,14 +2802,72 @@ var updateRailInstance = function(v) {
     };
   };
 };
+var unlockManualStop = function(v) {
+  return function(nodeid) {
+    return function(jointid) {
+      return bind3(index(v.rails)(nodeid))(function(v1) {
+        return bind3(findWithIndex2(function(v2) {
+          return function(v3) {
+            return v3.jointid === jointid;
+          };
+        })(unwrap5(v1.node).signals))(function(v2) {
+          return bind3(updateAt(v2.index)({
+            signalname: v2.value.signalname,
+            nodeid: v2.value.nodeid,
+            jointid: v2.value.jointid,
+            routes: v2.value.routes,
+            routecond: v2.value.routecond,
+            colors: v2.value.colors,
+            indication: v2.value.indication,
+            manualStop: false
+          })(unwrap5(v1.node).signals))(function(newSignals) {
+            var newRail = {
+              node: function() {
+                var v4 = unwrap5(v1.node);
+                return {
+                  nodeid: v4.nodeid,
+                  rail: v4.rail,
+                  state: v4.state,
+                  signals: newSignals,
+                  invalidRoutes: v4.invalidRoutes,
+                  connections: v4.connections
+                };
+              }(),
+              instanceid: v1.instanceid,
+              pos: v1.pos
+            };
+            return bind3(updateAt(nodeid)(newRail)(v.rails))(function(newRails) {
+              return pure2({
+                version: v.version,
+                rails: newRails,
+                trains: v.trains,
+                signalcolors: v.signalcolors,
+                traffic: v.traffic,
+                instancecount: v.instancecount,
+                traincount: v.traincount,
+                updatecount: v.updatecount,
+                jointData: v.jointData
+              });
+            });
+          });
+        });
+      });
+    };
+  };
+};
+var speedScale = /* @__PURE__ */ function() {
+  return 3 / 120;
+}();
 var signalStop = 0;
 var signalReduce = 3;
 var signalClear = 4;
-var updateSignalColor = function(v) {
-  var signals = bindFlipped2(function($405) {
+var updateSignalIndication = function(v) {
+  var signals = bindFlipped2(function($596) {
     return function(v1) {
       return v1.signals;
-    }(unwrap5($405));
+    }(unwrap5(function(v1) {
+      return v1.node;
+    }(unwrap5($596))));
   })(v.rails);
   var blockingData = map6(function(v1) {
     return {
@@ -2689,40 +2876,43 @@ var updateSignalColor = function(v) {
         return {
           signal: v2,
           routes: map6(function(v3) {
-            return {
-              route: v3,
-              routecond: all(function(v4) {
-                return maybe(false)(function(v5) {
-                  var nr = unwrap5(unwrap5(v5.node).rail).getNewState(v4.jointenter)(unwrap5(v5.node).state);
-                  return nr.newjoint === v4.jointexit && nr.newstate === unwrap5(v5.node).state;
-                })(index(v.rails)(v4.nodeid));
-              })(v3.rails),
-              clearcond: all(function(v4) {
-                return maybe(false)(function(ri1) {
-                  var state2 = unwrap5(unwrap5(ri1).node).state;
-                  var rail = unwrap5(unwrap5(unwrap5(ri1).node).rail);
-                  var v5 = index(v.traffic)(v4.nodeid);
-                  if (v5 instanceof Just) {
-                    return allWithIndex2(function(i) {
-                      return function(t) {
-                        var $213 = length(t) === 0;
-                        if ($213) {
-                          return true;
-                        }
-                        ;
-                        return !rail.isBlocked(i)(state2)(v4.jointenter);
-                      };
-                    })(v5.value0);
-                  }
-                  ;
-                  if (v5 instanceof Nothing) {
-                    return false;
-                  }
-                  ;
-                  throw new Error("Failed pattern match at Internal.Layout (line 577, column 42 - line 584, column 59): " + [v5.constructor.name]);
-                })(index(v.rails)(v4.nodeid));
-              })(v3.rails),
-              directioncond: function() {
+            var routecond = all(function(v4) {
+              return maybe(false)(function(v5) {
+                var state2 = unwrap5(v5.node).state;
+                var rail = unwrap5(unwrap5(v5.node).rail);
+                var nr = rail.getNewState(v4.jointenter)(state2);
+                return nr.newjoint === v4.jointexit && rail.isLegal(v4.jointenter)(state2);
+              })(index(v.rails)(v4.nodeid));
+            })(v3.rails);
+            var clearcond = all(function(v4) {
+              return maybe(false)(function(v5) {
+                var state2 = unwrap5(v5.node).state;
+                var rail = unwrap5(unwrap5(v5.node).rail);
+                var nr = rail.getNewState(v4.jointenter)(state2);
+                var v6 = index(v.traffic)(v4.nodeid);
+                if (v6 instanceof Just) {
+                  return allWithIndex2(function(i) {
+                    return function(t) {
+                      var $304 = length(t) === 0;
+                      if ($304) {
+                        return true;
+                      }
+                      ;
+                      return !rail.isBlocked(i)(state2)(v4.jointenter);
+                    };
+                  })(v6.value0);
+                }
+                ;
+                if (v6 instanceof Nothing) {
+                  return false;
+                }
+                ;
+                throw new Error("Failed pattern match at Internal.Layout (line 727, column 41 - line 734, column 61): " + [v6.constructor.name]);
+              })(index(v.rails)(v4.nodeid));
+            })(v3.rails);
+            var cond = function() {
+              var $309 = routecond && clearcond;
+              if ($309) {
                 var v4 = last(v3.rails);
                 if (v4 instanceof Just) {
                   var go = function($copy_nid) {
@@ -2738,8 +2928,8 @@ var updateSignalColor = function(v) {
                         }
                         ;
                         if (v5 instanceof Just) {
-                          var $220 = unwrap5(unwrap5(unwrap5(v5.value0).node).rail).isSimple;
-                          if ($220) {
+                          var $312 = unwrap5(unwrap5(unwrap5(v5.value0).node).rail).isSimple;
+                          if ($312) {
                             var jidexit = updateRailInstance(v5.value0)(jid).newjoint;
                             var v6 = map14(length)(bindFlipped1(function(v72) {
                               return index(v72)(jidexit);
@@ -2759,7 +2949,7 @@ var updateSignalColor = function(v) {
                                 return;
                               }
                               ;
-                              throw new Error("Failed pattern match at Internal.Layout (line 598, column 45 - line 600, column 90): " + [v7.constructor.name]);
+                              throw new Error("Failed pattern match at Internal.Layout (line 749, column 57 - line 751, column 102): " + [v7.constructor.name]);
                             }
                             ;
                             $tco_done = true;
@@ -2770,7 +2960,7 @@ var updateSignalColor = function(v) {
                           return true;
                         }
                         ;
-                        throw new Error("Failed pattern match at Internal.Layout (line 590, column 31 - line 602, column 44): " + [v5.constructor.name]);
+                        throw new Error("Failed pattern match at Internal.Layout (line 741, column 43 - line 753, column 56): " + [v5.constructor.name]);
                       }
                       ;
                       while (!$tco_done) {
@@ -2787,105 +2977,138 @@ var updateSignalColor = function(v) {
                   return false;
                 }
                 ;
-                throw new Error("Failed pattern match at Internal.Layout (line 587, column 21 - line 604, column 39): " + [v4.constructor.name]);
-              }()
+                throw new Error("Failed pattern match at Internal.Layout (line 738, column 33 - line 755, column 51): " + [v4.constructor.name]);
+              }
+              ;
+              return false;
+            }();
+            return {
+              route: v3,
+              routecond,
+              manualStop: v2.manualStop,
+              cond
             };
           })(v2.routes)
         };
-      })(v1.signals)
+      })(unwrap5(v1.node).signals)
     };
   })(v.rails);
   var filtered = map6(function(rbd) {
     return map6(function(bd) {
-      return filter(function(d) {
-        return d.routecond;
-      })(bd.routes);
+      return {
+        routes: filter(function(d) {
+          return d.cond;
+        })(bd.routes),
+        signal: bd.signal
+      };
     })(rbd.signals);
   })(blockingData);
-  var colors = map6(function(rbd) {
+  var colored = map6(function(rbd) {
     return {
-      node: rbd.rail.node,
-      instanceid: rbd.rail.instanceid,
-      signals: map6(function(bd) {
-        var v2 = unwrap5(bd.signal);
+      node: function() {
+        var v2 = unwrap5(rbd.rail.node);
         return {
-          signalname: v2.signalname,
           nodeid: v2.nodeid,
-          jointid: v2.jointid,
-          routes: v2.routes,
-          colors: v2.colors,
-          indication: map6(function(d) {
-            var $232 = d.routecond && (d.clearcond && d.directioncond);
-            if ($232) {
-              var go = function($copy_n) {
-                return function($copy_v3) {
-                  var $tco_var_n = $copy_n;
-                  var $tco_done1 = false;
-                  var $tco_result;
-                  function $tco_loop(n, v3) {
-                    var $235 = n >= length(unwrap5(bd.signal).colors);
-                    if ($235) {
-                      $tco_done1 = true;
-                      return signalClear;
-                    }
-                    ;
-                    var v4 = bind2(index(filtered)(v3.nodeid))(function(v52) {
-                      return index(v52)(v3.jointid);
-                    });
-                    if (v4 instanceof Just) {
-                      var v5 = head(v4.value0);
-                      if (v5 instanceof Just) {
-                        var $238 = v5.value0.routecond && (v5.value0.clearcond && v5.value0.directioncond);
-                        if ($238) {
-                          $tco_var_n = n + 1 | 0;
-                          $copy_v3 = unwrap5(v5.value0.route).nextsignal;
-                          return;
+          rail: v2.rail,
+          state: v2.state,
+          signals: map6(function(bd) {
+            var v3 = unwrap5(bd.signal);
+            return {
+              signalname: v3.signalname,
+              nodeid: v3.nodeid,
+              jointid: v3.jointid,
+              routes: v3.routes,
+              routecond: map6(function(v4) {
+                return v4.routecond;
+              })(bd.routes),
+              colors: v3.colors,
+              indication: map6(function(d) {
+                if (d.cond) {
+                  var go = function($copy_n) {
+                    return function($copy_v4) {
+                      var $tco_var_n = $copy_n;
+                      var $tco_done1 = false;
+                      var $tco_result;
+                      function $tco_loop(n, v4) {
+                        var $327 = n >= length(unwrap5(bd.signal).colors);
+                        if ($327) {
+                          $tco_done1 = true;
+                          return signalClear;
                         }
                         ;
-                        $tco_done1 = true;
-                        return fromMaybe(signalClear)(index(unwrap5(bd.signal).colors)(n));
+                        var v5 = bind3(index(filtered)(v4.nodeid))(find2(function(bd1) {
+                          return unwrap5(bd1.signal).jointid === v4.jointid;
+                        }));
+                        if (v5 instanceof Just) {
+                          var v6 = head(v5.value0.routes);
+                          if (v6 instanceof Just) {
+                            var $330 = v6.value0.cond && (!v6.value0.manualStop || n === 0);
+                            if ($330) {
+                              $tco_var_n = n + 1 | 0;
+                              $copy_v4 = unwrap5(v6.value0.route).nextsignal;
+                              return;
+                            }
+                            ;
+                            $tco_done1 = true;
+                            return fromMaybe(signalClear)(index(unwrap5(bd.signal).colors)(n));
+                          }
+                          ;
+                          if (v6 instanceof Nothing) {
+                            $tco_done1 = true;
+                            return fromMaybe(signalClear)(index(unwrap5(bd.signal).colors)(n));
+                          }
+                          ;
+                          throw new Error("Failed pattern match at Internal.Layout (line 780, column 33 - line 785, column 100): " + [v6.constructor.name]);
+                        }
+                        ;
+                        if (v5 instanceof Nothing) {
+                          $tco_done1 = true;
+                          return fromMaybe(signalClear)(index(unwrap5(bd.signal).colors)(n));
+                        }
+                        ;
+                        throw new Error("Failed pattern match at Internal.Layout (line 778, column 29 - line 786, column 96): " + [v5.constructor.name]);
                       }
                       ;
-                      if (v5 instanceof Nothing) {
-                        $tco_done1 = true;
-                        return fromMaybe(signalClear)(index(unwrap5(bd.signal).colors)(n));
+                      while (!$tco_done1) {
+                        $tco_result = $tco_loop($tco_var_n, $copy_v4);
                       }
                       ;
-                      throw new Error("Failed pattern match at Internal.Layout (line 620, column 33 - line 625, column 100): " + [v5.constructor.name]);
-                    }
-                    ;
-                    if (v4 instanceof Nothing) {
-                      $tco_done1 = true;
-                      return fromMaybe(signalClear)(index(unwrap5(bd.signal).colors)(n));
-                    }
-                    ;
-                    throw new Error("Failed pattern match at Internal.Layout (line 618, column 29 - line 626, column 96): " + [v4.constructor.name]);
-                  }
-                  ;
-                  while (!$tco_done1) {
-                    $tco_result = $tco_loop($tco_var_n, $copy_v3);
-                  }
-                  ;
-                  return $tco_result;
-                };
-              };
-              return go(0)({
-                nodeid: unwrap5(bd.signal).nodeid,
-                jointid: unwrap5(bd.signal).jointid
-              });
-            }
-            ;
-            return signalStop;
-          })(bd.routes)
+                      return $tco_result;
+                    };
+                  };
+                  return go(0)({
+                    nodeid: unwrap5(bd.signal).nodeid,
+                    jointid: unwrap5(bd.signal).jointid
+                  });
+                }
+                ;
+                return signalStop;
+              })(bd.routes),
+              manualStop: unwrap5(bd.signal).manualStop || function() {
+                var $335 = length(bd.routes) < 2;
+                if ($335) {
+                  return false;
+                }
+                ;
+                return notEq4(map6(function(v4) {
+                  return v4.cond;
+                })(bd.routes))(map6(function(v4) {
+                  return signalStop < v4;
+                })(unwrap5(bd.signal).indication));
+              }()
+            };
+          })(rbd.signals),
+          invalidRoutes: v2.invalidRoutes,
+          connections: v2.connections
         };
-      })(rbd.signals),
-      wrongways: rbd.rail.wrongways,
+      }(),
+      instanceid: rbd.rail.instanceid,
       pos: rbd.rail.pos
     };
   })(blockingData);
   return {
     version: v.version,
-    rails: colors,
+    rails: colored,
     trains: v.trains,
     signalcolors: v.signalcolors,
     traffic: v.traffic,
@@ -2898,8 +3121,8 @@ var updateSignalColor = function(v) {
 var signalCaution = 2;
 var shiftIndex = function(deleted) {
   return function(i) {
-    var $243 = i < deleted;
-    if ($243) {
+    var $336 = i < deleted;
+    if ($336) {
       return i;
     }
     ;
@@ -2915,6 +3138,24 @@ var shiftRailIndex = function(deleted) {
           nodeid: shiftIndex(deleted)(unwrap5(v.node).nodeid),
           rail: v2.rail,
           state: v2.state,
+          signals: map6(function(v3) {
+            return {
+              signalname: v3.signalname,
+              nodeid: shiftIndex(deleted)(v3.nodeid),
+              jointid: v3.jointid,
+              routes: v3.routes,
+              routecond: v3.routecond,
+              colors: v3.colors,
+              indication: v3.indication,
+              manualStop: v3.manualStop
+            };
+          })(unwrap5(v.node).signals),
+          invalidRoutes: map6(function(v3) {
+            return {
+              nodeid: shiftIndex(deleted)(v3.nodeid),
+              jointid: v3.jointid
+            };
+          })(unwrap5(v.node).invalidRoutes),
           connections: map6(function(c) {
             return {
               nodeid: shiftIndex(deleted)(c.nodeid),
@@ -2925,8 +3166,6 @@ var shiftRailIndex = function(deleted) {
         };
       }(),
       instanceid: v.instanceid,
-      signals: v.signals,
-      wrongways: v.wrongways,
       pos: v.pos
     };
   };
@@ -2937,133 +3176,144 @@ var updateSignalRoutes = function(v) {
     version: v.version,
     rails: map6(function(v2) {
       return {
-        node: v2.node,
-        instanceid: v2.instanceid,
-        signals: map6(function(v4) {
+        node: function() {
+          var v4 = unwrap5(v2.node);
           return {
-            signalname: v4.signalname,
             nodeid: v4.nodeid,
-            jointid: v4.jointid,
-            routes: function() {
-              var go = function(nid) {
-                return function(jid) {
-                  return function(rails2) {
-                    return function(rids) {
-                      var $249 = length(rails2) > searchmax;
-                      if ($249) {
-                        return [];
-                      }
-                      ;
-                      var v62 = index(v.rails)(nid);
-                      if (v62 instanceof Nothing) {
-                        return [];
-                      }
-                      ;
-                      if (v62 instanceof Just) {
-                        var jidexits = function() {
-                          var $251 = unwrap5(unwrap5(unwrap5(v62.value0).node).rail).flipped;
-                          if ($251) {
-                            return reverse;
-                          }
-                          ;
-                          return identity4;
-                        }()(nub3(map6(function() {
-                          var $406 = unwrap5(unwrap5(unwrap5(v62.value0).node).rail).getNewState(jid);
-                          return function($407) {
-                            return function(v72) {
-                              return v72.newjoint;
-                            }($406($407));
-                          };
-                        }())(unwrap5(unwrap5(unwrap5(v62.value0).node).rail).getStates)));
-                        return bindFlipped2(function(jid$prime) {
-                          var v72 = find2(function(s) {
-                            return s.jointid === jid$prime;
-                          })(unwrap5(v62.value0).wrongways);
-                          if (v72 instanceof Nothing) {
-                            var v8 = find2(function(v92) {
-                              return v92.jointid === jid$prime;
-                            })(unwrap5(v62.value0).signals);
-                            if (v8 instanceof Nothing) {
-                              var v9 = find2(function(c) {
-                                return c.from === jid$prime;
-                              })(unwrap5(unwrap5(v62.value0).node).connections);
-                              if (v9 instanceof Nothing) {
-                                return [];
-                              }
-                              ;
-                              if (v9 instanceof Just) {
-                                var $256 = elem3(v9.value0.nodeid)(rids);
-                                if ($256) {
-                                  return [];
-                                }
-                                ;
-                                return go(v9.value0.nodeid)(v9.value0.jointid)(append2(rails2)([{
-                                  nodeid: nid,
-                                  jointenter: jid,
-                                  jointexit: jid$prime
-                                }]))(insert3(v9.value0.nodeid)(rids));
-                              }
-                              ;
-                              throw new Error("Failed pattern match at Internal.Layout (line 655, column 41 - line 659, column 152): " + [v9.constructor.name]);
-                            }
-                            ;
-                            if (v8 instanceof Just) {
-                              return [{
-                                nextsignal: {
-                                  nodeid: nid,
-                                  jointid: jid$prime
-                                },
-                                rails: append2(rails2)([{
-                                  nodeid: nid,
-                                  jointenter: jid,
-                                  jointexit: jid$prime
-                                }])
-                              }];
-                            }
-                            ;
-                            throw new Error("Failed pattern match at Internal.Layout (line 653, column 37 - line 660, column 180): " + [v8.constructor.name]);
-                          }
-                          ;
-                          if (v72 instanceof Just) {
+            rail: v4.rail,
+            state: v4.state,
+            signals: map6(function(v5) {
+              return {
+                signalname: v5.signalname,
+                nodeid: v5.nodeid,
+                jointid: v5.jointid,
+                routes: function() {
+                  var go = function(nid) {
+                    return function(jid) {
+                      return function(rails2) {
+                        return function(rids) {
+                          var $344 = length(rails2) > searchmax;
+                          if ($344) {
                             return [];
                           }
                           ;
-                          throw new Error("Failed pattern match at Internal.Layout (line 651, column 33 - line 661, column 48): " + [v72.constructor.name]);
-                        })(jidexits);
-                      }
-                      ;
-                      throw new Error("Failed pattern match at Internal.Layout (line 646, column 27 - line 662, column 45): " + [v62.constructor.name]);
+                          var v72 = index(v.rails)(nid);
+                          if (v72 instanceof Nothing) {
+                            return [];
+                          }
+                          ;
+                          if (v72 instanceof Just) {
+                            var node = unwrap5(unwrap5(v72.value0).node);
+                            var jidexits = function() {
+                              var $346 = unwrap5(unwrap5(unwrap5(v72.value0).node).rail).flipped;
+                              if ($346) {
+                                return reverse;
+                              }
+                              ;
+                              return identity4;
+                            }()(nub3(map6(function() {
+                              var $597 = unwrap5(node.rail).getNewState(jid);
+                              return function($598) {
+                                return function(v82) {
+                                  return v82.newjoint;
+                                }($597($598));
+                              };
+                            }())(unwrap5(node.rail).getStates)));
+                            return bindFlipped2(function(jid$prime) {
+                              var v82 = find2(function(v92) {
+                                return v92.jointid === jid$prime;
+                              })(node.invalidRoutes);
+                              if (v82 instanceof Nothing) {
+                                var v9 = find2(function(v102) {
+                                  return v102.jointid === jid$prime;
+                                })(node.signals);
+                                if (v9 instanceof Nothing) {
+                                  var v10 = find2(function(c) {
+                                    return c.from === jid$prime;
+                                  })(node.connections);
+                                  if (v10 instanceof Nothing) {
+                                    return [];
+                                  }
+                                  ;
+                                  if (v10 instanceof Just) {
+                                    var $352 = elem3(v10.value0.nodeid)(rids);
+                                    if ($352) {
+                                      return [];
+                                    }
+                                    ;
+                                    return go(v10.value0.nodeid)(v10.value0.jointid)(append2(rails2)([{
+                                      nodeid: nid,
+                                      jointenter: jid,
+                                      jointexit: jid$prime
+                                    }]))(insert3(v10.value0.nodeid)(rids));
+                                  }
+                                  ;
+                                  throw new Error("Failed pattern match at Internal.Layout (line 816, column 41 - line 820, column 152): " + [v10.constructor.name]);
+                                }
+                                ;
+                                if (v9 instanceof Just) {
+                                  return [{
+                                    nextsignal: {
+                                      nodeid: nid,
+                                      jointid: jid$prime
+                                    },
+                                    rails: append2(rails2)([{
+                                      nodeid: nid,
+                                      jointenter: jid,
+                                      jointexit: jid$prime
+                                    }])
+                                  }];
+                                }
+                                ;
+                                throw new Error("Failed pattern match at Internal.Layout (line 814, column 37 - line 821, column 180): " + [v9.constructor.name]);
+                              }
+                              ;
+                              if (v82 instanceof Just) {
+                                return [];
+                              }
+                              ;
+                              throw new Error("Failed pattern match at Internal.Layout (line 812, column 33 - line 822, column 48): " + [v82.constructor.name]);
+                            })(jidexits);
+                          }
+                          ;
+                          throw new Error("Failed pattern match at Internal.Layout (line 806, column 27 - line 823, column 45): " + [v72.constructor.name]);
+                        };
+                      };
                     };
                   };
-                };
+                  var v7 = index(v.rails)(v5.nodeid);
+                  if (v7 instanceof Nothing) {
+                    return [];
+                  }
+                  ;
+                  if (v7 instanceof Just) {
+                    var v8 = find2(function(c) {
+                      return c.from === v5.jointid;
+                    })(unwrap5(unwrap5(v7.value0).node).connections);
+                    if (v8 instanceof Nothing) {
+                      return [];
+                    }
+                    ;
+                    if (v8 instanceof Just) {
+                      return go(v8.value0.nodeid)(v8.value0.jointid)([])([]);
+                    }
+                    ;
+                    throw new Error("Failed pattern match at Internal.Layout (line 827, column 27 - line 829, column 78): " + [v8.constructor.name]);
+                  }
+                  ;
+                  throw new Error("Failed pattern match at Internal.Layout (line 824, column 22 - line 829, column 78): " + [v7.constructor.name]);
+                }(),
+                routecond: v5.routecond,
+                colors: v5.colors,
+                indication: v5.indication,
+                manualStop: v5.manualStop
               };
-              var v6 = index(v.rails)(v4.nodeid);
-              if (v6 instanceof Nothing) {
-                return [];
-              }
-              ;
-              if (v6 instanceof Just) {
-                var v7 = find2(function(c) {
-                  return c.from === v4.jointid;
-                })(unwrap5(unwrap5(v6.value0).node).connections);
-                if (v7 instanceof Nothing) {
-                  return [];
-                }
-                ;
-                if (v7 instanceof Just) {
-                  return go(v7.value0.nodeid)(v7.value0.jointid)([])([]);
-                }
-                ;
-                throw new Error("Failed pattern match at Internal.Layout (line 666, column 27 - line 668, column 78): " + [v7.constructor.name]);
-              }
-              ;
-              throw new Error("Failed pattern match at Internal.Layout (line 663, column 22 - line 668, column 78): " + [v6.constructor.name]);
-            }(),
-            colors: v4.colors,
-            indication: v4.indication
+            })(unwrap5(v2.node).signals),
+            invalidRoutes: v4.invalidRoutes,
+            connections: v4.connections
           };
-        })(v2.signals),
-        wrongways: v2.wrongways,
+        }(),
+        instanceid: v2.instanceid,
         pos: v2.pos
       };
     })(v.rails),
@@ -3080,8 +3330,8 @@ var saModifyAt = function(i) {
   return function(d) {
     return function(f) {
       return function(v) {
-        var $273 = i < v.head;
-        if ($273) {
+        var $369 = i < v.head;
+        if ($369) {
           return {
             arraydata: append2([f(Nothing.value)])(append2(replicate((v.head - i | 0) - 1 | 0)(d))(v.arraydata)),
             head: i,
@@ -3089,8 +3339,8 @@ var saModifyAt = function(i) {
           };
         }
         ;
-        var $274 = v.end <= i;
-        if ($274) {
+        var $370 = v.end <= i;
+        if ($370) {
           return {
             arraydata: append2(v.arraydata)(append2(replicate(i - v.end | 0)(d))([f(Nothing.value)])),
             head: v.head,
@@ -3099,8 +3349,8 @@ var saModifyAt = function(i) {
         }
         ;
         return {
-          arraydata: fromMaybe(v.arraydata)(modifyAt(i - v.head | 0)(function($408) {
-            return f(Just.create($408));
+          arraydata: fromMaybe(v.arraydata)(modifyAt(i - v.head | 0)(function($599) {
+            return f(Just.create($599));
           })(v.arraydata)),
           head: v.head,
           end: v.end
@@ -3126,12 +3376,22 @@ var removeSignal = function(v) {
         version: v.version,
         rails: fromMaybe(v.rails)(modifyAt(nodeid)(function(v2) {
           return {
-            node: v2.node,
+            node: function() {
+              var v4 = unwrap5(v2.node);
+              return {
+                nodeid: v4.nodeid,
+                rail: v4.rail,
+                state: v4.state,
+                signals: filter(function(v5) {
+                  return v5.jointid !== jointid;
+                })(unwrap5(v2.node).signals),
+                invalidRoutes: filter(function(v5) {
+                  return v5.jointid !== jointid;
+                })(unwrap5(v2.node).invalidRoutes),
+                connections: v4.connections
+              };
+            }(),
             instanceid: v2.instanceid,
-            signals: filter(function(v4) {
-              return v4.jointid !== jointid;
-            })(v2.signals),
-            wrongways: v2.wrongways,
             pos: v2.pos
           };
         })(v.rails)),
@@ -3162,7 +3422,7 @@ var removeRail = function(v) {
         return v;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Layout (line 400, column 11 - line 402, column 30): " + [v1.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Layout (line 422, column 11 - line 424, column 30): " + [v1.constructor.name]);
     }();
     return updateSignalRoutes({
       version: layout$prime.version,
@@ -3174,14 +3434,14 @@ var removeRail = function(v) {
               nodeid: v4.nodeid,
               rail: v4.rail,
               state: v4.state,
+              signals: v4.signals,
+              invalidRoutes: v4.invalidRoutes,
               connections: filter(function(v5) {
                 return v5.nodeid !== nodeid;
               })(unwrap5(v2.node).connections)
             };
           }(),
           instanceid: v2.instanceid,
-          signals: v2.signals,
-          wrongways: v2.wrongways,
           pos: v2.pos
         });
       })(fromMaybe(layout$prime.rails)(deleteAt(nodeid)(layout$prime.rails))),
@@ -3192,212 +3452,299 @@ var removeRail = function(v) {
       traincount: layout$prime.traincount,
       updatecount: layout$prime.updatecount + 1 | 0,
       jointData: map23(map23(map23(function() {
-        var $409 = map6(function(v2) {
+        var $600 = map6(function(v2) {
           return {
             pos: v2.pos,
             nodeid: shiftIndex(nodeid)(v2.nodeid),
             jointid: v2.jointid
           };
         });
-        var $410 = filter(function(v2) {
+        var $601 = filter(function(v2) {
           return v2.nodeid !== nodeid;
         });
-        return function($411) {
-          return $409($410($411));
+        return function($602) {
+          return $600($601($602));
         };
       }())))(layout$prime.jointData)
     });
   };
 };
-var movefoward = function($copy_v) {
-  return function($copy_v1) {
-    return function($copy_dt) {
-      var $tco_var_v = $copy_v;
-      var $tco_var_v1 = $copy_v1;
-      var $tco_done = false;
-      var $tco_result;
-      function $tco_loop(v, v1, dt) {
-        var dx = dt * v1.speed;
-        var v2 = {
-          types: v1.types,
-          route: v1.route,
-          distanceToNext: v1.distanceToNext - dx,
-          distanceFromOldest: v1.distanceFromOldest + dx,
-          speed: v1.speed,
-          trainid: v1.trainid,
-          flipped: v1.flipped
-        };
-        var v3 = function() {
-          var v42 = unsnoc(v2.route);
-          if (v42 instanceof Nothing) {
-            return v2;
-          }
-          ;
-          if (v42 instanceof Just) {
-            var $296 = v2.distanceFromOldest <= v42.value0.last.length;
-            if ($296) {
-              return v2;
-            }
-            ;
-            return {
-              types: v2.types,
-              route: v42.value0.init,
-              distanceToNext: v2.distanceToNext,
-              distanceFromOldest: v2.distanceFromOldest - v42.value0.last.length,
-              speed: v2.speed,
-              trainid: v2.trainid,
-              flipped: v2.flipped
-            };
-          }
-          ;
-          throw new Error("Failed pattern match at Internal.Layout (line 467, column 9 - line 472, column 101): " + [v42.constructor.name]);
-        }();
-        var $301 = 0 <= v3.distanceToNext;
-        if ($301) {
-          $tco_done = true;
-          return {
-            newlayout: v,
-            newtrainset: v3
-          };
-        }
-        ;
-        var v4 = bind2(head(v3.route))(function(v5) {
-          return bind2(find2(function(c) {
-            return c.from === updateRailInstance(v5.railinstance)(v5.jointid).newjoint;
-          })(unwrap5(unwrap5(v5.railinstance).node).connections))(function(cdata) {
-            return bind2(index(v.rails)(cdata.nodeid))(function(nextRail) {
-              var routedata = updateRailInstance(nextRail)(cdata.jointid);
-              var slength = sum2(map6(shapeLength)(routedata.shapes));
-              var t3 = {
-                types: v3.types,
-                route: append2([{
-                  nodeid: cdata.nodeid,
-                  jointid: cdata.jointid,
-                  railinstance: nextRail,
-                  shapes: routedata.shapes,
-                  length: slength
-                }])(v3.route),
-                distanceToNext: v3.distanceToNext + slength,
-                distanceFromOldest: v3.distanceFromOldest,
-                speed: v3.speed,
-                trainid: v3.trainid,
-                flipped: v3.flipped
-              };
-              return new Just({
-                newlayout: function() {
-                  var oldrail = index(v.rails)(cdata.nodeid);
-                  var $303 = on(eq14)(map14(function(x) {
-                    return unwrap5(unwrap5(x).node).state;
-                  }))(oldrail)(new Just(routedata.instance));
-                  if ($303) {
-                    return v;
-                  }
-                  ;
-                  return {
-                    version: v.version,
-                    rails: fromMaybe(v.rails)(updateAt(cdata.nodeid)(routedata.instance)(v.rails)),
-                    trains: v.trains,
-                    signalcolors: v.signalcolors,
-                    traffic: v.traffic,
-                    instancecount: v.instancecount,
-                    traincount: v.traincount,
-                    updatecount: v.updatecount + 1 | 0,
-                    jointData: v.jointData
-                  };
-                }(),
-                newtrainset: t3
-              });
-            });
-          });
-        });
-        if (v4 instanceof Just) {
-          $tco_done = true;
-          return v4.value0;
-        }
-        ;
-        if (v4 instanceof Nothing) {
-          var $306 = v3.distanceToNext === 0;
-          if ($306) {
-            $tco_done = true;
-            return {
-              newlayout: v,
-              newtrainset: v1
-            };
-          }
-          ;
-          $tco_var_v = v;
-          $tco_var_v1 = v1;
-          $copy_dt = v1.distanceToNext / v1.speed * 0.9;
-          return;
-        }
-        ;
-        throw new Error("Failed pattern match at Internal.Layout (line 476, column 13 - line 506, column 185): " + [v4.constructor.name]);
-      }
-      ;
-      while (!$tco_done) {
-        $tco_result = $tco_loop($tco_var_v, $tco_var_v1, $copy_dt);
-      }
-      ;
-      return $tco_result;
-    };
-  };
+var layoutUpdate = function($603) {
+  return updateSignalIndication(updateTraffic($603));
 };
-var moveTrains = function(dt) {
-  return function(v) {
-    return foldl2(function(l) {
-      return function(t) {
-        var v1 = movefoward(l)(t)(dt);
-        var v2 = unwrap5(v1.newlayout);
-        return {
-          version: v2.version,
-          rails: v2.rails,
-          trains: append2(unwrap5(v1.newlayout).trains)([v1.newtrainset]),
-          signalcolors: v2.signalcolors,
-          traffic: v2.traffic,
-          instancecount: v2.instancecount,
-          traincount: v2.traincount,
-          updatecount: v2.updatecount,
-          jointData: v2.jointData
-        };
-      };
-    })({
-      version: v.version,
-      rails: v.rails,
-      trains: [],
-      signalcolors: v.signalcolors,
-      traffic: v.traffic,
-      instancecount: v.instancecount,
-      traincount: v.traincount,
-      updatecount: v.updatecount,
-      jointData: v.jointData
-    })(v.trains);
-  };
-};
-var layoutUpdate = function($412) {
-  return updateSignalColor(updateTraffic($412));
-};
-var layoutTick = /* @__PURE__ */ function() {
-  return moveTrains(1 / 60);
-}();
 var instanceDrawInfo = function(v) {
   return absDrawInfo(v.pos)(unwrap5(unwrap5(v.node).rail).getDrawInfo(unwrap5(v.node).state));
+};
+var indicationToSpeed = function(i) {
+  if (i === 0) {
+    return 0 * speedScale;
+  }
+  ;
+  if (i === 1) {
+    return 25 * speedScale;
+  }
+  ;
+  if (i === 2) {
+    return 45 * speedScale;
+  }
+  ;
+  if (i === 3) {
+    return 65 * speedScale;
+  }
+  ;
+  if (i === 4) {
+    return 120 * speedScale;
+  }
+  ;
+  return 120 * speedScale;
+};
+var hasTraffic = function(v) {
+  return function(v1) {
+    var node = unwrap5(v1.node);
+    var $392 = maybe(false)(any(function(t) {
+      return length(t) > 0;
+    }))(index(v.traffic)(node.nodeid));
+    if ($392) {
+      return true;
+    }
+    ;
+    var go = function($copy_nid) {
+      return function($copy_jid) {
+        return function($copy_depth) {
+          var $tco_var_nid = $copy_nid;
+          var $tco_var_jid = $copy_jid;
+          var $tco_done = false;
+          var $tco_result;
+          function $tco_loop(nid, jid, depth) {
+            var $393 = depth > searchmax;
+            if ($393) {
+              $tco_done = true;
+              return false;
+            }
+            ;
+            var v2 = index(v.rails)(nid);
+            if (v2 instanceof Nothing) {
+              $tco_done = true;
+              return false;
+            }
+            ;
+            if (v2 instanceof Just) {
+              var $395 = any(function(x) {
+                return unwrap5(x).jointid === jid;
+              })(unwrap5(v2.value0.node).signals) || any(function(x) {
+                return unwrap5(x).jointid === jid;
+              })(unwrap5(v2.value0.node).invalidRoutes);
+              if ($395) {
+                $tco_done = true;
+                return false;
+              }
+              ;
+              var jointexit = updateRailInstance(v2.value0)(jid).newjoint;
+              var v3 = index(v.traffic)(nid);
+              if (v3 instanceof Nothing) {
+                $tco_done = true;
+                return false;
+              }
+              ;
+              if (v3 instanceof Just) {
+                var v4 = index(v3.value0)(jointexit);
+                if (v4 instanceof Nothing) {
+                  $tco_done = true;
+                  return false;
+                }
+                ;
+                if (v4 instanceof Just) {
+                  var $398 = length(v4.value0) > 0;
+                  if ($398) {
+                    $tco_done = true;
+                    return true;
+                  }
+                  ;
+                  var v5 = find2(function(c) {
+                    return c.from === jointexit;
+                  })(unwrap5(v2.value0.node).connections);
+                  if (v5 instanceof Nothing) {
+                    $tco_done = true;
+                    return false;
+                  }
+                  ;
+                  if (v5 instanceof Just) {
+                    $tco_var_nid = v5.value0.nodeid;
+                    $tco_var_jid = v5.value0.jointid;
+                    $copy_depth = depth + 1 | 0;
+                    return;
+                  }
+                  ;
+                  throw new Error("Failed pattern match at Internal.Layout (line 900, column 37 - line 902, column 94): " + [v5.constructor.name]);
+                }
+                ;
+                throw new Error("Failed pattern match at Internal.Layout (line 895, column 31 - line 902, column 94): " + [v4.constructor.name]);
+              }
+              ;
+              throw new Error("Failed pattern match at Internal.Layout (line 892, column 28 - line 902, column 94): " + [v3.constructor.name]);
+            }
+            ;
+            throw new Error("Failed pattern match at Internal.Layout (line 885, column 19 - line 902, column 94): " + [v2.constructor.name]);
+          }
+          ;
+          while (!$tco_done) {
+            $tco_result = $tco_loop($tco_var_nid, $tco_var_jid, $copy_depth);
+          }
+          ;
+          return $tco_result;
+        };
+      };
+    };
+    return any(identity4)(map6(function(cdata) {
+      return go(cdata.nodeid)(cdata.jointid)(0);
+    })(node.connections));
+  };
 };
 var getRailJointAbsPos = function(r) {
   return function(jointid) {
     return toAbsPos(unwrap5(r).pos)(unwrap5(unwrap5(unwrap5(r).node).rail).getJointPos(jointid));
   };
 };
+var getNextSignal = function(v) {
+  return function(v1) {
+    var v2 = head(v1.route);
+    if (v2 instanceof Nothing) {
+      return {
+        signal: Nothing.value,
+        sections: 0,
+        distance: 0
+      };
+    }
+    ;
+    if (v2 instanceof Just) {
+      var go = function($copy_nid) {
+        return function($copy_jid) {
+          return function($copy_sectionsold) {
+            return function($copy_distanceold) {
+              return function($copy_isfirst) {
+                var $tco_var_nid = $copy_nid;
+                var $tco_var_jid = $copy_jid;
+                var $tco_var_sectionsold = $copy_sectionsold;
+                var $tco_var_distanceold = $copy_distanceold;
+                var $tco_done = false;
+                var $tco_result;
+                function $tco_loop(nid, jid, sectionsold, distanceold, isfirst) {
+                  var $407 = sectionsold > searchmax;
+                  if ($407) {
+                    $tco_done = true;
+                    return {
+                      signal: Nothing.value,
+                      sections: sectionsold,
+                      distance: distanceold
+                    };
+                  }
+                  ;
+                  var v3 = index(v.rails)(nid);
+                  if (v3 instanceof Nothing) {
+                    $tco_done = true;
+                    return {
+                      signal: Nothing.value,
+                      sections: sectionsold,
+                      distance: distanceold
+                    };
+                  }
+                  ;
+                  if (v3 instanceof Just) {
+                    var sections = sectionsold + 1 | 0;
+                    var next = updateRailInstance(v3.value0)(jid);
+                    var distance = function() {
+                      if (isfirst) {
+                        return distanceold;
+                      }
+                      ;
+                      return distanceold + sum2(map6(shapeLength)(next.shapes));
+                    }();
+                    var v4 = find2(function(v52) {
+                      return v52.jointid === next.newjoint;
+                    })(unwrap5(unwrap5(v3.value0).node).invalidRoutes);
+                    if (v4 instanceof Nothing) {
+                      var v5 = find2(function(v62) {
+                        return v62.jointid === next.newjoint;
+                      })(unwrap5(unwrap5(v3.value0).node).signals);
+                      if (v5 instanceof Nothing) {
+                        var v6 = find2(function(c) {
+                          return c.from === next.newjoint;
+                        })(unwrap5(unwrap5(v3.value0).node).connections);
+                        if (v6 instanceof Nothing) {
+                          $tco_done = true;
+                          return {
+                            signal: Nothing.value,
+                            sections,
+                            distance
+                          };
+                        }
+                        ;
+                        if (v6 instanceof Just) {
+                          $tco_var_nid = v6.value0.nodeid;
+                          $tco_var_jid = v6.value0.jointid;
+                          $tco_var_sectionsold = sections;
+                          $tco_var_distanceold = distance;
+                          $copy_isfirst = false;
+                          return;
+                        }
+                        ;
+                        throw new Error("Failed pattern match at Internal.Layout (line 638, column 29 - line 641, column 74): " + [v6.constructor.name]);
+                      }
+                      ;
+                      if (v5 instanceof Just) {
+                        $tco_done = true;
+                        return {
+                          signal: new Just(v5.value0),
+                          sections,
+                          distance
+                        };
+                      }
+                      ;
+                      throw new Error("Failed pattern match at Internal.Layout (line 636, column 25 - line 642, column 74): " + [v5.constructor.name]);
+                    }
+                    ;
+                    if (v4 instanceof Just) {
+                      $tco_done = true;
+                      return {
+                        signal: Nothing.value,
+                        sections,
+                        distance
+                      };
+                    }
+                    ;
+                    throw new Error("Failed pattern match at Internal.Layout (line 634, column 22 - line 643, column 71): " + [v4.constructor.name]);
+                  }
+                  ;
+                  throw new Error("Failed pattern match at Internal.Layout (line 628, column 15 - line 643, column 71): " + [v3.constructor.name]);
+                }
+                ;
+                while (!$tco_done) {
+                  $tco_result = $tco_loop($tco_var_nid, $tco_var_jid, $tco_var_sectionsold, $tco_var_distanceold, $copy_isfirst);
+                }
+                ;
+                return $tco_result;
+              };
+            };
+          };
+        };
+      };
+      return go(v2.value0.nodeid)(v2.value0.jointid)(0)(v1.distanceToNext)(true);
+    }
+    ;
+    throw new Error("Failed pattern match at Internal.Layout (line 623, column 3 - line 644, column 58): " + [v2.constructor.name]);
+  };
+};
 var getJoints = function(v) {
   return function(joint) {
     var getrange = function(r) {
       var i = round2(r);
-      var $315 = round2(r - 0.1) < i;
-      if ($315) {
+      var $426 = round2(r - 0.1) < i;
+      if ($426) {
         return [i - 1 | 0, i];
       }
       ;
-      var $316 = i < round2(r + 0.1);
-      if ($316) {
+      var $427 = i < round2(r + 0.1);
+      if ($427) {
         return [i, i + 1 | 0];
       }
       ;
@@ -3407,7 +3754,7 @@ var getJoints = function(v) {
     var rx = getrange(coord.x);
     var ry = getrange(coord.y);
     var rz = getrange(coord.z);
-    return join1(apply5(apply5(map6(function(x) {
+    return join1(apply4(apply4(map6(function(x) {
       return function(y) {
         return function(z) {
           return fromMaybe([])(composeKleisli2(saIndex(z))(composeKleisli2(saIndex(x))(saIndex(y)))(v.jointData));
@@ -3434,22 +3781,22 @@ var getNewRailPos = function(v) {
     var conv = function(i) {
       return convertRelPos(unwrap5(v1.rail).getJointPos(i))(origin);
     };
-    return join2(foldM3(function(mposofzero) {
+    return join3(foldM3(function(mposofzero) {
       return function(v2) {
         if (mposofzero instanceof Nothing) {
           return new Just(apply1(map14(toAbsPos)(map14(reversePos)(getJointAbsPos(v)(v2.nodeid)(v2.jointid))))(pure2(conv(v2.from))));
         }
         ;
         if (mposofzero instanceof Just) {
-          var $324 = fromMaybe(false)(map14(canJoin(toAbsPos(mposofzero.value0)(jrel(v2.from))))(getJointAbsPos(v)(v2.nodeid)(v2.jointid)));
-          if ($324) {
+          var $435 = fromMaybe(false)(map14(canJoin(toAbsPos(mposofzero.value0)(jrel(v2.from))))(getJointAbsPos(v)(v2.nodeid)(v2.jointid)));
+          if ($435) {
             return new Just(mposofzero);
           }
           ;
           return Nothing.value;
         }
         ;
-        throw new Error("Failed pattern match at Internal.Layout (line 301, column 11 - line 308, column 27): " + [mposofzero.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Layout (line 318, column 11 - line 325, column 27): " + [mposofzero.constructor.name]);
       };
     })(Nothing.value)(v1.connections));
   };
@@ -3465,6 +3812,88 @@ var forceUpdate = function(v) {
     traincount: v.traincount,
     updatecount: v.updatecount + 1 | 0,
     jointData: v.jointData
+  };
+};
+var tryOpenRouteFor = function(v) {
+  return function(nodeid) {
+    return function(jointid) {
+      return function(routeid) {
+        return bind3(index(v.rails)(nodeid))(function(v1) {
+          return bind3(find2(function(v2) {
+            return v2.jointid === jointid;
+          })(unwrap5(v1.node).signals))(function(v2) {
+            return bind3(index(v2.routes)(routeid))(function(v3) {
+              return bind3(foldM3(function(v4) {
+                return function(v5) {
+                  return bind3(index(v.rails)(v5.nodeid))(function(v6) {
+                    var hastraffic$prime = v4.hastraffic || hasTraffic(v)(v6);
+                    return bind3(unwrap5(unwrap5(v6.node).rail).getRoute(unwrap5(v6.node).state)(v5.jointenter)(v5.jointexit))(function(newstate) {
+                      return bind3(updateAt(v5.nodeid)({
+                        node: function() {
+                          var v8 = unwrap5(v6.node);
+                          return {
+                            nodeid: v8.nodeid,
+                            rail: v8.rail,
+                            state: newstate,
+                            signals: v8.signals,
+                            invalidRoutes: v8.invalidRoutes,
+                            connections: v8.connections
+                          };
+                        }(),
+                        instanceid: v6.instanceid,
+                        pos: v6.pos
+                      })(v4.newrails))(function(newrails$prime) {
+                        var $452 = newstate !== unwrap5(v6.node).state && hastraffic$prime;
+                        if ($452) {
+                          return Nothing.value;
+                        }
+                        ;
+                        return new Just({
+                          hastraffic: hastraffic$prime,
+                          newrails: newrails$prime
+                        });
+                      });
+                    });
+                  });
+                };
+              })({
+                hastraffic: false,
+                newrails: v.rails
+              })(v3.rails))(function(v4) {
+                return pure2(layoutUpdate(forceUpdate({
+                  version: v.version,
+                  rails: v4.newrails,
+                  trains: v.trains,
+                  signalcolors: v.signalcolors,
+                  traffic: v.traffic,
+                  instancecount: v.instancecount,
+                  traincount: v.traincount,
+                  updatecount: v.updatecount,
+                  jointData: v.jointData
+                })));
+              });
+            });
+          });
+        });
+      };
+    };
+  };
+};
+var tryOpenRouteFor_ffi = function(v) {
+  return function(nodeid) {
+    return function(jointid) {
+      return function(routeid) {
+        return maybe({
+          layout: v,
+          result: false
+        })(function(l) {
+          return {
+            layout: l,
+            result: true
+          };
+        })(tryOpenRouteFor(v)(nodeid)(jointid)(routeid));
+      };
+    };
   };
 };
 var flipTrain = function(v) {
@@ -3483,7 +3912,174 @@ var flipTrain = function(v) {
     distanceFromOldest: v.distanceToNext,
     speed: v.speed,
     trainid: v.trainid,
-    flipped: !v.flipped
+    flipped: !v.flipped,
+    signalRestriction: v.signalRestriction,
+    respectSignals: v.respectSignals,
+    realAcceralation: v.realAcceralation,
+    notch: v.notch,
+    program: v.program
+  };
+};
+var digestIndication = function(signal) {
+  var $467 = unwrap5(signal).manualStop;
+  if ($467) {
+    return signalStop;
+  }
+  ;
+  return fromMaybe(signalStop)(maximum2(unwrap5(signal).indication));
+};
+var signalToSpeed = function($606) {
+  return indicationToSpeed(digestIndication($606));
+};
+var movefoward = function($copy_v) {
+  return function($copy_v1) {
+    return function($copy_dt) {
+      var $tco_var_v = $copy_v;
+      var $tco_var_v1 = $copy_v1;
+      var $tco_done = false;
+      var $tco_result;
+      function $tco_loop(v, v1, dt) {
+        var dx = dt * v1.speed;
+        var v2 = {
+          types: v1.types,
+          route: v1.route,
+          distanceToNext: v1.distanceToNext - dx,
+          distanceFromOldest: v1.distanceFromOldest + dx,
+          speed: v1.speed,
+          trainid: v1.trainid,
+          flipped: v1.flipped,
+          signalRestriction: v1.signalRestriction,
+          respectSignals: v1.respectSignals,
+          realAcceralation: v1.realAcceralation,
+          notch: v1.notch,
+          program: v1.program
+        };
+        var v3 = function() {
+          var v42 = unsnoc(v2.route);
+          if (v42 instanceof Nothing) {
+            return v2;
+          }
+          ;
+          if (v42 instanceof Just) {
+            var $473 = v2.distanceFromOldest <= v42.value0.last.length;
+            if ($473) {
+              return v2;
+            }
+            ;
+            return {
+              types: v2.types,
+              route: v42.value0.init,
+              distanceToNext: v2.distanceToNext,
+              distanceFromOldest: v2.distanceFromOldest - v42.value0.last.length,
+              speed: v2.speed,
+              trainid: v2.trainid,
+              flipped: v2.flipped,
+              signalRestriction: v2.signalRestriction,
+              respectSignals: v2.respectSignals,
+              realAcceralation: v2.realAcceralation,
+              notch: v2.notch,
+              program: v2.program
+            };
+          }
+          ;
+          throw new Error("Failed pattern match at Internal.Layout (line 578, column 9 - line 583, column 101): " + [v42.constructor.name]);
+        }();
+        var $478 = 0 <= v3.distanceToNext;
+        if ($478) {
+          $tco_done = true;
+          return {
+            newlayout: v,
+            newtrainset: v3
+          };
+        }
+        ;
+        var v4 = bind3(head(v3.route))(function(v5) {
+          var jointexit = updateRailInstance(v5.railinstance)(v5.jointid).newjoint;
+          return bind3(find2(function(c) {
+            return c.from === jointexit;
+          })(unwrap5(unwrap5(v5.railinstance).node).connections))(function(cdata) {
+            return bind3(index(v.rails)(cdata.nodeid))(function(nextRail) {
+              var routedata = updateRailInstance(nextRail)(cdata.jointid);
+              var slength = sum2(map6(shapeLength)(routedata.shapes));
+              var t3 = {
+                types: v3.types,
+                route: append2([{
+                  nodeid: cdata.nodeid,
+                  jointid: cdata.jointid,
+                  railinstance: nextRail,
+                  shapes: routedata.shapes,
+                  length: slength
+                }])(v3.route),
+                distanceToNext: v3.distanceToNext + slength,
+                distanceFromOldest: v3.distanceFromOldest,
+                speed: v3.speed,
+                trainid: v3.trainid,
+                flipped: v3.flipped,
+                signalRestriction: max3(speedScale * 15)(maybe(v3.signalRestriction)(signalToSpeed)(find2(function(v7) {
+                  return v7.jointid === jointexit;
+                })(unwrap5(unwrap5(v5.railinstance).node).signals))),
+                respectSignals: v3.respectSignals,
+                realAcceralation: v3.realAcceralation,
+                notch: v3.notch,
+                program: v3.program
+              };
+              return new Just({
+                newlayout: function() {
+                  var oldrail = index(v.rails)(cdata.nodeid);
+                  var $481 = on(eq15)(map14(function(x) {
+                    return unwrap5(unwrap5(x).node).state;
+                  }))(oldrail)(new Just(routedata.instance));
+                  if ($481) {
+                    return v;
+                  }
+                  ;
+                  return {
+                    version: v.version,
+                    rails: fromMaybe(v.rails)(updateAt(cdata.nodeid)(routedata.instance)(v.rails)),
+                    trains: v.trains,
+                    signalcolors: v.signalcolors,
+                    traffic: v.traffic,
+                    instancecount: v.instancecount,
+                    traincount: v.traincount,
+                    updatecount: v.updatecount + 1 | 0,
+                    jointData: v.jointData
+                  };
+                }(),
+                newtrainset: t3
+              });
+            });
+          });
+        });
+        if (v4 instanceof Just) {
+          $tco_done = true;
+          return v4.value0;
+        }
+        ;
+        if (v4 instanceof Nothing) {
+          var $484 = v3.distanceToNext === 0;
+          if ($484) {
+            $tco_done = true;
+            return {
+              newlayout: v,
+              newtrainset: v1
+            };
+          }
+          ;
+          $tco_var_v = v;
+          $tco_var_v1 = v1;
+          $copy_dt = v1.distanceToNext / v1.speed * 0.9;
+          return;
+        }
+        ;
+        throw new Error("Failed pattern match at Internal.Layout (line 587, column 13 - line 619, column 185): " + [v4.constructor.name]);
+      }
+      ;
+      while (!$tco_done) {
+        $tco_result = $tco_loop($tco_var_v, $tco_var_v1, $copy_dt);
+      }
+      ;
+      return $tco_result;
+    };
   };
 };
 var carMargin = /* @__PURE__ */ function() {
@@ -3506,8 +4102,8 @@ var trainsetDrawInfo = function(v) {
         function $tco_loop(w, d$prime, i) {
           var v1 = index(shapes)(i);
           if (v1 instanceof Just) {
-            var $335 = v1.value0.length < d$prime;
-            if ($335) {
+            var $488 = v1.value0.length < d$prime;
+            if ($488) {
               $tco_var_w = w;
               $tco_var_d$prime = d$prime - v1.value0.length;
               $copy_i = i + 1 | 0;
@@ -3523,7 +4119,7 @@ var trainsetDrawInfo = function(v) {
             return poszero;
           }
           ;
-          throw new Error("Failed pattern match at Internal.Layout (line 171, column 9 - line 176, column 29): " + [v1.constructor.name]);
+          throw new Error("Failed pattern match at Internal.Layout (line 178, column 9 - line 183, column 29): " + [v1.constructor.name]);
         }
         ;
         while (!$tco_done) {
@@ -3580,13 +4176,68 @@ var layoutDrawInfo = function(v) {
           pos: fromMaybe(poszero)(getJointAbsPos(v)(v2.nodeid)(v2.jointid)),
           signal: v2
         };
-      })(v1.signals);
+      })(unwrap5(v1.node).signals);
+    })(v.rails),
+    invalidRoutes: map6(function(v1) {
+      return map6(function(v2) {
+        return {
+          pos: fromMaybe(poszero)(getJointAbsPos(v)(v2.nodeid)(v2.jointid)),
+          signal: v2
+        };
+      })(unwrap5(v1.node).invalidRoutes);
     })(v.rails),
     trains: map6(trainsetDrawInfo)(v.trains)
   };
 };
 var trainsetLength = function(v) {
   return toNumber(length(v.types)) * (carLength + carMargin) - carMargin;
+};
+var basedccr = 0.4;
+var brakePattern = function(speed) {
+  return function(finalspeed) {
+    var t = (speed - finalspeed) / basedccr;
+    return 0.3 + max3(0)(finalspeed * t + 0.5 * basedccr * t * t);
+  };
+};
+var brakePatternCheck = function(speed) {
+  return function(signaldata) {
+    var restriction = maybe(0)(signalToSpeed)(signaldata.signal);
+    var $497 = speed < restriction;
+    if ($497) {
+      return false;
+    }
+    ;
+    return signaldata.distance < brakePattern(speed)(restriction);
+  };
+};
+var baseaccr = 0.4;
+var calcAcceralation = function(notch) {
+  return function(speed) {
+    var dccr = -speed * speed * 1e-3;
+    return dccr + function() {
+      var $498 = notch === 0;
+      if ($498) {
+        return 0;
+      }
+      ;
+      var $499 = notch > 0;
+      if ($499) {
+        var $500 = speed / speedScale / 30 < toNumber(notch);
+        if ($500) {
+          var $501 = speed / speedScale < 40;
+          if ($501) {
+            return baseaccr;
+          }
+          ;
+          return baseaccr / (speed / speedScale / 40);
+        }
+        ;
+        return baseaccr / (speed / speedScale / 40) * max3(0)((toNumber(notch) - speed / speedScale / 30) * 2 + 1);
+      }
+      ;
+      return basedccr * toNumber(notch) / 8;
+    }();
+  };
 };
 var addTrainset = function(v) {
   return function(nodeid) {
@@ -3596,12 +4247,12 @@ var addTrainset = function(v) {
           return function(nid) {
             return function(jid) {
               return function(len) {
-                return bind2(index(v.rails)(nid))(function(rail) {
+                return bind3(index(v.rails)(nid))(function(rail) {
                   var info = updateRailInstance(rail)(jid);
                   var lenhere = sum2(map6(shapeLength)(info.shapes));
-                  var $346 = lenhere < len;
-                  if ($346) {
-                    return bind2(find2(function(c) {
+                  var $506 = lenhere < len;
+                  if ($506) {
+                    return bind3(find2(function(c) {
                       return c.from === info.newjoint;
                     })(unwrap5(unwrap5(rail).node).connections))(function(cdata) {
                       return go(append2([{
@@ -3627,18 +4278,23 @@ var addTrainset = function(v) {
                     distanceFromOldest: 0,
                     speed: 0,
                     trainid: v.traincount,
-                    flipped: false
+                    flipped: false,
+                    respectSignals: false,
+                    realAcceralation: false,
+                    notch: 0,
+                    signalRestriction: 0,
+                    program: []
                   });
                 });
               };
             };
           };
         };
-        return fromMaybe(v)(bind2(index(v.rails)(nodeid))(function(rail) {
-          return bind2(find2(function(c) {
+        return fromMaybe(v)(bind3(index(v.rails)(nodeid))(function(rail) {
+          return bind3(find2(function(c) {
             return c.from === jointid;
           })(unwrap5(unwrap5(rail).node).connections))(function(start) {
-            return bind2(go([])(start.nodeid)(start.jointid)(toNumber(length(types)) * (carLength + carMargin) - carMargin))(function(newtrain) {
+            return bind3(go([])(start.nodeid)(start.jointid)(toNumber(length(types)) * (carLength + carMargin) - carMargin))(function(newtrain) {
               return new Just({
                 version: v.version,
                 rails: v.rails,
@@ -3662,30 +4318,42 @@ var addSignal = function(v) {
     return function(jointid) {
       return fromMaybe(v)(function() {
         var signal = {
-          signalname: show2(nodeid) + ("_" + show2(nodeid)),
+          signalname: show2(nodeid) + ("_" + show2(jointid)),
           nodeid,
           jointid,
           routes: [],
           colors: [signalStop, signalCaution, signalReduce],
-          indication: []
+          routecond: [],
+          indication: [],
+          manualStop: false
         };
-        return bind2(index(v.rails)(nodeid))(function(v1) {
+        return bind3(index(v.rails)(nodeid))(function(v1) {
           return discard2(function() {
-            var $352 = any(function(v2) {
+            var $513 = any(function(v2) {
               return v2.jointid === jointid;
-            })(v1.signals);
-            if ($352) {
+            })(unwrap5(v1.node).signals) || any(function(v2) {
+              return v2.jointid === jointid;
+            })(unwrap5(v1.node).invalidRoutes);
+            if ($513) {
               return Nothing.value;
             }
             ;
             return pure2(unit);
           }())(function() {
-            return bind2(modifyAt(nodeid)(function(v2) {
+            return bind3(modifyAt(nodeid)(function(v2) {
               return {
-                node: v2.node,
+                node: function() {
+                  var v4 = unwrap5(v2.node);
+                  return {
+                    nodeid: v4.nodeid,
+                    rail: v4.rail,
+                    state: v4.state,
+                    signals: append2(unwrap5(v2.node).signals)([signal]),
+                    invalidRoutes: v4.invalidRoutes,
+                    connections: v4.connections
+                  };
+                }(),
                 instanceid: v2.instanceid,
-                signals: append2(v2.signals)([signal]),
-                wrongways: v2.wrongways,
                 pos: v2.pos
               };
             })(v.rails))(function(rails$prime) {
@@ -3722,22 +4390,22 @@ var addJoint = function(v) {
           traincount: v.traincount,
           updatecount: v.updatecount,
           jointData: saModifyAt(round2(coord.z))(saEmpty)(function() {
-            var $415 = saModifyAt(round2(coord.x))(saEmpty)(function() {
-              var $418 = saModifyAt(round2(coord.y))([])(function(ma) {
+            var $607 = saModifyAt(round2(coord.x))(saEmpty)(function() {
+              var $610 = saModifyAt(round2(coord.y))([])(function(ma) {
                 return append2(fromMaybe([])(ma))([{
                   pos,
                   nodeid,
                   jointid
                 }]);
               });
-              var $419 = fromMaybe(saEmpty);
-              return function($420) {
-                return $418($419($420));
+              var $611 = fromMaybe(saEmpty);
+              return function($612) {
+                return $610($611($612));
               };
             }());
-            var $416 = fromMaybe(saEmpty);
-            return function($417) {
-              return $415($416($417));
+            var $608 = fromMaybe(saEmpty);
+            return function($609) {
+              return $607($608($609));
             };
           }())(v.jointData)
         };
@@ -3771,20 +4439,20 @@ var addRailWithPos = function(v) {
         return v2.from;
       })(v1.connections);
       var newconnections = catMaybes(map6(function(v2) {
-        var $368 = elem3(v2.jointid)(cfroms);
-        if ($368) {
+        var $529 = elem3(v2.jointid)(cfroms);
+        if ($529) {
           return Nothing.value;
         }
         ;
         return function() {
-          var $421 = map14(function(jdata) {
+          var $613 = map14(function(jdata) {
             return {
               jointData: jdata,
               jointid: v2.jointid
             };
           });
-          return function($422) {
-            return $421(head($422));
+          return function($614) {
+            return $613(head($614));
           };
         }()(filter(function(v3) {
           return canJoin(v2.pos)(v3.pos);
@@ -3803,6 +4471,8 @@ var addRailWithPos = function(v) {
           nodeid: v1.nodeid,
           rail: v1.rail,
           state: v1.state,
+          signals: v1.signals,
+          invalidRoutes: v1.invalidRoutes,
           connections: append2(v1.connections)(map6(function(v3) {
             return {
               from: v3.jointid,
@@ -3820,6 +4490,8 @@ var addRailWithPos = function(v) {
                     nodeid: v5.nodeid,
                     rail: v5.rail,
                     state: v5.state,
+                    signals: v5.signals,
+                    invalidRoutes: v5.invalidRoutes,
                     connections: append2(v5.connections)([{
                       from: v2.jointData.jointid,
                       nodeid: v1.nodeid,
@@ -3828,8 +4500,6 @@ var addRailWithPos = function(v) {
                   };
                 }(v3.node),
                 instanceid: v3.instanceid,
-                signals: v3.signals,
-                wrongways: v3.wrongways,
                 pos: v3.pos
               };
             })(rs));
@@ -3837,9 +4507,7 @@ var addRailWithPos = function(v) {
         })(v.rails)(connections))([{
           node: newnode,
           instanceid: v.instancecount,
-          pos,
-          signals: [],
-          wrongways: []
+          pos
         }]);
         return new Just(updateSignalRoutes(function(l) {
           return foldl2(function(l$prime) {
@@ -3874,10 +4542,10 @@ var autoAdd = function(v) {
     return function(selectedjoint) {
       return function(rail) {
         return function(from2) {
-          return fromMaybe(v)(bind2(getJointAbsPos(v)(selectednode)(selectedjoint))(function(v1) {
+          return fromMaybe(v)(bind3(getJointAbsPos(v)(selectednode)(selectedjoint))(function(v1) {
             var rail$prime = function() {
-              var $404 = v1.isPlus === unwrap5(unwrap5(unwrap5(rail).getJointPos(from2))).isPlus;
-              if ($404) {
+              var $565 = v1.isPlus === unwrap5(unwrap5(unwrap5(rail).getJointPos(from2))).isPlus;
+              if ($565) {
                 return opposeRail(rail);
               }
               ;
@@ -3891,7 +4559,9 @@ var autoAdd = function(v) {
                 from: from2,
                 nodeid: selectednode,
                 jointid: selectedjoint
-              }]
+              }],
+              signals: [],
+              invalidRoutes: []
             };
             return addRail(v)(node);
           }));
@@ -3900,14 +4570,188 @@ var autoAdd = function(v) {
     };
   };
 };
+var addInvalidRoute = function(v) {
+  return function(nodeid) {
+    return function(jointid) {
+      return fromMaybe(v)(function() {
+        var signal = {
+          nodeid,
+          jointid
+        };
+        return bind3(index(v.rails)(nodeid))(function(v1) {
+          return discard2(function() {
+            var $572 = any(function(v2) {
+              return v2.jointid === jointid;
+            })(unwrap5(v1.node).signals) || any(function(v2) {
+              return v2.jointid === jointid;
+            })(unwrap5(v1.node).invalidRoutes);
+            if ($572) {
+              return Nothing.value;
+            }
+            ;
+            return pure2(unit);
+          }())(function() {
+            return bind3(modifyAt(nodeid)(function(v2) {
+              return {
+                node: function() {
+                  var v4 = unwrap5(v2.node);
+                  return {
+                    nodeid: v4.nodeid,
+                    rail: v4.rail,
+                    state: v4.state,
+                    signals: v4.signals,
+                    invalidRoutes: append2(unwrap5(v2.node).invalidRoutes)([signal]),
+                    connections: v4.connections
+                  };
+                }(),
+                instanceid: v2.instanceid,
+                pos: v2.pos
+              };
+            })(v.rails))(function(rails$prime) {
+              return new Just(updateSignalRoutes({
+                version: v.version,
+                rails: rails$prime,
+                trains: v.trains,
+                signalcolors: v.signalcolors,
+                traffic: v.traffic,
+                instancecount: v.instancecount,
+                traincount: v.traincount,
+                updatecount: v.updatecount + 1 | 0,
+                jointData: v.jointData
+              }));
+            });
+          });
+        });
+      }());
+    };
+  };
+};
+var acceralate = function(v) {
+  return function(notch) {
+    return function(dt) {
+      return {
+        types: v.types,
+        route: v.route,
+        distanceToNext: v.distanceToNext,
+        distanceFromOldest: v.distanceFromOldest,
+        speed: max3(0)(v.speed + dt * calcAcceralation(notch)(v.speed)),
+        trainid: v.trainid,
+        flipped: v.flipped,
+        signalRestriction: v.signalRestriction,
+        respectSignals: v.respectSignals,
+        realAcceralation: v.realAcceralation,
+        notch: v.notch,
+        program: v.program
+      };
+    };
+  };
+};
+var trainTick = function(v) {
+  return function(v1) {
+    return function(dt) {
+      var nextsignal = getNextSignal(v)(v1);
+      var l$prime = fromMaybe(v)(bind3(nextsignal.signal)(function(v22) {
+        return discard2(function() {
+          var $581 = digestIndication(v22) > signalStop;
+          if ($581) {
+            return Nothing.value;
+          }
+          ;
+          return pure2(unit);
+        }())(function() {
+          return bind3(find2(function(v32) {
+            return v32.nodeid === v22.nodeid && v32.jointid === v22.jointid;
+          })(v1.program))(function(p) {
+            return bind3(tryOpenRouteFor(v)(p.nodeid)(p.jointid)(p.routeid))(function(l$prime1) {
+              return unlockManualStop(l$prime1)(p.nodeid)(p.jointid);
+            });
+          });
+        });
+      }));
+      var v2 = {
+        types: v1.types,
+        route: v1.route,
+        distanceToNext: v1.distanceToNext,
+        distanceFromOldest: v1.distanceFromOldest,
+        speed: v1.speed,
+        trainid: v1.trainid,
+        flipped: v1.flipped,
+        signalRestriction: max3(v1.signalRestriction)(maybe(speedScale * 15)(signalToSpeed)(nextsignal.signal)),
+        respectSignals: v1.respectSignals,
+        realAcceralation: v1.realAcceralation,
+        notch: v1.notch,
+        program: v1.program
+      };
+      var notch = function() {
+        if (v1.respectSignals) {
+          var $587 = v1.signalRestriction < v1.speed || brakePatternCheck(v1.speed)(nextsignal);
+          if ($587) {
+            return -8 | 0;
+          }
+          ;
+          var $588 = v1.signalRestriction < v1.speed + speedScale * 5;
+          if ($588) {
+            return 0;
+          }
+          ;
+          return v1.notch;
+        }
+        ;
+        return v1.notch;
+      }();
+      var v3 = function() {
+        if (v1.realAcceralation) {
+          return acceralate(v2)(notch)(dt);
+        }
+        ;
+        return v2;
+      }();
+      return movefoward(l$prime)(v3)(dt);
+    };
+  };
+};
+var moveTrains = function(dt) {
+  return function(v) {
+    return foldl2(function(l) {
+      return function(t) {
+        var v1 = trainTick(l)(t)(dt);
+        var v2 = unwrap5(v1.newlayout);
+        return {
+          version: v2.version,
+          rails: v2.rails,
+          trains: append2(unwrap5(v1.newlayout).trains)([v1.newtrainset]),
+          signalcolors: v2.signalcolors,
+          traffic: v2.traffic,
+          instancecount: v2.instancecount,
+          traincount: v2.traincount,
+          updatecount: v2.updatecount,
+          jointData: v2.jointData
+        };
+      };
+    })({
+      version: v.version,
+      rails: v.rails,
+      trains: [],
+      signalcolors: v.signalcolors,
+      traffic: v.traffic,
+      instancecount: v.instancecount,
+      traincount: v.traincount,
+      updatecount: v.updatecount,
+      jointData: v.jointData
+    })(v.trains);
+  };
+};
+var layoutTick = /* @__PURE__ */ function() {
+  return moveTrains(1 / 60);
+}();
 
 // output/Internal.Rails/index.js
 var railShape2 = /* @__PURE__ */ railShape();
 var intSerializeConstructor2 = /* @__PURE__ */ intSerializeConstructor(intSerializeNoArguments);
-var intSerializeSum3 = /* @__PURE__ */ intSerializeSum(intSerializeConstructor2);
-var intSerializeSum1 = /* @__PURE__ */ intSerializeSum3(intSerializeConstructor2);
+var intSerializeSum2 = /* @__PURE__ */ intSerializeSum(intSerializeConstructor2);
+var intSerializeSum1 = /* @__PURE__ */ intSerializeSum2(intSerializeConstructor2);
 var map7 = /* @__PURE__ */ map(functorArray);
-var intSerializeSum22 = /* @__PURE__ */ intSerializeSum3(intSerializeSum1);
+var intSerializeSum22 = /* @__PURE__ */ intSerializeSum2(intSerializeSum1);
 var intSerializeRecord2 = /* @__PURE__ */ intSerializeRecord();
 var rowListSerializeCons2 = /* @__PURE__ */ rowListSerializeCons();
 var rowListSerializeNilRow2 = /* @__PURE__ */ rowListSerializeNilRow();
@@ -3916,9 +4760,9 @@ var rowListSerializeCons1 = /* @__PURE__ */ rowListSerializeCons2({
     return "turnout";
   }
 })(intSerializeBoolean)(rowListSerializeNilRow2)()()();
-var join3 = /* @__PURE__ */ join(bindArray);
+var join4 = /* @__PURE__ */ join(bindArray);
 var unwrap6 = /* @__PURE__ */ unwrap();
-var intSerializeSum32 = /* @__PURE__ */ intSerializeSum3(intSerializeSum22);
+var intSerializeSum3 = /* @__PURE__ */ intSerializeSum2(intSerializeSum22);
 var append3 = /* @__PURE__ */ append(semigroupArray);
 var slipShapes2 = /* @__PURE__ */ slipShapes();
 var StateSolid = /* @__PURE__ */ function() {
@@ -3960,6 +4804,20 @@ var StateSP_N = /* @__PURE__ */ function() {
   ;
   StateSP_N2.value = new StateSP_N2();
   return StateSP_N2;
+}();
+var StateDM_P = /* @__PURE__ */ function() {
+  function StateDM_P2() {
+  }
+  ;
+  StateDM_P2.value = new StateDM_P2();
+  return StateDM_P2;
+}();
+var StateDM_N = /* @__PURE__ */ function() {
+  function StateDM_N2() {
+  }
+  ;
+  StateDM_N2.value = new StateDM_N2();
+  return StateDM_N2;
 }();
 var JointBegin = /* @__PURE__ */ function() {
   function JointBegin2() {
@@ -4066,6 +4924,30 @@ var JointOuterEnd = /* @__PURE__ */ function() {
   JointOuterEnd2.value = new JointOuterEnd2();
   return JointOuterEnd2;
 }();
+var eqStatesPoint = {
+  eq: function(x) {
+    return function(y) {
+      return x.turnout === y.turnout;
+    };
+  }
+};
+var eq16 = /* @__PURE__ */ eq(eqStatesPoint);
+var eqStatesDoublePoint = {
+  eq: function(x) {
+    return function(y) {
+      return x.innerturnout === y.innerturnout && x.outerturnout === y.outerturnout;
+    };
+  }
+};
+var eq22 = /* @__PURE__ */ eq(eqStatesDoublePoint);
+var eqStatesAutoPoint = {
+  eq: function(x) {
+    return function(y) {
+      return x.auto === y.auto && x.turnout === y.turnout;
+    };
+  }
+};
+var eq32 = /* @__PURE__ */ eq(eqStatesAutoPoint);
 var eqStateScissors = {
   eq: function(x) {
     return function(y) {
@@ -4085,7 +4967,25 @@ var eqStateScissors = {
     };
   }
 };
-var notEq1 = /* @__PURE__ */ notEq(eqStateScissors);
+var notEq5 = /* @__PURE__ */ notEq(eqStateScissors);
+var eq4 = /* @__PURE__ */ eq(eqStateScissors);
+var eqStateDiamond = {
+  eq: function(x) {
+    return function(y) {
+      if (x instanceof StateDM_P && y instanceof StateDM_P) {
+        return true;
+      }
+      ;
+      if (x instanceof StateDM_N && y instanceof StateDM_N) {
+        return true;
+      }
+      ;
+      return false;
+    };
+  }
+};
+var notEq1 = /* @__PURE__ */ notEq(eqStateDiamond);
+var eq5 = /* @__PURE__ */ eq(eqStateDiamond);
 var eqJointsSimple = {
   eq: function(x) {
     return function(y) {
@@ -4125,7 +5025,7 @@ var eqJointsDouble = {
     };
   }
 };
-var eq15 = /* @__PURE__ */ eq(eqJointsDouble);
+var eq6 = /* @__PURE__ */ eq(eqJointsDouble);
 var noAdditionals = function(x) {
   return {
     rails: x,
@@ -4140,8 +5040,8 @@ var genericStatesSolid = {
     return NoArguments.value;
   }
 };
-var intSerialize3 = /* @__PURE__ */ intSerialize(genericStatesSolid)(intSerializeConstructor2);
-var serialAll2 = /* @__PURE__ */ serialAll(intSerialize3);
+var intSerialize2 = /* @__PURE__ */ intSerialize(genericStatesSolid)(intSerializeConstructor2);
+var serialAll2 = /* @__PURE__ */ serialAll(intSerialize2);
 var genericStatesPoint = {
   to: function(x) {
     return x;
@@ -4178,7 +5078,7 @@ var genericStatesAutoPoint = {
     return x;
   }
 };
-var intSerialize32 = /* @__PURE__ */ intSerialize(genericStatesAutoPoint)(/* @__PURE__ */ intSerializeConstructor(/* @__PURE__ */ intSerializeArgument(/* @__PURE__ */ intSerializeRecord2(/* @__PURE__ */ rowListSerializeCons2({
+var intSerialize3 = /* @__PURE__ */ intSerialize(genericStatesAutoPoint)(/* @__PURE__ */ intSerializeConstructor(/* @__PURE__ */ intSerializeArgument(/* @__PURE__ */ intSerializeRecord2(/* @__PURE__ */ rowListSerializeCons2({
   reflectSymbol: function() {
     return "auto";
   }
@@ -4197,7 +5097,7 @@ var genericStateScissors = {
       return StateSP_N.value;
     }
     ;
-    throw new Error("Failed pattern match at Internal.Rails (line 96, column 1 - line 96, column 68): " + [x.constructor.name]);
+    throw new Error("Failed pattern match at Internal.Rails (line 99, column 1 - line 99, column 68): " + [x.constructor.name]);
   },
   from: function(x) {
     if (x instanceof StateSP_P) {
@@ -4212,10 +5112,35 @@ var genericStateScissors = {
       return new Inr(new Inr(NoArguments.value));
     }
     ;
-    throw new Error("Failed pattern match at Internal.Rails (line 96, column 1 - line 96, column 68): " + [x.constructor.name]);
+    throw new Error("Failed pattern match at Internal.Rails (line 99, column 1 - line 99, column 68): " + [x.constructor.name]);
   }
 };
 var intSerialize4 = /* @__PURE__ */ intSerialize(genericStateScissors)(intSerializeSum22);
+var genericStateDiamond = {
+  to: function(x) {
+    if (x instanceof Inl) {
+      return StateDM_P.value;
+    }
+    ;
+    if (x instanceof Inr) {
+      return StateDM_N.value;
+    }
+    ;
+    throw new Error("Failed pattern match at Internal.Rails (line 105, column 1 - line 105, column 66): " + [x.constructor.name]);
+  },
+  from: function(x) {
+    if (x instanceof StateDM_P) {
+      return new Inl(NoArguments.value);
+    }
+    ;
+    if (x instanceof StateDM_N) {
+      return new Inr(NoArguments.value);
+    }
+    ;
+    throw new Error("Failed pattern match at Internal.Rails (line 105, column 1 - line 105, column 66): " + [x.constructor.name]);
+  }
+};
+var intSerialize5 = /* @__PURE__ */ intSerialize(genericStateDiamond)(intSerializeSum1);
 var genericJointsSimple = {
   to: function(x) {
     if (x instanceof Inl) {
@@ -4226,7 +5151,7 @@ var genericJointsSimple = {
       return JointEnd.value;
     }
     ;
-    throw new Error("Failed pattern match at Internal.Rails (line 103, column 1 - line 103, column 71): " + [x.constructor.name]);
+    throw new Error("Failed pattern match at Internal.Rails (line 112, column 1 - line 112, column 71): " + [x.constructor.name]);
   },
   from: function(x) {
     if (x instanceof JointBegin) {
@@ -4237,12 +5162,12 @@ var genericJointsSimple = {
       return new Inr(NoArguments.value);
     }
     ;
-    throw new Error("Failed pattern match at Internal.Rails (line 103, column 1 - line 103, column 71): " + [x.constructor.name]);
+    throw new Error("Failed pattern match at Internal.Rails (line 112, column 1 - line 112, column 71): " + [x.constructor.name]);
   }
 };
-var intSerialize5 = /* @__PURE__ */ intSerialize(genericJointsSimple)(intSerializeSum1);
-var toRail2 = /* @__PURE__ */ toRail(intSerialize5)(intSerialize3);
-var serialAll3 = /* @__PURE__ */ serialAll(intSerialize5);
+var intSerialize6 = /* @__PURE__ */ intSerialize(genericJointsSimple)(intSerializeSum1);
+var toRail2 = /* @__PURE__ */ toRail(intSerialize6)(intSerialize2);
+var serialAll3 = /* @__PURE__ */ serialAll(intSerialize6);
 var halfRail = /* @__PURE__ */ function() {
   var pe = {
     coord: {
@@ -4286,7 +5211,7 @@ var halfRail = /* @__PURE__ */ function() {
         return pe;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 188, column 28 - line 190, column 25): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 199, column 28 - line 201, column 25): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(s) {
@@ -4306,14 +5231,14 @@ var halfRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 191, column 30 - line 193, column 82): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 202, column 30 - line 204, column 82): " + [j.constructor.name]);
       };
     },
     getRoute: function(s) {
       return function(f) {
         return function(t) {
-          var $268 = notEq22(f)(t);
-          if ($268) {
+          var $302 = notEq22(f)(t);
+          if ($302) {
             return new Just(s);
           }
           ;
@@ -4321,11 +5246,14 @@ var halfRail = /* @__PURE__ */ function() {
         };
       };
     },
-    isLocked: function(j) {
+    isLegal: function(j) {
       return function(s) {
-        return function(s$prime) {
-          return false;
-        };
+        return true;
+      };
+    },
+    lockedBy: function(s) {
+      return function(s$prime) {
+        return [];
       };
     },
     isBlocked: function(j) {
@@ -4381,7 +5309,7 @@ var longRail = /* @__PURE__ */ function() {
         return pe;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 160, column 28 - line 162, column 25): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 170, column 28 - line 172, column 25): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(s) {
@@ -4401,14 +5329,14 @@ var longRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 163, column 30 - line 165, column 82): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 173, column 30 - line 175, column 82): " + [j.constructor.name]);
       };
     },
     getRoute: function(s) {
       return function(f) {
         return function(t) {
-          var $271 = notEq22(f)(t);
-          if ($271) {
+          var $305 = notEq22(f)(t);
+          if ($305) {
             return new Just(s);
           }
           ;
@@ -4416,11 +5344,14 @@ var longRail = /* @__PURE__ */ function() {
         };
       };
     },
-    isLocked: function(j) {
+    isLegal: function(j) {
       return function(s) {
-        return function(s$prime) {
-          return false;
-        };
+        return true;
+      };
+    },
+    lockedBy: function(s) {
+      return function(s$prime) {
+        return [];
       };
     },
     isBlocked: function(j) {
@@ -4476,7 +5407,7 @@ var quarterRail = /* @__PURE__ */ function() {
         return pe;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 216, column 28 - line 218, column 25): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 228, column 28 - line 230, column 25): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(s) {
@@ -4496,14 +5427,14 @@ var quarterRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 219, column 30 - line 221, column 82): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 231, column 30 - line 233, column 82): " + [j.constructor.name]);
       };
     },
     getRoute: function(s) {
       return function(f) {
         return function(t) {
-          var $274 = notEq22(f)(t);
-          if ($274) {
+          var $308 = notEq22(f)(t);
+          if ($308) {
             return new Just(s);
           }
           ;
@@ -4511,11 +5442,14 @@ var quarterRail = /* @__PURE__ */ function() {
         };
       };
     },
-    isLocked: function(j) {
+    isLegal: function(j) {
       return function(s) {
-        return function(s$prime) {
-          return false;
-        };
+        return true;
+      };
+    },
+    lockedBy: function(s) {
+      return function(s$prime) {
+        return [];
       };
     },
     isBlocked: function(j) {
@@ -4571,7 +5505,7 @@ var slopeCurveLRail = /* @__PURE__ */ function() {
         return pe;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 329, column 26 - line 331, column 23): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 345, column 26 - line 347, column 23): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(s) {
@@ -4591,14 +5525,14 @@ var slopeCurveLRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 332, column 28 - line 334, column 82): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 348, column 28 - line 350, column 82): " + [j.constructor.name]);
       };
     },
     getRoute: function(s) {
       return function(f) {
         return function(t) {
-          var $277 = notEq22(f)(t);
-          if ($277) {
+          var $311 = notEq22(f)(t);
+          if ($311) {
             return new Just(s);
           }
           ;
@@ -4606,11 +5540,14 @@ var slopeCurveLRail = /* @__PURE__ */ function() {
         };
       };
     },
-    isLocked: function(j) {
+    isLegal: function(j) {
       return function(s) {
-        return function(s$prime) {
-          return false;
-        };
+        return true;
+      };
+    },
+    lockedBy: function(s) {
+      return function(s$prime) {
+        return [];
       };
     },
     isBlocked: function(j) {
@@ -4667,7 +5604,7 @@ var slopeRail = /* @__PURE__ */ function() {
         return pe;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 270, column 28 - line 272, column 25): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 284, column 28 - line 286, column 25): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(s) {
@@ -4687,14 +5624,14 @@ var slopeRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 273, column 30 - line 275, column 82): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 287, column 30 - line 289, column 82): " + [j.constructor.name]);
       };
     },
     getRoute: function(s) {
       return function(f) {
         return function(t) {
-          var $280 = notEq22(f)(t);
-          if ($280) {
+          var $314 = notEq22(f)(t);
+          if ($314) {
             return new Just(s);
           }
           ;
@@ -4702,11 +5639,14 @@ var slopeRail = /* @__PURE__ */ function() {
         };
       };
     },
-    isLocked: function(j) {
+    isLegal: function(j) {
       return function(s) {
-        return function(s$prime) {
-          return false;
-        };
+        return true;
+      };
+    },
+    lockedBy: function(s) {
+      return function(s$prime) {
+        return [];
       };
     },
     isBlocked: function(j) {
@@ -4762,7 +5702,7 @@ var straightRail = /* @__PURE__ */ function() {
         return pe;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 132, column 28 - line 134, column 25): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 141, column 28 - line 143, column 25): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(s) {
@@ -4782,14 +5722,14 @@ var straightRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 135, column 30 - line 137, column 82): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 144, column 30 - line 146, column 82): " + [j.constructor.name]);
       };
     },
     getRoute: function(s) {
       return function(f) {
         return function(t) {
-          var $283 = notEq22(f)(t);
-          if ($283) {
+          var $317 = notEq22(f)(t);
+          if ($317) {
             return new Just(s);
           }
           ;
@@ -4797,11 +5737,14 @@ var straightRail = /* @__PURE__ */ function() {
         };
       };
     },
-    isLocked: function(j) {
+    isLegal: function(j) {
       return function(s) {
-        return function(s$prime) {
-          return false;
-        };
+        return true;
+      };
+    },
+    lockedBy: function(s) {
+      return function(s$prime) {
+        return [];
       };
     },
     isBlocked: function(j) {
@@ -4828,7 +5771,7 @@ var genericJointsPoint = {
       return JointSub.value;
     }
     ;
-    throw new Error("Failed pattern match at Internal.Rails (line 106, column 1 - line 106, column 71): " + [x.constructor.name]);
+    throw new Error("Failed pattern match at Internal.Rails (line 115, column 1 - line 115, column 71): " + [x.constructor.name]);
   },
   from: function(x) {
     if (x instanceof JointEnter) {
@@ -4843,13 +5786,13 @@ var genericJointsPoint = {
       return new Inr(new Inr(NoArguments.value));
     }
     ;
-    throw new Error("Failed pattern match at Internal.Rails (line 106, column 1 - line 106, column 71): " + [x.constructor.name]);
+    throw new Error("Failed pattern match at Internal.Rails (line 115, column 1 - line 115, column 71): " + [x.constructor.name]);
   }
 };
-var intSerialize6 = /* @__PURE__ */ intSerialize(genericJointsPoint)(intSerializeSum22);
-var toRail1 = /* @__PURE__ */ toRail(intSerialize6);
+var intSerialize7 = /* @__PURE__ */ intSerialize(genericJointsPoint)(intSerializeSum22);
+var toRail1 = /* @__PURE__ */ toRail(intSerialize7);
 var toRail22 = /* @__PURE__ */ toRail1(intSerialize1);
-var serialAll4 = /* @__PURE__ */ serialAll(intSerialize6);
+var serialAll4 = /* @__PURE__ */ serialAll(intSerialize7);
 var turnOutLPlusRail = /* @__PURE__ */ function() {
   var ps = {
     coord: {
@@ -4892,10 +5835,10 @@ var turnOutLPlusRail = /* @__PURE__ */ function() {
     opposed: false,
     getDrawInfo: function(v) {
       if (v.turnout) {
-        return noAdditionals(join3([map7(grayRail)(r0), map7(blueRail)(r1)]));
+        return noAdditionals(join4([map7(grayRail)(r0), map7(blueRail)(r1)]));
       }
       ;
-      return noAdditionals(join3([map7(grayRail)(r1), map7(blueRail)(r0)]));
+      return noAdditionals(join4([map7(grayRail)(r1), map7(blueRail)(r0)]));
     },
     defaultState: {
       turnout: false
@@ -4916,7 +5859,7 @@ var turnOutLPlusRail = /* @__PURE__ */ function() {
         return ps;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 437, column 28 - line 440, column 25): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 456, column 28 - line 459, column 25): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(v) {
@@ -4956,7 +5899,7 @@ var turnOutLPlusRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 441, column 43 - line 447, column 73): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 460, column 43 - line 466, column 73): " + [j.constructor.name]);
       };
     },
     getRoute: function(s) {
@@ -4985,7 +5928,7 @@ var turnOutLPlusRail = /* @__PURE__ */ function() {
               }());
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 452, column 27 - line 455, column 89): " + [t.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 471, column 27 - line 474, column 89): " + [t.constructor.name]);
           }
           ;
           if (f instanceof JointMain) {
@@ -5006,7 +5949,7 @@ var turnOutLPlusRail = /* @__PURE__ */ function() {
               return Nothing.value;
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 457, column 27 - line 460, column 50): " + [t.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 476, column 27 - line 479, column 50): " + [t.constructor.name]);
           }
           ;
           if (f instanceof JointSub) {
@@ -5027,18 +5970,38 @@ var turnOutLPlusRail = /* @__PURE__ */ function() {
               return Nothing.value;
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 462, column 27 - line 465, column 50): " + [t.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 481, column 27 - line 484, column 50): " + [t.constructor.name]);
           }
           ;
-          throw new Error("Failed pattern match at Internal.Rails (line 450, column 23 - line 465, column 50): " + [f.constructor.name]);
+          throw new Error("Failed pattern match at Internal.Rails (line 469, column 23 - line 484, column 50): " + [f.constructor.name]);
         };
       };
     },
-    isLocked: function(j) {
+    isLegal: function(j) {
       return function(s) {
-        return function(s$prime) {
-          return unwrap6(s).turnout !== unwrap6(s$prime).turnout;
-        };
+        if (j instanceof JointEnter) {
+          return true;
+        }
+        ;
+        if (j instanceof JointMain) {
+          return !unwrap6(s).turnout;
+        }
+        ;
+        if (j instanceof JointSub) {
+          return unwrap6(s).turnout;
+        }
+        ;
+        throw new Error("Failed pattern match at Internal.Rails (line 486, column 11 - line 489, column 45): " + [j.constructor.name]);
+      };
+    },
+    lockedBy: function(s) {
+      return function(s$prime) {
+        var $336 = eq16(s)(s$prime);
+        if ($336) {
+          return [];
+        }
+        ;
+        return serialAll4;
       };
     },
     isBlocked: function(j) {
@@ -5078,7 +6041,7 @@ var genericJointsDoublePoint = {
       return JointOuterSub.value;
     }
     ;
-    throw new Error("Failed pattern match at Internal.Rails (line 112, column 1 - line 112, column 71): " + [x.constructor.name]);
+    throw new Error("Failed pattern match at Internal.Rails (line 121, column 1 - line 121, column 71): " + [x.constructor.name]);
   },
   from: function(x) {
     if (x instanceof JointOuterEnter) {
@@ -5105,10 +6068,11 @@ var genericJointsDoublePoint = {
       return new Inr(new Inr(new Inr(new Inr(new Inr(NoArguments.value)))));
     }
     ;
-    throw new Error("Failed pattern match at Internal.Rails (line 112, column 1 - line 112, column 71): " + [x.constructor.name]);
+    throw new Error("Failed pattern match at Internal.Rails (line 121, column 1 - line 121, column 71): " + [x.constructor.name]);
   }
 };
-var intSerialize7 = /* @__PURE__ */ intSerialize(genericJointsDoublePoint)(/* @__PURE__ */ intSerializeSum3(/* @__PURE__ */ intSerializeSum3(intSerializeSum32)));
+var intSerialize8 = /* @__PURE__ */ intSerialize(genericJointsDoublePoint)(/* @__PURE__ */ intSerializeSum2(/* @__PURE__ */ intSerializeSum2(intSerializeSum3)));
+var serialAll5 = /* @__PURE__ */ serialAll(intSerialize8);
 var genericJointsDouble = {
   to: function(x) {
     if (x instanceof Inl) {
@@ -5127,7 +6091,7 @@ var genericJointsDouble = {
       return JointOuterEnd.value;
     }
     ;
-    throw new Error("Failed pattern match at Internal.Rails (line 109, column 1 - line 109, column 71): " + [x.constructor.name]);
+    throw new Error("Failed pattern match at Internal.Rails (line 118, column 1 - line 118, column 71): " + [x.constructor.name]);
   },
   from: function(x) {
     if (x instanceof JointOuterBegin) {
@@ -5146,12 +6110,13 @@ var genericJointsDouble = {
       return new Inr(new Inr(new Inr(NoArguments.value)));
     }
     ;
-    throw new Error("Failed pattern match at Internal.Rails (line 109, column 1 - line 109, column 71): " + [x.constructor.name]);
+    throw new Error("Failed pattern match at Internal.Rails (line 118, column 1 - line 118, column 71): " + [x.constructor.name]);
   }
 };
-var intSerialize8 = /* @__PURE__ */ intSerialize(genericJointsDouble)(intSerializeSum32);
-var toRail3 = /* @__PURE__ */ toRail(intSerialize8);
-var serialAll5 = /* @__PURE__ */ serialAll(intSerialize8);
+var intSerialize9 = /* @__PURE__ */ intSerialize(genericJointsDouble)(intSerializeSum3);
+var toRail3 = /* @__PURE__ */ toRail(intSerialize9);
+var serialAll6 = /* @__PURE__ */ serialAll(intSerialize9);
+var toRail4 = /* @__PURE__ */ toRail3(intSerialize22);
 var doubleRailWidth = /* @__PURE__ */ function() {
   return 6 / 21.4;
 }();
@@ -5227,7 +6192,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
     start: pie,
     end: pis
   })];
-  return toRail(intSerialize7)(intSerialize22)({
+  return toRail(intSerialize8)(intSerialize22)({
     name: "doubleTurnout",
     flipped: false,
     opposed: false,
@@ -5250,7 +6215,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
       innerturnout: false,
       outerturnout: false
     },
-    getJoints: serialAll(intSerialize7),
+    getJoints: serialAll5,
     getStates: serialAll22,
     getOrigin: JointOuterEnter.value,
     getJointPos: function(j) {
@@ -5278,7 +6243,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
         return pis;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 762, column 26 - line 768, column 29): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 802, column 26 - line 808, column 29): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(v) {
@@ -5402,7 +6367,36 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 770, column 7 - line 794, column 117): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 810, column 7 - line 834, column 117): " + [j.constructor.name]);
+      };
+    },
+    isLegal: function(j) {
+      return function(s) {
+        if (j instanceof JointOuterEnter) {
+          return unwrap6(s).outerturnout || !unwrap6(s).innerturnout;
+        }
+        ;
+        if (j instanceof JointOuterMain) {
+          return !unwrap6(s).outerturnout && !unwrap6(s).innerturnout;
+        }
+        ;
+        if (j instanceof JointOuterSub) {
+          return unwrap6(s).outerturnout;
+        }
+        ;
+        if (j instanceof JointInnerEnter) {
+          return unwrap6(s).outerturnout || !unwrap6(s).innerturnout;
+        }
+        ;
+        if (j instanceof JointInnerMain) {
+          return !unwrap6(s).innerturnout;
+        }
+        ;
+        if (j instanceof JointInnerSub) {
+          return unwrap6(s).outerturnout && unwrap6(s).innerturnout;
+        }
+        ;
+        throw new Error("Failed pattern match at Internal.Rails (line 837, column 11 - line 843, column 82): " + [j.constructor.name]);
       };
     },
     getRoute: function(s) {
@@ -5418,7 +6412,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
                 var v = unwrap6(s);
                 return {
                   innerturnout: false,
-                  outerturnout: v.outerturnout
+                  outerturnout: false
                 };
               }());
             }
@@ -5427,8 +6421,8 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
               return new Just(function() {
                 var v = unwrap6(s);
                 return {
-                  innerturnout: true,
-                  outerturnout: v.outerturnout
+                  innerturnout: v.innerturnout,
+                  outerturnout: true
                 };
               }());
             }
@@ -5445,7 +6439,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
               return Nothing.value;
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 799, column 27 - line 805, column 55): " + [t.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 848, column 27 - line 854, column 55): " + [t.constructor.name]);
           }
           ;
           if (f instanceof JointOuterMain) {
@@ -5454,7 +6448,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
                 var v = unwrap6(s);
                 return {
                   innerturnout: false,
-                  outerturnout: v.outerturnout
+                  outerturnout: false
                 };
               }());
             }
@@ -5479,7 +6473,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
               return Nothing.value;
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 807, column 27 - line 813, column 55): " + [t.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 856, column 27 - line 862, column 55): " + [t.constructor.name]);
           }
           ;
           if (f instanceof JointOuterSub) {
@@ -5487,8 +6481,8 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
               return new Just(function() {
                 var v = unwrap6(s);
                 return {
-                  innerturnout: true,
-                  outerturnout: v.outerturnout
+                  innerturnout: v.innerturnout,
+                  outerturnout: true
                 };
               }());
             }
@@ -5513,7 +6507,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
               return Nothing.value;
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 815, column 27 - line 821, column 55): " + [t.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 864, column 27 - line 870, column 55): " + [t.constructor.name]);
           }
           ;
           if (f instanceof JointInnerEnter) {
@@ -5537,8 +6531,8 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
               return new Just(function() {
                 var v = unwrap6(s);
                 return {
-                  innerturnout: v.innerturnout,
-                  outerturnout: false
+                  innerturnout: false,
+                  outerturnout: v.outerturnout
                 };
               }());
             }
@@ -5547,13 +6541,13 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
               return new Just(function() {
                 var v = unwrap6(s);
                 return {
-                  innerturnout: v.innerturnout,
+                  innerturnout: true,
                   outerturnout: true
                 };
               }());
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 823, column 27 - line 829, column 96): " + [t.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 872, column 27 - line 878, column 117): " + [t.constructor.name]);
           }
           ;
           if (f instanceof JointInnerMain) {
@@ -5573,8 +6567,8 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
               return new Just(function() {
                 var v = unwrap6(s);
                 return {
-                  innerturnout: v.innerturnout,
-                  outerturnout: false
+                  innerturnout: false,
+                  outerturnout: v.outerturnout
                 };
               }());
             }
@@ -5587,7 +6581,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
               return Nothing.value;
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 831, column 27 - line 837, column 55): " + [t.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 880, column 27 - line 886, column 55): " + [t.constructor.name]);
           }
           ;
           if (f instanceof JointInnerSub) {
@@ -5607,7 +6601,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
               return new Just(function() {
                 var v = unwrap6(s);
                 return {
-                  innerturnout: v.innerturnout,
+                  innerturnout: true,
                   outerturnout: true
                 };
               }());
@@ -5621,42 +6615,21 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
               return Nothing.value;
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 839, column 27 - line 845, column 55): " + [t.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 888, column 27 - line 894, column 55): " + [t.constructor.name]);
           }
           ;
-          throw new Error("Failed pattern match at Internal.Rails (line 797, column 23 - line 845, column 55): " + [f.constructor.name]);
+          throw new Error("Failed pattern match at Internal.Rails (line 846, column 23 - line 894, column 55): " + [f.constructor.name]);
         };
       };
     },
-    isLocked: function(j) {
-      return function(s) {
-        return function(s$prime) {
-          if (j instanceof JointOuterEnter) {
-            return unwrap6(s).outerturnout !== unwrap6(s).outerturnout;
-          }
-          ;
-          if (j instanceof JointOuterMain) {
-            return unwrap6(s).outerturnout !== unwrap6(s).outerturnout;
-          }
-          ;
-          if (j instanceof JointOuterSub) {
-            return unwrap6(s).outerturnout !== unwrap6(s).outerturnout;
-          }
-          ;
-          if (j instanceof JointInnerEnter) {
-            return unwrap6(s).innerturnout !== unwrap6(s).innerturnout;
-          }
-          ;
-          if (j instanceof JointInnerMain) {
-            return unwrap6(s).innerturnout !== unwrap6(s).innerturnout;
-          }
-          ;
-          if (j instanceof JointInnerSub) {
-            return unwrap6(s).innerturnout !== unwrap6(s).innerturnout;
-          }
-          ;
-          throw new Error("Failed pattern match at Internal.Rails (line 847, column 23 - line 853, column 94): " + [j.constructor.name]);
-        };
+    lockedBy: function(s) {
+      return function(s$prime) {
+        var $391 = eq22(s)(s$prime);
+        if ($391) {
+          return [];
+        }
+        ;
+        return serialAll5;
       };
     },
     isBlocked: function(j) {
@@ -5687,7 +6660,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
               return !unwrap6(s).outerturnout;
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 857, column 27 - line 863, column 75): " + [j$prime.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 899, column 27 - line 905, column 75): " + [j$prime.constructor.name]);
           }
           ;
           if (j instanceof JointOuterMain) {
@@ -5715,7 +6688,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
               return true;
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 865, column 27 - line 871, column 52): " + [j$prime.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 907, column 27 - line 913, column 52): " + [j$prime.constructor.name]);
           }
           ;
           if (j instanceof JointOuterSub) {
@@ -5743,7 +6716,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
               return false;
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 873, column 27 - line 879, column 53): " + [j$prime.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 915, column 27 - line 921, column 53): " + [j$prime.constructor.name]);
           }
           ;
           if (j instanceof JointInnerEnter) {
@@ -5771,7 +6744,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
               return true;
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 881, column 27 - line 887, column 52): " + [j$prime.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 923, column 27 - line 929, column 52): " + [j$prime.constructor.name]);
           }
           ;
           if (j instanceof JointInnerMain) {
@@ -5799,7 +6772,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
               return true;
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 889, column 27 - line 895, column 52): " + [j$prime.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 931, column 27 - line 937, column 52): " + [j$prime.constructor.name]);
           }
           ;
           if (j instanceof JointInnerSub) {
@@ -5827,10 +6800,10 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
               return true;
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 897, column 27 - line 903, column 52): " + [j$prime.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 939, column 27 - line 945, column 52): " + [j$prime.constructor.name]);
           }
           ;
-          throw new Error("Failed pattern match at Internal.Rails (line 855, column 23 - line 903, column 52): " + [j.constructor.name]);
+          throw new Error("Failed pattern match at Internal.Rails (line 897, column 23 - line 945, column 52): " + [j.constructor.name]);
         };
       };
     },
@@ -5882,7 +6855,7 @@ var outerCurveLRail = /* @__PURE__ */ function() {
         return pe;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 360, column 26 - line 362, column 23): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 377, column 26 - line 379, column 23): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(s) {
@@ -5902,14 +6875,14 @@ var outerCurveLRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 363, column 28 - line 365, column 80): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 380, column 28 - line 382, column 80): " + [j.constructor.name]);
       };
     },
     getRoute: function(s) {
       return function(f) {
         return function(t) {
-          var $364 = notEq22(f)(t);
-          if ($364) {
+          var $401 = notEq22(f)(t);
+          if ($401) {
             return new Just(s);
           }
           ;
@@ -5917,11 +6890,14 @@ var outerCurveLRail = /* @__PURE__ */ function() {
         };
       };
     },
-    isLocked: function(j) {
+    isLegal: function(j) {
       return function(s) {
-        return function(s$prime) {
-          return false;
-        };
+        return true;
+      };
+    },
+    lockedBy: function(s) {
+      return function(s$prime) {
+        return [];
       };
     },
     isBlocked: function(j) {
@@ -6041,10 +7017,10 @@ var scissorsRail = /* @__PURE__ */ function() {
         return noAdditionals(append3(map7(grayRail)(ri))(append3(map7(grayRail)(ro))(append3(map7(grayRail)(rp))(map7(blueRail)(rn)))));
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 629, column 7 - line 644, column 43): " + [s.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 663, column 7 - line 678, column 43): " + [s.constructor.name]);
     },
     defaultState: StateSP_S.value,
-    getJoints: serialAll5,
+    getJoints: serialAll6,
     getStates: serialAll(intSerialize4),
     getOrigin: JointOuterBegin.value,
     getJointPos: function(j) {
@@ -6064,7 +7040,7 @@ var scissorsRail = /* @__PURE__ */ function() {
         return pie;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 650, column 26 - line 654, column 29): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 684, column 26 - line 688, column 29): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(s) {
@@ -6101,7 +7077,7 @@ var scissorsRail = /* @__PURE__ */ function() {
             };
           }
           ;
-          throw new Error("Failed pattern match at Internal.Rails (line 658, column 11 - line 662, column 105): " + [j.constructor.name]);
+          throw new Error("Failed pattern match at Internal.Rails (line 692, column 11 - line 696, column 105): " + [j.constructor.name]);
         }
         ;
         if (s instanceof StateSP_S) {
@@ -6137,7 +7113,7 @@ var scissorsRail = /* @__PURE__ */ function() {
             };
           }
           ;
-          throw new Error("Failed pattern match at Internal.Rails (line 664, column 11 - line 668, column 105): " + [j.constructor.name]);
+          throw new Error("Failed pattern match at Internal.Rails (line 698, column 11 - line 702, column 105): " + [j.constructor.name]);
         }
         ;
         if (s instanceof StateSP_N) {
@@ -6173,10 +7149,10 @@ var scissorsRail = /* @__PURE__ */ function() {
             };
           }
           ;
-          throw new Error("Failed pattern match at Internal.Rails (line 670, column 11 - line 674, column 105): " + [j.constructor.name]);
+          throw new Error("Failed pattern match at Internal.Rails (line 704, column 11 - line 708, column 105): " + [j.constructor.name]);
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 656, column 7 - line 674, column 105): " + [s.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 690, column 7 - line 708, column 105): " + [s.constructor.name]);
       };
     },
     getRoute: function(s) {
@@ -6199,7 +7175,7 @@ var scissorsRail = /* @__PURE__ */ function() {
               return Nothing.value;
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 679, column 27 - line 683, column 55): " + [t.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 713, column 27 - line 717, column 55): " + [t.constructor.name]);
           }
           ;
           if (f instanceof JointInnerEnd) {
@@ -6219,7 +7195,7 @@ var scissorsRail = /* @__PURE__ */ function() {
               return new Just(StateSP_N.value);
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 685, column 27 - line 689, column 62): " + [t.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 719, column 27 - line 723, column 62): " + [t.constructor.name]);
           }
           ;
           if (f instanceof JointOuterBegin) {
@@ -6239,7 +7215,7 @@ var scissorsRail = /* @__PURE__ */ function() {
               return new Just(StateSP_S.value);
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 691, column 27 - line 695, column 62): " + [t.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 725, column 27 - line 729, column 62): " + [t.constructor.name]);
           }
           ;
           if (f instanceof JointOuterEnd) {
@@ -6259,49 +7235,321 @@ var scissorsRail = /* @__PURE__ */ function() {
               return Nothing.value;
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 697, column 27 - line 701, column 55): " + [t.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 731, column 27 - line 735, column 55): " + [t.constructor.name]);
           }
           ;
-          throw new Error("Failed pattern match at Internal.Rails (line 677, column 23 - line 701, column 55): " + [f.constructor.name]);
+          throw new Error("Failed pattern match at Internal.Rails (line 711, column 23 - line 735, column 55): " + [f.constructor.name]);
         };
       };
     },
-    isLocked: function(j) {
+    isLegal: function(j) {
       return function(s) {
-        return function(s$prime) {
-          return notEq1(s)(s$prime);
-        };
+        if (j instanceof JointInnerBegin) {
+          return notEq5(s)(StateSP_N.value);
+        }
+        ;
+        if (j instanceof JointInnerEnd) {
+          return notEq5(s)(StateSP_P.value);
+        }
+        ;
+        if (j instanceof JointOuterBegin) {
+          return notEq5(s)(StateSP_N.value);
+        }
+        ;
+        if (j instanceof JointOuterEnd) {
+          return notEq5(s)(StateSP_P.value);
+        }
+        ;
+        throw new Error("Failed pattern match at Internal.Rails (line 737, column 11 - line 741, column 46): " + [j.constructor.name]);
+      };
+    },
+    lockedBy: function(s) {
+      return function(s$prime) {
+        var $414 = eq4(s)(s$prime);
+        if ($414) {
+          return [];
+        }
+        ;
+        return serialAll6;
       };
     },
     isBlocked: function(j) {
       return function(s) {
         return function(j$prime) {
-          var $376 = notEq1(s)(StateSP_S.value);
-          if ($376) {
+          var $415 = notEq5(s)(StateSP_S.value);
+          if ($415) {
             return true;
           }
           ;
           if (j$prime instanceof JointInnerBegin) {
-            return eq15(j)(JointInnerEnd.value);
+            return eq6(j)(JointInnerEnd.value);
           }
           ;
           if (j$prime instanceof JointInnerEnd) {
-            return eq15(j)(JointInnerBegin.value);
+            return eq6(j)(JointInnerBegin.value);
           }
           ;
           if (j$prime instanceof JointOuterBegin) {
-            return eq15(j)(JointOuterEnd.value);
+            return eq6(j)(JointOuterEnd.value);
           }
           ;
           if (j$prime instanceof JointOuterEnd) {
-            return eq15(j)(JointOuterBegin.value);
+            return eq6(j)(JointOuterBegin.value);
           }
           ;
-          throw new Error("Failed pattern match at Internal.Rails (line 705, column 30 - line 709, column 70): " + [j$prime.constructor.name]);
+          throw new Error("Failed pattern match at Internal.Rails (line 745, column 30 - line 749, column 70): " + [j$prime.constructor.name]);
         };
       };
     },
     isSimple: false
+  });
+}();
+var diamondRail = /* @__PURE__ */ function() {
+  var poe = {
+    coord: {
+      x: 1,
+      y: 0,
+      z: 0
+    },
+    angle: angle8(0),
+    isPlus: false
+  };
+  var pob = {
+    coord: {
+      x: 0,
+      y: 0,
+      z: 0
+    },
+    angle: angle8(4),
+    isPlus: true
+  };
+  var pie = {
+    coord: {
+      x: 0,
+      y: -doubleRailWidth,
+      z: 0
+    },
+    angle: angle8(4),
+    isPlus: true
+  };
+  var rn = slipShapes2({
+    start: pie,
+    end: poe
+  });
+  var pib = {
+    coord: {
+      x: 1,
+      y: -doubleRailWidth,
+      z: 0
+    },
+    angle: angle8(0),
+    isPlus: false
+  };
+  var rp = slipShapes2({
+    start: pob,
+    end: pib
+  });
+  return toRail3(intSerialize5)({
+    name: "diamond",
+    flipped: false,
+    opposed: false,
+    getDrawInfo: function(s) {
+      if (s instanceof StateDM_P) {
+        return noAdditionals(append3(map7(grayRail)(rn))(map7(blueRail)(rp)));
+      }
+      ;
+      if (s instanceof StateDM_N) {
+        return noAdditionals(append3(map7(grayRail)(rp))(map7(blueRail)(rn)));
+      }
+      ;
+      throw new Error("Failed pattern match at Internal.Rails (line 1216, column 7 - line 1222, column 43): " + [s.constructor.name]);
+    },
+    defaultState: StateDM_P.value,
+    getJoints: serialAll6,
+    getStates: serialAll(intSerialize5),
+    getOrigin: JointOuterBegin.value,
+    getJointPos: function(j) {
+      if (j instanceof JointOuterBegin) {
+        return pob;
+      }
+      ;
+      if (j instanceof JointOuterEnd) {
+        return poe;
+      }
+      ;
+      if (j instanceof JointInnerBegin) {
+        return pib;
+      }
+      ;
+      if (j instanceof JointInnerEnd) {
+        return pie;
+      }
+      ;
+      throw new Error("Failed pattern match at Internal.Rails (line 1228, column 26 - line 1232, column 29): " + [j.constructor.name]);
+    },
+    getNewState: function(j) {
+      return function(s) {
+        if (j instanceof JointInnerBegin) {
+          return {
+            newjoint: JointOuterBegin.value,
+            newstate: StateDM_P.value,
+            shape: reverseShapes(rp)
+          };
+        }
+        ;
+        if (j instanceof JointInnerEnd) {
+          return {
+            newjoint: JointOuterEnd.value,
+            newstate: StateDM_N.value,
+            shape: rn
+          };
+        }
+        ;
+        if (j instanceof JointOuterBegin) {
+          return {
+            newjoint: JointInnerBegin.value,
+            newstate: StateDM_P.value,
+            shape: rp
+          };
+        }
+        ;
+        if (j instanceof JointOuterEnd) {
+          return {
+            newjoint: JointInnerEnd.value,
+            newstate: StateDM_N.value,
+            shape: reverseShapes(rn)
+          };
+        }
+        ;
+        throw new Error("Failed pattern match at Internal.Rails (line 1234, column 9 - line 1238, column 103): " + [j.constructor.name]);
+      };
+    },
+    getRoute: function(s) {
+      return function(f) {
+        return function(t) {
+          if (f instanceof JointInnerBegin) {
+            if (t instanceof JointInnerBegin) {
+              return Nothing.value;
+            }
+            ;
+            if (t instanceof JointInnerEnd) {
+              return Nothing.value;
+            }
+            ;
+            if (t instanceof JointOuterBegin) {
+              return new Just(StateDM_P.value);
+            }
+            ;
+            if (t instanceof JointOuterEnd) {
+              return Nothing.value;
+            }
+            ;
+            throw new Error("Failed pattern match at Internal.Rails (line 1243, column 27 - line 1247, column 55): " + [t.constructor.name]);
+          }
+          ;
+          if (f instanceof JointInnerEnd) {
+            if (t instanceof JointInnerBegin) {
+              return Nothing.value;
+            }
+            ;
+            if (t instanceof JointInnerEnd) {
+              return Nothing.value;
+            }
+            ;
+            if (t instanceof JointOuterBegin) {
+              return Nothing.value;
+            }
+            ;
+            if (t instanceof JointOuterEnd) {
+              return new Just(StateDM_N.value);
+            }
+            ;
+            throw new Error("Failed pattern match at Internal.Rails (line 1249, column 27 - line 1253, column 62): " + [t.constructor.name]);
+          }
+          ;
+          if (f instanceof JointOuterBegin) {
+            if (t instanceof JointInnerBegin) {
+              return new Just(StateDM_P.value);
+            }
+            ;
+            if (t instanceof JointInnerEnd) {
+              return Nothing.value;
+            }
+            ;
+            if (t instanceof JointOuterBegin) {
+              return Nothing.value;
+            }
+            ;
+            if (t instanceof JointOuterEnd) {
+              return Nothing.value;
+            }
+            ;
+            throw new Error("Failed pattern match at Internal.Rails (line 1255, column 27 - line 1259, column 55): " + [t.constructor.name]);
+          }
+          ;
+          if (f instanceof JointOuterEnd) {
+            if (t instanceof JointInnerBegin) {
+              return Nothing.value;
+            }
+            ;
+            if (t instanceof JointInnerEnd) {
+              return new Just(StateDM_N.value);
+            }
+            ;
+            if (t instanceof JointOuterBegin) {
+              return Nothing.value;
+            }
+            ;
+            if (t instanceof JointOuterEnd) {
+              return Nothing.value;
+            }
+            ;
+            throw new Error("Failed pattern match at Internal.Rails (line 1261, column 27 - line 1265, column 55): " + [t.constructor.name]);
+          }
+          ;
+          throw new Error("Failed pattern match at Internal.Rails (line 1241, column 23 - line 1265, column 55): " + [f.constructor.name]);
+        };
+      };
+    },
+    isLegal: function(j) {
+      return function(s) {
+        if (j instanceof JointInnerBegin) {
+          return notEq1(s)(StateDM_N.value);
+        }
+        ;
+        if (j instanceof JointInnerEnd) {
+          return notEq1(s)(StateDM_P.value);
+        }
+        ;
+        if (j instanceof JointOuterBegin) {
+          return notEq1(s)(StateDM_N.value);
+        }
+        ;
+        if (j instanceof JointOuterEnd) {
+          return notEq1(s)(StateDM_P.value);
+        }
+        ;
+        throw new Error("Failed pattern match at Internal.Rails (line 1267, column 11 - line 1271, column 46): " + [j.constructor.name]);
+      };
+    },
+    lockedBy: function(s) {
+      return function(s$prime) {
+        var $426 = eq5(s)(s$prime);
+        if ($426) {
+          return [];
+        }
+        ;
+        return serialAll6;
+      };
+    },
+    isBlocked: function(j) {
+      return function(s) {
+        return function(j$prime) {
+          return true;
+        };
+      };
+    },
+    isSimple: true
   });
 }();
 var curveLRail = /* @__PURE__ */ function() {
@@ -6347,7 +7595,7 @@ var curveLRail = /* @__PURE__ */ function() {
         return pe;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 298, column 26 - line 300, column 23): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 313, column 26 - line 315, column 23): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(s) {
@@ -6367,14 +7615,14 @@ var curveLRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 301, column 28 - line 303, column 82): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 316, column 28 - line 318, column 82): " + [j.constructor.name]);
       };
     },
     getRoute: function(s) {
       return function(f) {
         return function(t) {
-          var $380 = notEq22(f)(t);
-          if ($380) {
+          var $429 = notEq22(f)(t);
+          if ($429) {
             return new Just(s);
           }
           ;
@@ -6382,11 +7630,14 @@ var curveLRail = /* @__PURE__ */ function() {
         };
       };
     },
-    isLocked: function(j) {
+    isLegal: function(j) {
       return function(s) {
-        return function(s$prime) {
-          return false;
-        };
+        return true;
+      };
+    },
+    lockedBy: function(s) {
+      return function(s$prime) {
+        return [];
       };
     },
     isBlocked: function(j) {
@@ -6400,6 +7651,449 @@ var curveLRail = /* @__PURE__ */ function() {
   });
 }();
 var curveRRail = /* @__PURE__ */ flipRail(curveLRail);
+var crossoverLRail = /* @__PURE__ */ function() {
+  var poe = {
+    coord: {
+      x: 1,
+      y: 0,
+      z: 0
+    },
+    angle: angle8(0),
+    isPlus: false
+  };
+  var pob = {
+    coord: {
+      x: 0,
+      y: 0,
+      z: 0
+    },
+    angle: angle8(4),
+    isPlus: true
+  };
+  var ro = [railShape2({
+    start: pob,
+    end: poe
+  })];
+  var pie = {
+    coord: {
+      x: 0,
+      y: -doubleRailWidth,
+      z: 0
+    },
+    angle: angle8(4),
+    isPlus: true
+  };
+  var rn = slipShapes2({
+    start: pie,
+    end: poe
+  });
+  var pib = {
+    coord: {
+      x: 1,
+      y: -doubleRailWidth,
+      z: 0
+    },
+    angle: angle8(0),
+    isPlus: false
+  };
+  var ri = [railShape2({
+    start: pib,
+    end: pie
+  })];
+  return toRail4({
+    name: "crossover",
+    flipped: false,
+    opposed: false,
+    getDrawInfo: function(v) {
+      if (v.outerturnout) {
+        if (v.innerturnout) {
+          return noAdditionals(append3(map7(grayRail)(ri))(append3(map7(grayRail)(ro))(map7(blueRail)(rn))));
+        }
+        ;
+        return noAdditionals(append3(map7(grayRail)(ro))(append3(map7(blueRail)(ri))(map7(blueRail)(rn))));
+      }
+      ;
+      if (v.innerturnout) {
+        return noAdditionals(append3(map7(grayRail)(ri))(append3(map7(blueRail)(ro))(map7(blueRail)(rn))));
+      }
+      ;
+      return noAdditionals(append3(map7(grayRail)(rn))(append3(map7(blueRail)(ri))(map7(blueRail)(ro))));
+    },
+    defaultState: {
+      innerturnout: false,
+      outerturnout: false
+    },
+    getJoints: serialAll6,
+    getStates: serialAll22,
+    getOrigin: JointOuterBegin.value,
+    getJointPos: function(j) {
+      if (j instanceof JointOuterBegin) {
+        return pob;
+      }
+      ;
+      if (j instanceof JointOuterEnd) {
+        return poe;
+      }
+      ;
+      if (j instanceof JointInnerBegin) {
+        return pib;
+      }
+      ;
+      if (j instanceof JointInnerEnd) {
+        return pie;
+      }
+      ;
+      throw new Error("Failed pattern match at Internal.Rails (line 1122, column 26 - line 1126, column 29): " + [j.constructor.name]);
+    },
+    getNewState: function(j) {
+      return function(v) {
+        if (v.outerturnout) {
+          if (v.innerturnout) {
+            if (j instanceof JointInnerBegin) {
+              return {
+                newjoint: JointInnerEnd.value,
+                newstate: {
+                  innerturnout: false,
+                  outerturnout: v.outerturnout
+                },
+                shape: ri
+              };
+            }
+            ;
+            if (j instanceof JointInnerEnd) {
+              return {
+                newjoint: JointOuterEnd.value,
+                newstate: v,
+                shape: rn
+              };
+            }
+            ;
+            if (j instanceof JointOuterBegin) {
+              return {
+                newjoint: JointOuterEnd.value,
+                newstate: {
+                  innerturnout: v.innerturnout,
+                  outerturnout: false
+                },
+                shape: ro
+              };
+            }
+            ;
+            if (j instanceof JointOuterEnd) {
+              return {
+                newjoint: JointInnerEnd.value,
+                newstate: v,
+                shape: reverseShapes(rn)
+              };
+            }
+            ;
+            throw new Error("Failed pattern match at Internal.Rails (line 1132, column 11 - line 1136, column 129): " + [j.constructor.name]);
+          }
+          ;
+          if (j instanceof JointInnerBegin) {
+            return {
+              newjoint: JointInnerEnd.value,
+              newstate: v,
+              shape: ri
+            };
+          }
+          ;
+          if (j instanceof JointInnerEnd) {
+            return {
+              newjoint: JointInnerBegin.value,
+              newstate: v,
+              shape: reverseShapes(ri)
+            };
+          }
+          ;
+          if (j instanceof JointOuterBegin) {
+            return {
+              newjoint: JointOuterEnd.value,
+              newstate: {
+                innerturnout: v.innerturnout,
+                outerturnout: false
+              },
+              shape: ro
+            };
+          }
+          ;
+          if (j instanceof JointOuterEnd) {
+            return {
+              newjoint: JointInnerEnd.value,
+              newstate: {
+                innerturnout: true,
+                outerturnout: v.outerturnout
+              },
+              shape: reverseShapes(rn)
+            };
+          }
+          ;
+          throw new Error("Failed pattern match at Internal.Rails (line 1138, column 11 - line 1142, column 129): " + [j.constructor.name]);
+        }
+        ;
+        if (v.innerturnout) {
+          if (j instanceof JointInnerBegin) {
+            return {
+              newjoint: JointInnerEnd.value,
+              newstate: {
+                innerturnout: false,
+                outerturnout: v.outerturnout
+              },
+              shape: ri
+            };
+          }
+          ;
+          if (j instanceof JointInnerEnd) {
+            return {
+              newjoint: JointOuterEnd.value,
+              newstate: {
+                innerturnout: v.innerturnout,
+                outerturnout: true
+              },
+              shape: rn
+            };
+          }
+          ;
+          if (j instanceof JointOuterBegin) {
+            return {
+              newjoint: JointOuterEnd.value,
+              newstate: v,
+              shape: ro
+            };
+          }
+          ;
+          if (j instanceof JointOuterEnd) {
+            return {
+              newjoint: JointOuterBegin.value,
+              newstate: v,
+              shape: reverseShapes(ro)
+            };
+          }
+          ;
+          throw new Error("Failed pattern match at Internal.Rails (line 1146, column 11 - line 1150, column 129): " + [j.constructor.name]);
+        }
+        ;
+        if (j instanceof JointInnerBegin) {
+          return {
+            newjoint: JointInnerEnd.value,
+            newstate: v,
+            shape: ri
+          };
+        }
+        ;
+        if (j instanceof JointInnerEnd) {
+          return {
+            newjoint: JointInnerBegin.value,
+            newstate: v,
+            shape: reverseShapes(ri)
+          };
+        }
+        ;
+        if (j instanceof JointOuterBegin) {
+          return {
+            newjoint: JointOuterEnd.value,
+            newstate: v,
+            shape: ro
+          };
+        }
+        ;
+        if (j instanceof JointOuterEnd) {
+          return {
+            newjoint: JointOuterBegin.value,
+            newstate: v,
+            shape: reverseShapes(ro)
+          };
+        }
+        ;
+        throw new Error("Failed pattern match at Internal.Rails (line 1152, column 11 - line 1156, column 129): " + [j.constructor.name]);
+      };
+    },
+    getRoute: function(s) {
+      return function(f) {
+        return function(t) {
+          if (f instanceof JointInnerBegin) {
+            if (t instanceof JointInnerBegin) {
+              return Nothing.value;
+            }
+            ;
+            if (t instanceof JointInnerEnd) {
+              return new Just(function() {
+                var v = unwrap6(s);
+                return {
+                  innerturnout: false,
+                  outerturnout: false
+                };
+              }());
+            }
+            ;
+            if (t instanceof JointOuterBegin) {
+              return Nothing.value;
+            }
+            ;
+            if (t instanceof JointOuterEnd) {
+              return Nothing.value;
+            }
+            ;
+            throw new Error("Failed pattern match at Internal.Rails (line 1161, column 27 - line 1165, column 55): " + [t.constructor.name]);
+          }
+          ;
+          if (f instanceof JointInnerEnd) {
+            if (t instanceof JointInnerBegin) {
+              return new Just(function() {
+                var v = unwrap6(s);
+                return {
+                  innerturnout: false,
+                  outerturnout: false
+                };
+              }());
+            }
+            ;
+            if (t instanceof JointInnerEnd) {
+              return Nothing.value;
+            }
+            ;
+            if (t instanceof JointOuterBegin) {
+              return Nothing.value;
+            }
+            ;
+            if (t instanceof JointOuterEnd) {
+              return new Just(function() {
+                var v = unwrap6(s);
+                return {
+                  innerturnout: true,
+                  outerturnout: true
+                };
+              }());
+            }
+            ;
+            throw new Error("Failed pattern match at Internal.Rails (line 1167, column 27 - line 1171, column 118): " + [t.constructor.name]);
+          }
+          ;
+          if (f instanceof JointOuterBegin) {
+            if (t instanceof JointInnerBegin) {
+              return Nothing.value;
+            }
+            ;
+            if (t instanceof JointInnerEnd) {
+              return Nothing.value;
+            }
+            ;
+            if (t instanceof JointOuterBegin) {
+              return Nothing.value;
+            }
+            ;
+            if (t instanceof JointOuterEnd) {
+              return new Just(function() {
+                var v = unwrap6(s);
+                return {
+                  innerturnout: false,
+                  outerturnout: false
+                };
+              }());
+            }
+            ;
+            throw new Error("Failed pattern match at Internal.Rails (line 1173, column 27 - line 1177, column 120): " + [t.constructor.name]);
+          }
+          ;
+          if (f instanceof JointOuterEnd) {
+            if (t instanceof JointInnerBegin) {
+              return Nothing.value;
+            }
+            ;
+            if (t instanceof JointInnerEnd) {
+              return new Just(function() {
+                var v = unwrap6(s);
+                return {
+                  innerturnout: true,
+                  outerturnout: true
+                };
+              }());
+            }
+            ;
+            if (t instanceof JointOuterBegin) {
+              return new Just(function() {
+                var v = unwrap6(s);
+                return {
+                  innerturnout: false,
+                  outerturnout: false
+                };
+              }());
+            }
+            ;
+            if (t instanceof JointOuterEnd) {
+              return Nothing.value;
+            }
+            ;
+            throw new Error("Failed pattern match at Internal.Rails (line 1179, column 27 - line 1183, column 55): " + [t.constructor.name]);
+          }
+          ;
+          throw new Error("Failed pattern match at Internal.Rails (line 1159, column 23 - line 1183, column 55): " + [f.constructor.name]);
+        };
+      };
+    },
+    isLegal: function(j) {
+      return function(s) {
+        if (j instanceof JointInnerBegin) {
+          return !unwrap6(s).innerturnout && !unwrap6(s).outerturnout;
+        }
+        ;
+        if (j instanceof JointInnerEnd) {
+          return unwrap6(s).innerturnout === unwrap6(s).outerturnout;
+        }
+        ;
+        if (j instanceof JointOuterBegin) {
+          return !unwrap6(s).innerturnout && !unwrap6(s).outerturnout;
+        }
+        ;
+        if (j instanceof JointOuterEnd) {
+          return unwrap6(s).innerturnout === unwrap6(s).outerturnout;
+        }
+        ;
+        throw new Error("Failed pattern match at Internal.Rails (line 1185, column 11 - line 1189, column 82): " + [j.constructor.name]);
+      };
+    },
+    lockedBy: function(s) {
+      return function(s$prime) {
+        var $449 = eq22(s)(s$prime);
+        if ($449) {
+          return [];
+        }
+        ;
+        return serialAll6;
+      };
+    },
+    isBlocked: function(j) {
+      return function(s) {
+        return function(j$prime) {
+          var $450 = unwrap6(s).innerturnout && unwrap6(s).outerturnout;
+          if ($450) {
+            return true;
+          }
+          ;
+          if (j$prime instanceof JointInnerBegin) {
+            return eq6(j)(JointInnerEnd.value);
+          }
+          ;
+          if (j$prime instanceof JointInnerEnd) {
+            return eq6(j)(JointInnerBegin.value);
+          }
+          ;
+          if (j$prime instanceof JointOuterBegin) {
+            return eq6(j)(JointOuterEnd.value);
+          }
+          ;
+          if (j$prime instanceof JointOuterEnd) {
+            return eq6(j)(JointOuterBegin.value);
+          }
+          ;
+          throw new Error("Failed pattern match at Internal.Rails (line 1193, column 30 - line 1197, column 70): " + [j$prime.constructor.name]);
+        };
+      };
+    },
+    isSimple: false
+  });
+}();
+var crossoverRRail = /* @__PURE__ */ flipRail(crossoverLRail);
 var converterRail = /* @__PURE__ */ function() {
   var pe = {
     coord: {
@@ -6443,7 +8137,7 @@ var converterRail = /* @__PURE__ */ function() {
         return pe;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 243, column 28 - line 245, column 25): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 256, column 28 - line 258, column 25): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(s) {
@@ -6463,14 +8157,14 @@ var converterRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 246, column 30 - line 248, column 82): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 259, column 30 - line 261, column 82): " + [j.constructor.name]);
       };
     },
     getRoute: function(s) {
       return function(f) {
         return function(t) {
-          var $383 = notEq22(f)(t);
-          if ($383) {
+          var $454 = notEq22(f)(t);
+          if ($454) {
             return new Just(s);
           }
           ;
@@ -6478,11 +8172,14 @@ var converterRail = /* @__PURE__ */ function() {
         };
       };
     },
-    isLocked: function(j) {
+    isLegal: function(j) {
       return function(s) {
-        return function(s$prime) {
-          return false;
-        };
+        return true;
+      };
+    },
+    lockedBy: function(s) {
+      return function(s$prime) {
+        return [];
       };
     },
     isBlocked: function(j) {
@@ -6588,7 +8285,7 @@ var doubleToWideLRail = /* @__PURE__ */ function() {
     angle: anglep,
     isPlus: true
   };
-  return toRail3(intSerialize22)({
+  return toRail4({
     name: "doubletowide",
     flipped: false,
     opposed: false,
@@ -6611,7 +8308,7 @@ var doubleToWideLRail = /* @__PURE__ */ function() {
       innerturnout: false,
       outerturnout: false
     },
-    getJoints: serialAll5,
+    getJoints: serialAll6,
     getStates: serialAll22,
     getOrigin: JointOuterBegin.value,
     getJointPos: function(j) {
@@ -6631,7 +8328,7 @@ var doubleToWideLRail = /* @__PURE__ */ function() {
         return pie;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 957, column 26 - line 961, column 29): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 999, column 26 - line 1003, column 29): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(v) {
@@ -6675,7 +8372,7 @@ var doubleToWideLRail = /* @__PURE__ */ function() {
               };
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 967, column 11 - line 971, column 129): " + [j.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 1009, column 11 - line 1013, column 129): " + [j.constructor.name]);
           }
           ;
           if (j instanceof JointInnerBegin) {
@@ -6716,7 +8413,7 @@ var doubleToWideLRail = /* @__PURE__ */ function() {
             };
           }
           ;
-          throw new Error("Failed pattern match at Internal.Rails (line 973, column 11 - line 977, column 129): " + [j.constructor.name]);
+          throw new Error("Failed pattern match at Internal.Rails (line 1015, column 11 - line 1019, column 129): " + [j.constructor.name]);
         }
         ;
         if (v.innerturnout) {
@@ -6758,7 +8455,7 @@ var doubleToWideLRail = /* @__PURE__ */ function() {
             };
           }
           ;
-          throw new Error("Failed pattern match at Internal.Rails (line 981, column 11 - line 985, column 129): " + [j.constructor.name]);
+          throw new Error("Failed pattern match at Internal.Rails (line 1023, column 11 - line 1027, column 129): " + [j.constructor.name]);
         }
         ;
         if (j instanceof JointInnerBegin) {
@@ -6793,7 +8490,7 @@ var doubleToWideLRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 987, column 11 - line 991, column 129): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 1029, column 11 - line 1033, column 129): " + [j.constructor.name]);
       };
     },
     getRoute: function(s) {
@@ -6809,7 +8506,7 @@ var doubleToWideLRail = /* @__PURE__ */ function() {
                 var v = unwrap6(s);
                 return {
                   innerturnout: false,
-                  outerturnout: v.outerturnout
+                  outerturnout: false
                 };
               }());
             }
@@ -6822,7 +8519,7 @@ var doubleToWideLRail = /* @__PURE__ */ function() {
               return Nothing.value;
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 996, column 27 - line 1000, column 55): " + [t.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 1038, column 27 - line 1042, column 55): " + [t.constructor.name]);
           }
           ;
           if (f instanceof JointInnerEnd) {
@@ -6831,7 +8528,7 @@ var doubleToWideLRail = /* @__PURE__ */ function() {
                 var v = unwrap6(s);
                 return {
                   innerturnout: false,
-                  outerturnout: v.outerturnout
+                  outerturnout: false
                 };
               }());
             }
@@ -6854,7 +8551,7 @@ var doubleToWideLRail = /* @__PURE__ */ function() {
               }());
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 1002, column 27 - line 1006, column 118): " + [t.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 1044, column 27 - line 1048, column 118): " + [t.constructor.name]);
           }
           ;
           if (f instanceof JointOuterBegin) {
@@ -6874,13 +8571,13 @@ var doubleToWideLRail = /* @__PURE__ */ function() {
               return new Just(function() {
                 var v = unwrap6(s);
                 return {
-                  innerturnout: v.innerturnout,
+                  innerturnout: false,
                   outerturnout: false
                 };
               }());
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 1008, column 27 - line 1012, column 98): " + [t.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 1050, column 27 - line 1054, column 120): " + [t.constructor.name]);
           }
           ;
           if (f instanceof JointOuterEnd) {
@@ -6902,7 +8599,7 @@ var doubleToWideLRail = /* @__PURE__ */ function() {
               return new Just(function() {
                 var v = unwrap6(s);
                 return {
-                  innerturnout: v.innerturnout,
+                  innerturnout: false,
                   outerturnout: false
                 };
               }());
@@ -6912,61 +8609,69 @@ var doubleToWideLRail = /* @__PURE__ */ function() {
               return Nothing.value;
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 1014, column 27 - line 1018, column 55): " + [t.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 1056, column 27 - line 1060, column 55): " + [t.constructor.name]);
           }
           ;
-          throw new Error("Failed pattern match at Internal.Rails (line 994, column 23 - line 1018, column 55): " + [f.constructor.name]);
+          throw new Error("Failed pattern match at Internal.Rails (line 1036, column 23 - line 1060, column 55): " + [f.constructor.name]);
         };
       };
     },
-    isLocked: function(j) {
+    isLegal: function(j) {
       return function(s) {
-        return function(s$prime) {
-          if (j instanceof JointInnerBegin) {
-            return unwrap6(s).innerturnout !== unwrap6(s).innerturnout;
-          }
-          ;
-          if (j instanceof JointInnerEnd) {
-            return unwrap6(s).innerturnout !== unwrap6(s).innerturnout;
-          }
-          ;
-          if (j instanceof JointOuterBegin) {
-            return unwrap6(s).outerturnout !== unwrap6(s).outerturnout;
-          }
-          ;
-          if (j instanceof JointOuterEnd) {
-            return unwrap6(s).outerturnout !== unwrap6(s).outerturnout;
-          }
-          ;
-          throw new Error("Failed pattern match at Internal.Rails (line 1020, column 23 - line 1024, column 94): " + [j.constructor.name]);
-        };
+        if (j instanceof JointInnerBegin) {
+          return !unwrap6(s).innerturnout && !unwrap6(s).outerturnout;
+        }
+        ;
+        if (j instanceof JointInnerEnd) {
+          return unwrap6(s).innerturnout === unwrap6(s).outerturnout;
+        }
+        ;
+        if (j instanceof JointOuterBegin) {
+          return !unwrap6(s).innerturnout && !unwrap6(s).outerturnout;
+        }
+        ;
+        if (j instanceof JointOuterEnd) {
+          return unwrap6(s).innerturnout === unwrap6(s).outerturnout;
+        }
+        ;
+        throw new Error("Failed pattern match at Internal.Rails (line 1062, column 11 - line 1066, column 82): " + [j.constructor.name]);
+      };
+    },
+    lockedBy: function(s) {
+      return function(s$prime) {
+        var $474 = eq22(s)(s$prime);
+        if ($474) {
+          return [];
+        }
+        ;
+        return serialAll6;
       };
     },
     isBlocked: function(j) {
       return function(s) {
         return function(j$prime) {
-          var $403 = unwrap6(s).innerturnout || unwrap6(s).outerturnout;
-          if ($403) {
+          var $475 = unwrap6(s).innerturnout && unwrap6(s).outerturnout;
+          if ($475) {
             return true;
           }
           ;
           if (j$prime instanceof JointInnerBegin) {
-            return eq15(j)(JointInnerEnd.value);
+            return eq6(j)(JointInnerEnd.value);
           }
           ;
           if (j$prime instanceof JointInnerEnd) {
-            return eq15(j)(JointInnerBegin.value);
+            return eq6(j)(JointInnerBegin.value);
           }
           ;
           if (j$prime instanceof JointOuterBegin) {
-            return eq15(j)(JointOuterEnd.value);
+            return eq6(j)(JointOuterEnd.value);
           }
           ;
           if (j$prime instanceof JointOuterEnd) {
-            return eq15(j)(JointOuterBegin.value);
+            return eq6(j)(JointOuterBegin.value);
           }
           ;
-          throw new Error("Failed pattern match at Internal.Rails (line 1027, column 30 - line 1031, column 70): " + [j$prime.constructor.name]);
+          throw new Error("Failed pattern match at Internal.Rails (line 1070, column 30 - line 1074, column 70): " + [j$prime.constructor.name]);
         };
       };
     },
@@ -7018,7 +8723,7 @@ var doubleWidthSLRail = /* @__PURE__ */ function() {
         return ps;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 392, column 28 - line 394, column 25): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 410, column 28 - line 412, column 25): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(s) {
@@ -7038,7 +8743,7 @@ var doubleWidthSLRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 395, column 30 - line 398, column 58): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 413, column 30 - line 416, column 58): " + [j.constructor.name]);
       };
     },
     getRoute: function(s) {
@@ -7053,7 +8758,7 @@ var doubleWidthSLRail = /* @__PURE__ */ function() {
               return new Just(s);
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 403, column 27 - line 405, column 49): " + [t.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 421, column 27 - line 423, column 49): " + [t.constructor.name]);
           }
           ;
           if (f instanceof JointEnd) {
@@ -7065,18 +8770,21 @@ var doubleWidthSLRail = /* @__PURE__ */ function() {
               return Nothing.value;
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 407, column 27 - line 409, column 50): " + [t.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 425, column 27 - line 427, column 50): " + [t.constructor.name]);
           }
           ;
-          throw new Error("Failed pattern match at Internal.Rails (line 401, column 23 - line 409, column 50): " + [f.constructor.name]);
+          throw new Error("Failed pattern match at Internal.Rails (line 419, column 23 - line 427, column 50): " + [f.constructor.name]);
         };
       };
     },
-    isLocked: function(j) {
+    isLegal: function(j) {
       return function(s) {
-        return function(s$prime) {
-          return false;
-        };
+        return true;
+      };
+    },
+    lockedBy: function(s) {
+      return function(s$prime) {
+        return [];
       };
     },
     isBlocked: function(j) {
@@ -7151,10 +8859,10 @@ var toDoubleLPlusRail = /* @__PURE__ */ function() {
     opposed: false,
     getDrawInfo: function(v) {
       if (v.turnout) {
-        return noAdditionals(join3([map7(grayRail)(r0), map7(blueRail)(r1)]));
+        return noAdditionals(join4([map7(grayRail)(r0), map7(blueRail)(r1)]));
       }
       ;
-      return noAdditionals(join3([map7(grayRail)(r1), map7(blueRail)(r0)]));
+      return noAdditionals(join4([map7(grayRail)(r1), map7(blueRail)(r0)]));
     },
     defaultState: {
       turnout: false
@@ -7175,7 +8883,7 @@ var toDoubleLPlusRail = /* @__PURE__ */ function() {
         return ps;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 572, column 28 - line 575, column 25): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 601, column 28 - line 604, column 25): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(v) {
@@ -7215,7 +8923,7 @@ var toDoubleLPlusRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 576, column 43 - line 582, column 73): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 605, column 43 - line 611, column 73): " + [j.constructor.name]);
       };
     },
     getRoute: function(s) {
@@ -7244,7 +8952,7 @@ var toDoubleLPlusRail = /* @__PURE__ */ function() {
               }());
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 587, column 27 - line 590, column 89): " + [t.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 616, column 27 - line 619, column 89): " + [t.constructor.name]);
           }
           ;
           if (f instanceof JointMain) {
@@ -7265,7 +8973,7 @@ var toDoubleLPlusRail = /* @__PURE__ */ function() {
               return Nothing.value;
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 592, column 27 - line 595, column 50): " + [t.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 621, column 27 - line 624, column 50): " + [t.constructor.name]);
           }
           ;
           if (f instanceof JointSub) {
@@ -7286,18 +8994,38 @@ var toDoubleLPlusRail = /* @__PURE__ */ function() {
               return Nothing.value;
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 597, column 27 - line 600, column 50): " + [t.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 626, column 27 - line 629, column 50): " + [t.constructor.name]);
           }
           ;
-          throw new Error("Failed pattern match at Internal.Rails (line 585, column 23 - line 600, column 50): " + [f.constructor.name]);
+          throw new Error("Failed pattern match at Internal.Rails (line 614, column 23 - line 629, column 50): " + [f.constructor.name]);
         };
       };
     },
-    isLocked: function(j) {
+    isLegal: function(j) {
       return function(s) {
-        return function(s$prime) {
-          return unwrap6(s).turnout !== unwrap6(s$prime).turnout;
-        };
+        if (j instanceof JointEnter) {
+          return true;
+        }
+        ;
+        if (j instanceof JointMain) {
+          return !unwrap6(s).turnout;
+        }
+        ;
+        if (j instanceof JointSub) {
+          return unwrap6(s).turnout;
+        }
+        ;
+        throw new Error("Failed pattern match at Internal.Rails (line 631, column 11 - line 634, column 45): " + [j.constructor.name]);
+      };
+    },
+    lockedBy: function(s) {
+      return function(s$prime) {
+        var $493 = eq16(s)(s$prime);
+        if ($493) {
+          return [];
+        }
+        ;
+        return serialAll4;
       };
     },
     isBlocked: function(j) {
@@ -7369,14 +9097,14 @@ var autoTurnOutLPlusRail = /* @__PURE__ */ function() {
     start: pP,
     end: ps
   })];
-  return toRail1(intSerialize32)({
+  return toRail1(intSerialize3)({
     name: "autoturnout",
     flipped: false,
     opposed: false,
     getDrawInfo: function(v) {
       if (v.auto) {
         if (v.turnout) {
-          return noAdditionals(join3([map7(function(s1) {
+          return noAdditionals(join4([map7(function(s1) {
             return {
               color: "#33a",
               shape: s1
@@ -7384,7 +9112,7 @@ var autoTurnOutLPlusRail = /* @__PURE__ */ function() {
           })(r0), map7(blueRail)(r_), map7(blueRail)(r1)]));
         }
         ;
-        return noAdditionals(join3([map7(function(s1) {
+        return noAdditionals(join4([map7(function(s1) {
           return {
             color: "#33a",
             shape: s1
@@ -7393,7 +9121,7 @@ var autoTurnOutLPlusRail = /* @__PURE__ */ function() {
       }
       ;
       if (v.turnout) {
-        return noAdditionals(join3([map7(function(s1) {
+        return noAdditionals(join4([map7(function(s1) {
           return {
             color: "#866",
             shape: s1
@@ -7401,7 +9129,7 @@ var autoTurnOutLPlusRail = /* @__PURE__ */ function() {
         })(r0), map7(blueRail)(r_), map7(blueRail)(r1)]));
       }
       ;
-      return noAdditionals(join3([map7(function(s1) {
+      return noAdditionals(join4([map7(function(s1) {
         return {
           color: "#866",
           shape: s1
@@ -7413,7 +9141,7 @@ var autoTurnOutLPlusRail = /* @__PURE__ */ function() {
       auto: true
     },
     getJoints: serialAll4,
-    getStates: serialAll(intSerialize32),
+    getStates: serialAll(intSerialize3),
     getOrigin: JointEnter.value,
     getJointPos: function(j) {
       if (j instanceof JointEnter) {
@@ -7428,7 +9156,7 @@ var autoTurnOutLPlusRail = /* @__PURE__ */ function() {
         return ps;
       }
       ;
-      throw new Error("Failed pattern match at Internal.Rails (line 501, column 26 - line 504, column 23): " + [j.constructor.name]);
+      throw new Error("Failed pattern match at Internal.Rails (line 525, column 26 - line 528, column 23): " + [j.constructor.name]);
     },
     getNewState: function(j) {
       return function(v) {
@@ -7486,7 +9214,7 @@ var autoTurnOutLPlusRail = /* @__PURE__ */ function() {
           };
         }
         ;
-        throw new Error("Failed pattern match at Internal.Rails (line 505, column 38 - line 517, column 79): " + [j.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Rails (line 529, column 38 - line 541, column 79): " + [j.constructor.name]);
       };
     },
     getRoute: function(s) {
@@ -7517,7 +9245,7 @@ var autoTurnOutLPlusRail = /* @__PURE__ */ function() {
               }());
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 522, column 25 - line 525, column 98): " + [t.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 546, column 25 - line 549, column 98): " + [t.constructor.name]);
           }
           ;
           if (f instanceof JointMain) {
@@ -7539,7 +9267,7 @@ var autoTurnOutLPlusRail = /* @__PURE__ */ function() {
               return Nothing.value;
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 527, column 25 - line 530, column 48): " + [t.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 551, column 25 - line 554, column 48): " + [t.constructor.name]);
           }
           ;
           if (f instanceof JointSub) {
@@ -7561,18 +9289,38 @@ var autoTurnOutLPlusRail = /* @__PURE__ */ function() {
               return Nothing.value;
             }
             ;
-            throw new Error("Failed pattern match at Internal.Rails (line 532, column 25 - line 535, column 48): " + [t.constructor.name]);
+            throw new Error("Failed pattern match at Internal.Rails (line 556, column 25 - line 559, column 48): " + [t.constructor.name]);
           }
           ;
-          throw new Error("Failed pattern match at Internal.Rails (line 520, column 21 - line 535, column 48): " + [f.constructor.name]);
+          throw new Error("Failed pattern match at Internal.Rails (line 544, column 21 - line 559, column 48): " + [f.constructor.name]);
         };
       };
     },
-    isLocked: function(j) {
+    isLegal: function(j) {
       return function(s) {
-        return function(s$prime) {
-          return unwrap6(s).turnout !== unwrap6(s$prime).turnout;
-        };
+        if (j instanceof JointEnter) {
+          return true;
+        }
+        ;
+        if (j instanceof JointMain) {
+          return !unwrap6(s).turnout;
+        }
+        ;
+        if (j instanceof JointSub) {
+          return unwrap6(s).turnout;
+        }
+        ;
+        throw new Error("Failed pattern match at Internal.Rails (line 561, column 9 - line 564, column 43): " + [j.constructor.name]);
+      };
+    },
+    lockedBy: function(s) {
+      return function(s$prime) {
+        var $509 = eq32(s)(s$prime);
+        if ($509) {
+          return [];
+        }
+        ;
+        return serialAll4;
       };
     },
     isBlocked: function(j) {
@@ -7588,23 +9336,23 @@ var autoTurnOutLPlusRail = /* @__PURE__ */ function() {
 var autoTurnOutRPlusRail = /* @__PURE__ */ flipRail(autoTurnOutLPlusRail);
 
 // output/Main/index.js
-var eq4 = /* @__PURE__ */ eq(eqNumber);
+var eq7 = /* @__PURE__ */ eq(eqNumber);
 var unwrap7 = /* @__PURE__ */ unwrap();
-var eq16 = /* @__PURE__ */ eq(eqAngle);
-var notEq4 = /* @__PURE__ */ notEq(eqAngle);
+var eq17 = /* @__PURE__ */ eq(eqAngle);
+var notEq6 = /* @__PURE__ */ notEq(eqAngle);
 var map8 = /* @__PURE__ */ map(functorArray);
 var map15 = /* @__PURE__ */ map(functorMaybe);
 var identity5 = /* @__PURE__ */ identity(categoryFn);
 var map24 = /* @__PURE__ */ map(functorFn);
-var max3 = /* @__PURE__ */ max(ordInt);
+var max4 = /* @__PURE__ */ max(ordInt);
 var sort2 = /* @__PURE__ */ sort(ordInt);
-var bind3 = /* @__PURE__ */ bind(bindArray);
+var bind4 = /* @__PURE__ */ bind(bindArray);
 var pure3 = /* @__PURE__ */ pure(applicativeArray);
 var splitSize = function(shape) {
-  var $47 = on(eq4)(function(p) {
+  var $48 = on(eq7)(function(p) {
     return unwrap7(unwrap7(p).coord).z;
-  })(unwrap7(shape).start)(unwrap7(shape).end) && eq16(reverseAngle(unwrap7(unwrap7(shape).start).angle))(unwrap7(unwrap7(shape).end).angle);
-  if ($47) {
+  })(unwrap7(shape).start)(unwrap7(shape).end) && eq17(reverseAngle(unwrap7(unwrap7(shape).start).angle))(unwrap7(unwrap7(shape).end).angle);
+  if ($48) {
     return 1;
   }
   ;
@@ -7613,8 +9361,8 @@ var splitSize = function(shape) {
 var shapeToData = function(v) {
   var a2 = toRadian(v.end.angle);
   var a1 = toRadian(reverseAngle(v.start.angle));
-  var $51 = eq16(reverseAngle(v.start.angle))(v.end.angle);
-  if ($51) {
+  var $52 = eq17(reverseAngle(v.start.angle))(v.end.angle);
+  if ($52) {
     return unsafeToForeign({
       type: "straight",
       angle: a1,
@@ -7641,11 +9389,22 @@ var shapeToData = function(v) {
     endangle: a1$prime
   });
 };
-var rails = [autoTurnOutLPlusRail, curveLRail, slopeRail, slopeCurveLRail, straightRail, halfRail, quarterRail, converterRail, turnOutLPlusRail, outerCurveLRail, toDoubleLPlusRail, scissorsRail, doubleToWideLRail, doubleTurnoutLPlusRail, longRail, doubleWidthSLRail];
+var rails = [autoTurnOutLPlusRail, curveLRail, slopeRail, slopeCurveLRail, straightRail, halfRail, quarterRail, converterRail, turnOutLPlusRail, outerCurveLRail, toDoubleLPlusRail, scissorsRail, doubleToWideLRail, doubleTurnoutLPlusRail, longRail, doubleWidthSLRail, crossoverLRail, diamondRail];
 var isArc = function(shape) {
-  return notEq4(reverseAngle(unwrap7(unwrap7(shape).start).angle))(unwrap7(unwrap7(shape).end).angle);
+  return notEq6(reverseAngle(unwrap7(unwrap7(shape).start).angle))(unwrap7(unwrap7(shape).end).angle);
 };
-var encodeRoute = function(v) {
+var ifUndefinedDefault = function(d) {
+  return function(x) {
+    var f = unsafeToForeign(x);
+    var $53 = isUndefined(f) || isNull(f);
+    if ($53) {
+      return d;
+    }
+    ;
+    return x;
+  };
+};
+var encodeTrainRoute = function(v) {
   return {
     nodeid: v.nodeid,
     jointid: v.jointid,
@@ -7657,12 +9416,17 @@ var encodeRoute = function(v) {
 var encodeTrainset = function(v) {
   return {
     types: v.types,
-    route: map8(encodeRoute)(v.route),
+    route: map8(encodeTrainRoute)(v.route),
     distanceToNext: v.distanceToNext,
     distanceFromOldest: v.distanceFromOldest,
     speed: v.speed,
     trainid: v.trainid,
-    flipped: v.flipped
+    flipped: v.flipped,
+    respectSignals: v.respectSignals,
+    realAcceralation: v.realAcceralation,
+    notch: v.notch,
+    signalRestriction: v.signalRestriction,
+    program: v.program
   };
 };
 var encodeRail = function(v) {
@@ -7677,16 +9441,16 @@ var encodeRailNode = function(v) {
     nodeid: v.nodeid,
     rail: encodeRail(v.rail),
     state: v.state,
-    connections: v.connections
+    connections: v.connections,
+    signals: v.signals,
+    invalidRoutes: v.invalidRoutes
   };
 };
 var encodeRailInstance = function(v) {
   return {
     node: encodeRailNode(v.node),
     instanceid: v.instanceid,
-    pos: v.pos,
-    signals: v.signals,
-    wrongways: v.wrongways
+    pos: v.pos
   };
 };
 var encodeLayout = function(v) {
@@ -7701,14 +9465,14 @@ var defaultLayout = /* @__PURE__ */ function() {
     nodeid: 0,
     state: 0,
     rail: straightRail,
-    connections: []
+    connections: [],
+    signals: [],
+    invalidRoutes: []
   };
   var rinst = {
     node,
     instanceid: 0,
-    pos: reversePos(poszero),
-    signals: [],
-    wrongways: []
+    pos: reversePos(poszero)
   };
   var jrel = function(i) {
     return unwrap7(unwrap7(node.rail).getJointPos(i));
@@ -7731,20 +9495,20 @@ var defaultLayout = /* @__PURE__ */ function() {
     version: 1
   });
 }();
-var decodeRoute = function(rs) {
+var decodeTrainRoute = function(rs) {
   return function(v) {
     var defaultnode = {
       nodeid: 0,
       state: 0,
       rail: straightRail,
-      connections: []
+      connections: [],
+      signals: [],
+      invalidRoutes: []
     };
     var rinst = {
       node: defaultnode,
       instanceid: 0,
-      pos: reversePos(poszero),
-      signals: [],
-      wrongways: []
+      pos: reversePos(poszero)
     };
     return {
       nodeid: v.nodeid,
@@ -7759,33 +9523,38 @@ var decodeTrainset = function(rs) {
   return function(v) {
     return {
       types: v.types,
-      route: map8(decodeRoute(rs))(v.route),
+      route: map8(decodeTrainRoute(rs))(v.route),
       distanceToNext: v.distanceToNext,
       distanceFromOldest: v.distanceFromOldest,
       speed: v.speed,
       trainid: v.trainid,
-      flipped: v.flipped
+      flipped: v.flipped,
+      respectSignals: v.respectSignals,
+      realAcceralation: v.realAcceralation,
+      notch: v.notch,
+      signalRestriction: v.signalRestriction,
+      program: v.program
     };
   };
 };
 var decodeRail = function(v) {
   return map15(function() {
-    var $141 = function() {
+    var $157 = function() {
       if (v.opposed) {
         return opposeRail;
       }
       ;
       return identity5;
     }();
-    var $142 = function() {
+    var $158 = function() {
       if (v.flipped) {
         return flipRail;
       }
       ;
       return identity5;
     }();
-    return function($143) {
-      return $141($142($143));
+    return function($159) {
+      return $157($158($159));
     };
   }())(find2(function(v1) {
     return v1.name === v.name;
@@ -7797,7 +9566,9 @@ var decodeRailNode = function(v) {
       nodeid: v.nodeid,
       rail: v1,
       state: v.state,
-      connections: v.connections
+      connections: v.connections,
+      signals: ifUndefinedDefault([])(v.signals),
+      invalidRoutes: ifUndefinedDefault([])(v.invalidRoutes)
     };
   }))(decodeRail(v.rail));
 };
@@ -7806,9 +9577,7 @@ var decodeRailInstance = function(v) {
     return {
       node: v1,
       instanceid: v.instanceid,
-      pos: v.pos,
-      signals: v.signals,
-      wrongways: v.wrongways
+      pos: v.pos
     };
   }))(decodeRailNode(v.node));
 };
@@ -7822,8 +9591,6 @@ var decodeLayout$prime = function(v) {
       return {
         node: v12.node,
         instanceid: unwrap7(v12.node).nodeid,
-        signals: v12.signals,
-        wrongways: v12.wrongways,
         pos: v12.pos
       };
     })(rs),
@@ -7832,7 +9599,7 @@ var decodeLayout$prime = function(v) {
     instancecount: length(rs),
     traincount: 1 + foldl2(function(x) {
       return function(v12) {
-        return max3(x)(v12.trainid);
+        return max4(x)(v12.trainid);
       };
     })(-1 | 0)(ts) | 0,
     version: v.version,
@@ -7840,14 +9607,14 @@ var decodeLayout$prime = function(v) {
     signalcolors: []
   };
   var deleted = function() {
-    var $144 = map8(function(r) {
+    var $160 = map8(function(r) {
       return r.index;
     });
-    var $145 = filter(function(r) {
+    var $161 = filter(function(r) {
       return r.isdeleted;
     });
-    return function($146) {
-      return $144($145($146));
+    return function($162) {
+      return $160($161($162));
     };
   }()(mapWithIndex(function(i) {
     return function(r) {
@@ -7861,20 +9628,20 @@ var decodeLayout$prime = function(v) {
     nodeid: 0,
     state: 0,
     rail: straightRail,
-    connections: []
+    connections: [],
+    signals: [],
+    invalidRoutes: []
   };
   var rinst = {
     node: defaultnode,
     instanceid: 0,
-    pos: reversePos(poszero),
-    signals: [],
-    wrongways: []
+    pos: reversePos(poszero)
   };
   var v1 = foldl2(removeRail)(l0)(reverse(sort2(deleted)));
-  var joints = bind3(v1.rails)(function(v22) {
+  var joints = bind4(v1.rails)(function(v22) {
     var nodeid = unwrap7(v22.node).nodeid;
-    return bind3(unwrap7(unwrap7(v22.node).rail).getJoints)(function(jointid) {
-      return bind3(maybe([])(pure3)(getJointAbsPos(v1)(nodeid)(jointid)))(function(pos) {
+    return bind4(unwrap7(unwrap7(v22.node).rail).getJoints)(function(jointid) {
+      return bind4(maybe([])(pure3)(getJointAbsPos(v1)(nodeid)(jointid)))(function(pos) {
         return pure3({
           nodeid,
           jointid,
@@ -7888,8 +9655,8 @@ var decodeLayout$prime = function(v) {
       return addJoint(l)(j.pos)(j.nodeid)(j.jointid);
     };
   })(v1)(joints));
-  var $131 = length(v2.rails) === 0;
-  if ($131) {
+  var $147 = length(v2.rails) === 0;
+  if ($147) {
     return defaultLayout;
   }
   ;
@@ -7899,8 +9666,8 @@ var decodeLayout = function(v) {
   return decodeLayout$prime({
     rails: map8(unsafeFromForeign)(v.rails),
     trains: function() {
-      var $136 = isArray(v.trains);
-      if ($136) {
+      var $152 = isArray(v.trains);
+      if ($152) {
         return unsafeFromForeign(v.trains);
       }
       ;
@@ -7915,6 +9682,7 @@ export {
   DrawAdditional,
   DrawInfo,
   DrawRail,
+  InvalidRoute,
   JointBegin,
   JointData,
   JointEnd,
@@ -7938,7 +9706,6 @@ export {
   RailNode,
   RailShape,
   RelPos,
-  Route,
   SectionArray,
   Signal,
   SignalRoute,
@@ -7950,11 +9717,13 @@ export {
   StateSP_P,
   StateSP_S,
   StateSolid,
+  TrainRoute,
   Trainset,
   TrainsetDrawInfo,
   absDrawInfo,
   absParts,
   absShape,
+  addInvalidRoute,
   addJoint,
   addRail,
   addSignal,
@@ -7966,13 +9735,18 @@ export {
   autoTurnOutRPlusRail,
   blue,
   blueRail,
+  brakePattern,
   canJoin,
   convertRelPos,
   converterRail,
+  crossoverLRail,
+  crossoverRRail,
   curveLRail,
   curveRRail,
   decodeLayout,
   defaultLayout,
+  diamondRail,
+  digestIndication,
   doubleToWideLRail,
   doubleToWideRRail,
   doubleTurnoutLPlusRail,
@@ -7988,6 +9762,7 @@ export {
   getJointAbsPos,
   getJoints,
   getNewRailPos,
+  getNextSignal,
   gray,
   grayRail,
   halfRail,
@@ -8027,9 +9802,11 @@ export {
   toRail,
   trainsetDrawInfo,
   trainsetLength,
+  tryOpenRouteFor,
+  tryOpenRouteFor_ffi,
   turnOutLPlusRail,
   turnOutRPlusRail,
-  updateSignalColor,
+  updateSignalIndication,
   updateSignalRoutes,
   updateTraffic
 };

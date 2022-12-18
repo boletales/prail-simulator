@@ -44,8 +44,8 @@
       }
     }
 
-    const width = window.screen.availWidth - 20;
-    const height = window.screen.availHeight -200;
+    const width = window.screen.availWidth   -20;
+    const height = window.screen.availHeight -250;
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera( 75, width / height, 0.1, 8000 );
     camera.position.y = 100;
@@ -109,6 +109,7 @@
     let staticmeshmemo = [];
     let meshsignalmemo = [];
     let meshsignalplatememo = [];
+    let meshinvalidroutememo = [];
     function mergeMeshData(mds){
       return mds.reduce((d, e)=>{
         Object.keys(e.geometry).forEach(c=>{
@@ -141,6 +142,7 @@
       staticmeshmemo.forEach(m => {scene.remove(m); });
       meshsignalmemo.forEach(mss => mss.forEach(ms => ms.forEach(m => {scene.remove(m); m.geometry.dispose()})));
       meshsignalplatememo.forEach(ms => ms.forEach(m => {scene.remove(m); m.geometry.dispose()}));
+      meshinvalidroutememo.forEach(ms => ms.forEach(m => {scene.remove(m); m.geometry.dispose()}));
       meshrailmemo = [];
       geometryrailmemo = [];
       meshtrainmemo = [];
@@ -148,6 +150,7 @@
       staticmeshmemo = [];
       meshsignalmemo = [];
       meshsignalplatememo = [];
+      meshinvalidroutememo = [];
       scenememo = {rails:[], trains: []};
       lastupdate = -1;
     }
@@ -279,10 +282,15 @@
         });
         meshsignalmemo.forEach(mss => mss.forEach(ms => ms.forEach(m => {scene.remove(m); m.geometry.dispose()})));
         meshsignalplatememo.forEach(ms => ms.forEach(m => {scene.remove(m); m.geometry.dispose()}));
+        meshinvalidroutememo.forEach(ms => ms.forEach(m => {scene.remove(m); m.geometry.dispose()}));
         ldi.signals.forEach(r => r.forEach(({indication, pos, signal}) => {scene.add(meshSignalPlate(pos, signal.nodeid, signal.jointid)) ;indication.forEach((c,i) => scene.add(meshSignal(pos, signal.nodeid, signal.jointid, i)))}));
+        ldi.invalidRoutes.forEach(r => r.forEach(({indication, pos, signal}) => {scene.add(meshInvalidRoute(pos, signal.nodeid, signal.jointid)) ;}));
       }
       
-      ldi.signals.forEach(r => r.forEach(({indication, pos, signal}) => indication.forEach((color, i) => meshsignalmemo[signal.nodeid][signal.jointid][i].material = signalMaterials[color])));
+      ldi.signals.forEach(s => s.forEach(({indication, pos, signal}) => {
+          indication.forEach((color, i) => meshsignalmemo[signal.nodeid][signal.jointid][i].material = signalMaterials[color]);
+          meshsignalplatememo[signal.nodeid][signal.jointid].material = signal.manualStop ? signalPlateStoppedMaterial : signalPlateMaterial;
+        }));
       
       ldi.trains.forEach((di) => {
         scenememo.trains[di.trainid] = meshsTrain(di);
@@ -302,7 +310,7 @@
 
       let p = P.getJointAbsPos(layout)(selectedJoint.nodeid)(selectedJoint.jointid).value0;
       if(p !== undefined){
-        document.getElementById("coord").innerText = coordStr(p.coord) + "    " + getfps().toFixed(0) + "fps";
+        document.getElementById("coord").innerText = coordStr(p.coord) + "   selected: " + selectedJoint.nodeid + "-" + selectedJoint.jointid + "    " + getfps().toFixed(0) + "fps" ;
       }
     }
 
@@ -426,14 +434,16 @@
         return data;
     }
 
-    const signalColors = ["#f00", "#ff0", "#ff0", "#8f0", "#0ea"];
+    const signalColors = ["#800", "#ff0", "#ff0", "#8f0", "#0ea"];
     const signalMaterials = 
       signalColors.map (c => new THREE.MeshBasicMaterial({color: c, side: THREE.DoubleSide}));
     const signalPlateMaterial = new THREE.MeshBasicMaterial({color: "#222", side: THREE.DoubleSide});
+    const signalPlateStoppedMaterial = new THREE.MeshBasicMaterial({color: "#a00", side: THREE.DoubleSide});
+    const invalidRouteMaterial = new THREE.MeshBasicMaterial({color: "#500", side: THREE.DoubleSide});
     
     function meshSignal(p, nodeid, jointid, routeid){
         let w = 0.03;
-        let h = 0.03;
+        let h = 0.2;
         let d = -0.2;
         let dw = -0.07 + 0.05 * routeid;
         let points = [
@@ -467,8 +477,8 @@
         let h = 0.2;
         let d = -0.2;
         let points = [
-          {x: p.coord.x + Math.sin(p.angle)*(+w/2) + Math.cos(p.angle)*(  d), y: p.coord.y + Math.cos(p.angle)*(-w/2) + Math.sin(p.angle)*(  d), z: p.coord.z + layerheight * 10},
-          {x: p.coord.x + Math.sin(p.angle)*(-w/2) + Math.cos(p.angle)*(  d), y: p.coord.y + Math.cos(p.angle)*(+w/2) + Math.sin(p.angle)*(  d), z: p.coord.z + layerheight * 10},
+          {x: p.coord.x + Math.sin(p.angle)*(+w/1.6) + Math.cos(p.angle)*(  d), y: p.coord.y + Math.cos(p.angle)*(-w/1.6) + Math.sin(p.angle)*(  d), z: p.coord.z + layerheight * 10},
+          {x: p.coord.x + Math.sin(p.angle)*(-w/1.6) + Math.cos(p.angle)*(  d), y: p.coord.y + Math.cos(p.angle)*(+w/1.6) + Math.sin(p.angle)*(  d), z: p.coord.z + layerheight * 10},
           {x: p.coord.x + Math.sin(p.angle)*(+w/2) + Math.cos(p.angle)*(h+d), y: p.coord.y + Math.cos(p.angle)*(-w/2) + Math.sin(p.angle)*(h+d), z: p.coord.z + layerheight * 10},
           {x: p.coord.x + Math.sin(p.angle)*(-w/2) + Math.cos(p.angle)*(h+d), y: p.coord.y + Math.cos(p.angle)*(+w/2) + Math.sin(p.angle)*(h+d), z: p.coord.z + layerheight * 10},
         ].map(a3);
@@ -491,6 +501,34 @@
         return mesh;
     }
 
+    function meshInvalidRoute(p, nodeid, jointid){
+        let w = RAILWIDTH/RAILLENGTH;
+        let h = 0.2;
+        let d = -0.2;
+        let points = [
+          {x: p.coord.x + Math.sin(p.angle)*(+w/2) + Math.cos(p.angle)*(  d), y: p.coord.y + Math.cos(p.angle)*(-w/2) + Math.sin(p.angle)*(  d), z: p.coord.z + layerheight * 10},
+          {x: p.coord.x + Math.sin(p.angle)*(-w/2) + Math.cos(p.angle)*(  d), y: p.coord.y + Math.cos(p.angle)*(+w/2) + Math.sin(p.angle)*(  d), z: p.coord.z + layerheight * 10},
+          {x: p.coord.x + Math.sin(p.angle)*(+w/2) + Math.cos(p.angle)*(h+d), y: p.coord.y + Math.cos(p.angle)*(-w/2) + Math.sin(p.angle)*(h+d), z: p.coord.z + layerheight * 10},
+          {x: p.coord.x + Math.sin(p.angle)*(-w/2) + Math.cos(p.angle)*(h+d), y: p.coord.y + Math.cos(p.angle)*(+w/2) + Math.sin(p.angle)*(h+d), z: p.coord.z + layerheight * 10},
+        ].map(a3);
+
+        let geometry = new THREE.BufferGeometry();
+        let faces = [[0, 1, 2],[1, 2, 3]];
+        let vertices = new Float32Array(faces.flatMap(f => f.flatMap(i => points[i])).flat());
+        geometry.setAttribute('position',new THREE.BufferAttribute(vertices,3));
+        geometry.computeVertexNormals();
+
+        let mesh = new THREE.Mesh(geometry, invalidRouteMaterial);
+        mesh.matrixAutoUpdate = false;
+
+
+        if(meshinvalidroutememo.length <= nodeid){
+          for(let i=meshinvalidroutememo.length; i<=nodeid; i++) meshinvalidroutememo.push([]);
+        }
+        meshinvalidroutememo[nodeid][jointid] = mesh;
+
+        return mesh;
+    }
 
     const pierColor = "#dddd00";
     function meshsPier(p){

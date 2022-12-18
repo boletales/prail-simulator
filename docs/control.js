@@ -52,6 +52,10 @@ function addRail(rail, _f = 0){
   requestSave();
 }
 
+function addInvalidRoute(){
+  layout = P.addInvalidRoute(layout)(selectedJoint.nodeid)(selectedJoint.jointid);
+  requestSave();
+}
 function addSignal(){
   layout = P.addSignal(layout)(selectedJoint.nodeid)(selectedJoint.jointid);
   requestSave();
@@ -204,6 +208,9 @@ function onkey(e){
       addRail(P.doubleTurnoutRPlusRail);
       break;
     case "x":
+      addRail(P.diamondRail);
+      break;
+    case "X":
       addRail(P.scissorsRail);
       break;
     case "5":
@@ -221,12 +228,66 @@ function onkey(e){
     case "Y":
       addRail(P.converterRail);
       break;
-
+    case "g":
+      addRail(P.doubleWidthSLRail);
+      break;
+    case "h":
+      addRail(P.doubleWidthSRRail);
+      break;
+    case "G":
+      addRail(P.crossoverLRail);
+      break;
+    case "H":
+      addRail(P.crossoverRRail);
+      break;
+      
+    case "9":
+      addInvalidRoute();
+      break;
     case "0":
       addSignal();
       break;
     case "-":
       removeSignal();
+      break;
+    
+    case "+":
+      (() => {
+        layout = P.addTrainset(layout)(selectedJoint.nodeid)(selectedJoint.jointid)([{type:"313_Mc", flipped:false}, {type:"313_T", flipped:false}, {type:"312_Tc", flipped:false}]);
+        layout.trains[layout.trains.length -1].realAcceralation=true;
+        layout.trains[layout.trains.length -1].respectSignals=true;
+        layout.trains[layout.trains.length -1].notch=5;
+      })();
+      break;
+    case ";":
+      (() => {
+        let ti = layout.traffic[selectedJoint.nodeid].find(e=>e.length >0)[0];
+        if(ti === undefined) return;
+        layout.trains[ti] = P.flipTrain(layout.trains[ti]);
+      })();
+      break;
+    case "p":
+      (() => {
+        layout.rails[selectedJoint.nodeid].node.signals.forEach(e => {if(e.jointid == selectedJoint.jointid) e.manualStop = !e.manualStop});
+      })();
+      break;
+    case "i":
+      (() => {
+        let signal = layout.rails[selectedJoint.nodeid].node.signals.find(e => e.jointid == selectedJoint.jointid);
+        if(signal === undefined) return;
+        let routeid = signal.routecond.findIndex(e => e);
+        if(routeid === -1) routeid = -2;
+        layout = P.tryOpenRouteFor_ffi(layout)(selectedJoint.nodeid)(selectedJoint.jointid)((routeid + signal.indication.length + 1) % signal.indication.length).layout
+      })();
+      break;
+    case "o":
+      (() => {
+        let signal = layout.rails[selectedJoint.nodeid].node.signals.find(e => e.jointid == selectedJoint.jointid);
+        if(signal === undefined) return;
+        let routeid = signal.routecond.findIndex(e => e);
+        if(routeid === -1) routeid = 1;
+        layout = P.tryOpenRouteFor_ffi(layout)(selectedJoint.nodeid)(selectedJoint.jointid)((routeid + signal.indication.length - 1) % signal.indication.length).layout
+      })();
       break;
     
     

@@ -17,6 +17,9 @@ import Record as R
 import Type.Row as R
 import Type.RowList as RL
 
+import Data.Array
+import Data.Functor
+
 
 
 
@@ -94,22 +97,13 @@ newtype RailGen joint state = RailGen {
     getNewState  :: joint -> state -> {newjoint :: joint, newstate :: state, shape :: Array (RailShape RelPos)},
     getDrawInfo  :: state -> (DrawInfo RelPos),
     getRoute     :: state -> joint -> joint -> Maybe state,
-    isLocked     :: joint -> state -> state -> Boolean,
+    isLegal      :: joint -> state -> Boolean,
+    lockedBy     :: state -> state ->Array joint,
     isBlocked    :: joint -> state -> joint -> Boolean,
     isSimple     :: Boolean
   }
 derive instance Newtype (RailGen a b) _
 
-interlockRoute :: forall j s. RailGen j s -> Array j -> s -> j -> j -> Maybe s
-interlockRoute (RailGen rail) locks now from to = 
-  case rail.getRoute now from to of
-    Nothing -> Nothing
-    Just newstate ->
-      if any (\l -> rail.isLocked l now newstate) locks
-      then Nothing
-      else if any (\l -> rail.isBlocked l newstate from) locks
-           then Nothing
-           else Just newstate
 
 type Rail = RailGen Int Int
 
@@ -119,30 +113,34 @@ class Default a where
 toRail :: forall joint state.
             IntSerialize joint => IntSerialize state =>
             RailGen joint state -> Rail
-toRail (RailGen rgen) = RailGen {
+toRail (RailGen rgen) = 
+  let getJoints = rgen.getJoints <#> toSerial
+      getStates = rgen.getStates <#> toSerial
+      getJointPos_memo = rgen.getJoints <#> rgen.getJointPos
+      getNewState_memo = (rgen.getJoints <#> (\j -> rgen.getStates <#> (\s -> (\ns -> {newjoint: toSerial ns.newjoint, newstate: toSerial ns.newstate, shape: ns.shape}) $ rgen.getNewState j s)))
+      getDrawInfo_memo = rgen.getStates <#> rgen.getDrawInfo
+      getRoute_memo   = (rgen.getStates <#> (\x -> rgen.getJoints <#> (\y -> rgen.getJoints <#> (\z -> toSerial <$> rgen.getRoute x y z))))
+      isLegal_memo    = (rgen.getJoints <#> (\x -> rgen.getStates <#> (\y ->                           rgen.isLegal   x y   )))
+      lockedBy_memo   = (rgen.getStates <#> (\x -> rgen.getStates <#> (\y ->             toSerial <$> (rgen.lockedBy  x y)  )))
+      isBlocked_memo  = (rgen.getJoints <#> (\x -> rgen.getStates <#> (\y -> rgen.getJoints <#> (\z -> rgen.isBlocked x y z))))
+  in RailGen {
     name: rgen.name,
     flipped: rgen.flipped,
     opposed: rgen.opposed,
     defaultState: toSerial (rgen.defaultState :: state),
-    getJoints   : toSerial <$> rgen.getJoints,
-    getStates   : toSerial <$> rgen.getStates,
+    getJoints   : getJoints,
+    getStates   : getStates,
     getOrigin   : toSerial (rgen.getOrigin :: joint),
-    getJointPos: \j   -> fromMaybe 
-                            (RelPos poszero)           
-                            (rgen.getJointPos <$> fromSerial j),
+    getJointPos: \j   -> fromMaybe (RelPos poszero) (getJointPos_memo !! j),
 
-    getNewState: \j s -> fromMaybe
-                            {newjoint: j, newstate: s, shape: []} 
-                            ((\ns -> {newjoint: toSerial ns.newjoint, newstate: toSerial ns.newstate, shape: ns.shape})
-                              <$> (rgen.getNewState <$> fromSerial j <*> fromSerial s)),
+    getNewState: \j s -> fromMaybe {newjoint: j, newstate: s, shape: []} ((getNewState_memo !! j) >>= (_ !! s)),
 
-    getDrawInfo: \s -> fromMaybe
-                            brokenDrawInfo
-                            (rgen.getDrawInfo <$> fromSerial s),
+    getDrawInfo: \s -> fromMaybe brokenDrawInfo ((getDrawInfo_memo !! s)),
 
-    getRoute : \s f t  -> toSerial <$>   (rgen.getRoute  <$> fromSerial s <*> fromSerial f <*> fromSerial t ),
-    isLocked : \j s s' -> fromMaybe true (rgen.isLocked  <$> fromSerial j <*> fromSerial s <*> fromSerial s'),
-    isBlocked: \j s j' -> fromMaybe true (rgen.isBlocked <$> fromSerial j <*> fromSerial s <*> fromSerial j'),
+    getRoute : \s f t  -> join            ((getRoute_memo  !! s) >>= (_ !! f) >>= (_ !! t )),
+    isLegal  : \j s    -> fromMaybe false ((isLegal_memo   !! j) >>= (_ !! s)              ),
+    lockedBy : \s s'   -> fromMaybe []    ((lockedBy_memo  !! s) >>= (_ !! s')             ),
+    isBlocked: \j s j' -> fromMaybe false ((isBlocked_memo !! j) >>= (_ !! s) >>= (_ !! j')),
     isSimple : rgen.isSimple
   }
 

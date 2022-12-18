@@ -31,6 +31,12 @@ import Internal.Rails as Ex
 import Internal.Types as Ex
 import Prelude as Prelude
 
+ifUndefinedDefault :: forall a. a -> a -> a
+ifUndefinedDefault d x =
+  let f = unsafeToForeign x
+  in  if isUndefined f || isNull f
+      then d
+      else x
 
 defaultLayout ∷ Layout
 defaultLayout = 
@@ -38,14 +44,14 @@ defaultLayout =
             nodeid : 0,
             state : 0,
             rail : straightRail,
-            connections : []
+            connections : [],
+            signals : [],
+            invalidRoutes : []
           }
         rinst = RailInstance {
             node : RailNode node,
             instanceid: 0,
-            pos : reversePos poszero,
-            signals:[],
-            wrongways:[]
+            pos : reversePos poszero
           }
         jrel i = unwrap $ (unwrap node.rail).getJointPos i
     in ((\l -> foldl (\l' j -> addJoint l' (jrel j) node.nodeid j) l (unwrap node.rail).getJoints) $ Layout {
@@ -81,22 +87,24 @@ rails = [
     , doubleTurnoutLPlusRail
     , longRail
     , doubleWidthSLRail
+    , crossoverLRail
+    , diamondRail
   ]
 
 type EncodedSignal = Signal
 type EncodedRail = {name :: String, flipped :: Boolean, opposed :: Boolean}
 type EncodedLayout = {rails :: Array(RailInstance_ EncodedRail), trains :: Array EncodedTrainset, version :: Int}
 type EncodedTrainset = Trainset_ Int
-type EncodedRoute = Route_ Int
+type EncodedRoute = TrainRoute_ Int
 
 encodeRail :: Rail -> EncodedRail
 encodeRail (RailGen r) = {name: r.name, flipped: r.flipped, opposed: r.opposed}
 
 encodeRailNode :: RailNode -> RailNode_ EncodedRail
-encodeRailNode (RailNode {nodeid:nodeid, rail:rail, state:state, connections:connections}) = RailNode {nodeid:nodeid, rail:encodeRail rail, state:state, connections:connections}
+encodeRailNode (RailNode {nodeid:nodeid, rail:rail, state:state, connections:connections, signals:signals, invalidRoutes:invalidRoutes}) = RailNode {nodeid:nodeid, rail:encodeRail rail, state:state, connections:connections, signals: signals , invalidRoutes: invalidRoutes}
 
 encodeRailInstance :: RailInstance -> RailInstance_ EncodedRail
-encodeRailInstance (RailInstance {node:node, instanceid:instanceid, pos:pos, signals:signals, wrongways:wrongways}) = RailInstance {node:encodeRailNode node, instanceid:instanceid, pos:pos, signals:signals, wrongways:wrongways}
+encodeRailInstance (RailInstance {node:node, instanceid:instanceid, pos:pos}) = RailInstance {node:encodeRailNode node, instanceid:instanceid, pos:pos}
 
 encodeTrainset :: Trainset -> EncodedTrainset
 encodeTrainset (Trainset {
@@ -107,24 +115,34 @@ encodeTrainset (Trainset {
     , speed
     , trainid
     , flipped
+    , respectSignals
+    , realAcceralation
+    , notch
+    , signalRestriction
+    , program
   }) = Trainset {
       types
-    , route : encodeRoute <$> route
+    , route : encodeTrainRoute <$> route
     , distanceToNext
     , distanceFromOldest
     , speed
     , trainid
     , flipped
+    , respectSignals
+    , realAcceralation
+    , notch
+    , signalRestriction
+    , program
   }
 
-encodeRoute :: Route -> EncodedRoute
-encodeRoute (Route {
+encodeTrainRoute :: TrainRoute -> EncodedRoute
+encodeTrainRoute (TrainRoute {
       nodeid 
     , jointid
     , railinstance
     , shapes
     , length
-  }) = Route {
+  }) = TrainRoute {
       nodeid 
     , jointid
     , railinstance : (unwrap railinstance).instanceid
@@ -139,7 +157,9 @@ encodeSignal (Signal {
     , jointid
     , routes
     , indication
+    , routecond
     , colors
+    , manualStop
   }) = Signal {
       signalname
     , nodeid
@@ -147,6 +167,8 @@ encodeSignal (Signal {
     , colors
     , indication : []
     , routes : []
+    , routecond : []
+    , manualStop
   }
 
 encodeLayout :: Layout -> EncodedLayout
@@ -166,10 +188,10 @@ decodeRail {name: name, flipped: flipped, opposed: opposed} =
   else identity)) <$> (find (\(RailGen r) -> r.name == name) rails)
 
 decodeRailNode :: RailNode_ EncodedRail -> Maybe RailNode
-decodeRailNode (RailNode {nodeid:nodeid, rail:rail, state:state, connections:connections}) = RailNode <$> {nodeid:nodeid, rail:_, state:state, connections:connections} <$> decodeRail rail
+decodeRailNode (RailNode {nodeid:nodeid, rail:rail, state:state, connections:connections, signals: signals, invalidRoutes: invalidRoutes}) = RailNode <$> {nodeid:nodeid, rail:_, state:state, connections:connections, signals: ifUndefinedDefault [] signals, invalidRoutes: ifUndefinedDefault [] invalidRoutes} <$> decodeRail rail
 
 decodeRailInstance :: RailInstance_ EncodedRail -> Maybe RailInstance
-decodeRailInstance (RailInstance {node:node, instanceid:instanceid, pos:pos, signals: signals, wrongways: wrongways}) = RailInstance <$> {node:_, instanceid: instanceid, pos:pos, signals: signals, wrongways: wrongways} <$> decodeRailNode node 
+decodeRailInstance (RailInstance {node:node, instanceid:instanceid, pos:pos}) = RailInstance <$> {node:_, instanceid: instanceid, pos:pos} <$> decodeRailNode node 
 
 decodeTrainset :: Array RailInstance -> EncodedTrainset -> Trainset
 decodeTrainset rs (Trainset {
@@ -180,18 +202,28 @@ decodeTrainset rs (Trainset {
     , speed
     , trainid
     , flipped
+    , respectSignals
+    , realAcceralation
+    , notch
+    , signalRestriction
+    , program
   }) = Trainset {
       types
-    , route : decodeRoute rs <$> route
+    , route : decodeTrainRoute rs <$> route
     , distanceToNext
     , distanceFromOldest
     , speed
     , trainid
     , flipped
+    , respectSignals
+    , realAcceralation
+    , notch
+    , signalRestriction
+    , program
   }
 
-decodeRoute :: Array RailInstance ->  EncodedRoute -> Route
-decodeRoute rs (Route {
+decodeTrainRoute :: Array RailInstance ->  EncodedRoute -> TrainRoute
+decodeTrainRoute rs (TrainRoute {
       nodeid 
     , jointid
     , railinstance
@@ -203,16 +235,16 @@ decodeRoute rs (Route {
             nodeid : 0,
             state : 0,
             rail : straightRail,
-            connections : []
+            connections : [],
+            signals : [],
+            invalidRoutes : []
           }
       rinst = RailInstance {
           node : RailNode defaultnode,
           instanceid: 0,
-          pos : reversePos poszero,
-          signals : [],
-          wrongways : []
+          pos : reversePos poszero
         }
-    in Route {
+    in TrainRoute {
             nodeid 
           , jointid
           , railinstance : fromMaybe rinst $ rs !! railinstance
@@ -226,13 +258,17 @@ decodeSignal ( Signal {
     , nodeid
     , jointid
     , colors
+    , manualStop
+    , routecond
   }) = Signal {
       signalname
     , nodeid
     , jointid
     , routes : []
     , indication : []
+    , routecond : []
     , colors
+    , manualStop
   }
 
 decodeLayout :: {rails :: Array(Foreign), trains :: Foreign, signals :: Foreign, version:: Int} -> Layout
@@ -251,14 +287,14 @@ decodeLayout' {rails: rarr, trains: tarr, version: ver} =
             nodeid : 0,
             state : 0,
             rail : straightRail,
-            connections : []
+            connections : [],
+            signals : [],
+            invalidRoutes : []
           }
       rinst = RailInstance {
           node : RailNode defaultnode,
           instanceid: 0,
-          pos : reversePos poszero,
-          signals : [],
-          wrongways : []
+          pos : reversePos poszero
         }
       rs = catMaybes rawrails
       ts = decodeTrainset rs <$> tarr

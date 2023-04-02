@@ -25,6 +25,7 @@ module Internal.Layout
   , autoAdd
   , brakePattern
   , digestIndication
+  , fixBrokenConnections
   , flipTrain
   , forceUpdate
   , getJointAbsPos
@@ -61,6 +62,7 @@ import Control.Monad.List.Trans (foldl')
 import Data.Foldable (foldM, maximum, sum)
 import Data.FoldableWithIndex (allWithIndex, findMapWithIndex, findWithIndex)
 import Data.Function (on)
+import Foreign.Object (runST)
 
 newtype SectionArray a = SectionArray {
     arraydata :: Array a,
@@ -109,10 +111,11 @@ type RailNode = RailNode_ Rail
 newtype RailNode_ x = RailNode {
     nodeid :: Int,
     rail :: x,
-    state :: Int,
+    state :: IntState,
     signals :: Array (Signal),
     invalidRoutes :: Array (InvalidRoute),
-    connections :: Array ({from :: Int, nodeid :: Int, jointid :: Int})
+    connections :: Array ({from :: IntJoint, nodeid :: Int, jointid :: IntJoint}),
+    reserves :: Array ({reserveid :: Int, jointid :: IntJoint})
   }
 derive instance Newtype (RailNode_ x) _
 
@@ -124,11 +127,17 @@ newtype RailInstance_ x = RailInstance {
   }
 derive instance Newtype (RailInstance_ x) _
 
-updateRailInstance :: forall j s. RailInstance -> Int -> {instance :: RailInstance, newjoint :: Int, shapes :: Array (RailShape Pos)}
+updateRailInstance :: forall j s. RailInstance -> IntJoint -> {instance :: RailInstance, newjoint :: IntJoint, shapes :: Array (RailShape Pos)}
 updateRailInstance (RailInstance ri) j =
   let {newjoint, newstate, shape} = (unwrap (unwrap ri.node).rail).getNewState j ((unwrap ri.node).state)
-  in  {instance : RailInstance $ ri {node = RailNode $ (unwrap ri.node) {state = newstate}}, newjoint, shapes : (absShape ri.pos) <$> shape}
-newtype JointData = JointData {pos :: Pos, nodeid :: Int, jointid :: Int}
+  in  {instance : RailInstance $ ri {node = RailNode $ (unwrap ri.node) {state = newstate, reserves = filter (\x -> x.jointid /= j) (unwrap ri.node).reserves}}, newjoint, shapes : (absShape ri.pos) <$> shape}
+
+getRouteInfo :: forall j s. RailInstance -> IntJoint -> {newjoint :: IntJoint, shapes :: Array (RailShape Pos)}
+getRouteInfo (RailInstance ri) j =
+  let {newjoint, newstate, shape} = (unwrap (unwrap ri.node).rail).getNewState j ((unwrap ri.node).state)
+  in  {newjoint, shapes : (absShape ri.pos) <$> shape}
+
+newtype JointData = JointData {pos :: Pos, nodeid :: Int, jointid :: IntJoint}
 
 newtype Layout = Layout {
     version :: Int,
@@ -192,11 +201,11 @@ trainsetDrawInfo (Trainset t) =
           in {type : ct, head : {r : getpos dh (-wheelWidth/2.0), l : getpos dh ( wheelWidth/2.0)}, tail : {r : getpos dt (-wheelWidth/2.0), l : getpos dt ( wheelWidth/2.0)}}
         ) t.types}
 
-addTrainset :: Layout -> Int -> Int -> Array CarType -> Layout
+addTrainset :: Layout -> Int -> IntJoint -> Array CarType -> Layout
 addTrainset (Layout layout) nodeid jointid types =
     let go rs nid jid len = do
           rail <- layout.rails !! nid
-          let info = updateRailInstance rail jid
+          let info = getRouteInfo rail jid
           let lenhere = sum $ shapeLength <$> info.shapes
           if lenhere < len
           then do
@@ -230,6 +239,8 @@ addTrainset (Layout layout) nodeid jointid types =
                 , notch : 0
                 , signalRestriction : 0.0
                 , program : []
+                , reverseOn : []
+                , reserved : []
               }
           
   in  fromMaybe (Layout layout) (do
@@ -271,15 +282,15 @@ indexMaybe a = index a >>> join
 infixl 8 indexMaybe as !!?
 
 
-getRailJointAbsPos :: RailInstance -> Int -> Pos
+getRailJointAbsPos :: RailInstance -> IntJoint -> Pos
 getRailJointAbsPos r jointid =
   toAbsPos ((unwrap r).pos) ((unwrap (unwrap (unwrap r).node).rail).getJointPos jointid)
 
-getJointAbsPos :: Layout -> Int -> Int -> Maybe Pos
+getJointAbsPos :: Layout -> Int -> IntJoint -> Maybe Pos
 getJointAbsPos (Layout layout) nodeid jointid =
   (\r -> getRailJointAbsPos r jointid) <$> (layout.rails !! nodeid)
 
-addJoint :: Layout -> Pos -> Int -> Int -> Layout
+addJoint :: Layout -> Pos -> Int -> IntJoint -> Layout
 addJoint (Layout layout) pos nodeid jointid = 
   let coord = (unwrap (unwrap pos).coord)
   in Layout $ layout {
@@ -381,7 +392,11 @@ addRailWithPos (Layout layout) (RailNode node) pos =
                     }
       else Nothing
 
-autoAdd :: Layout -> Int -> Int -> Rail -> Int -> Layout
+fixBrokenConnections :: Layout -> Layout
+fixBrokenConnections (Layout layout) =
+  foldl (\l (RailInstance r) -> fromMaybe l $ addRailWithPos l (RailNode ((unwrap r.node) {connections = []})) r.pos) (Layout (layout { rails = [], jointData = saEmpty})) (layout.rails)
+
+autoAdd :: Layout -> Int -> IntJoint -> Rail -> IntJoint -> Layout
 autoAdd (Layout layout) selectednode selectedjoint rail from =
   fromMaybe (Layout layout) $ (do
       Pos to <- getJointAbsPos (Layout layout) selectednode selectedjoint
@@ -395,7 +410,8 @@ autoAdd (Layout layout) selectednode selectedjoint rail from =
               rail : rail',
               connections : [{from: from, nodeid: selectednode, jointid: selectedjoint}],
               signals : [],
-              invalidRoutes : []
+              invalidRoutes : [],
+              reserves : []
             }
       addRail (Layout layout) node
     )
@@ -439,7 +455,7 @@ removeRail (Layout layout) nodeid =
 type TrainRoute = TrainRoute_ RailInstance
 newtype TrainRoute_ x = TrainRoute {
       nodeid :: Int
-    , jointid :: Int
+    , jointid :: IntJoint
     , railinstance :: x
     , shapes :: Array (RailShape Pos)
     , length :: Number
@@ -466,7 +482,9 @@ newtype Trainset_ x = Trainset {
     , respectSignals :: Boolean
     , realAcceralation :: Boolean
     , notch :: Int
-    , program :: Array {nodeid :: Int, jointid :: Int, routeid :: Int}
+    , program :: Array {nodeid :: Int, jointid :: IntJoint, routeid :: Int}
+    , reverseOn :: Array {nodeid :: Int, jointid :: IntJoint}
+    , reserved :: Array {nodeid :: Int, jointid :: IntJoint, routeid :: Int, reserveid :: Int}
   }
 derive instance Newtype (Trainset_ x) _
 
@@ -480,7 +498,7 @@ moveTrains dt (Layout layout) =
 flipTrain :: Trainset -> Trainset
 flipTrain (Trainset t0) = Trainset $ t0 {
     --  types = reverse $ (\(CarType t) -> CarType $ t {flipped = not t.flipped}) <$> t0.types
-      route = reverse $ (\(TrainRoute r) -> TrainRoute $ r {jointid = (updateRailInstance r.railinstance r.jointid).newjoint, shapes = reverseShapes r.shapes}) <$> t0.route 
+      route = reverse $ (\(TrainRoute r) -> TrainRoute $ r {jointid = (getRouteInfo r.railinstance r.jointid).newjoint, shapes = reverseShapes r.shapes}) <$> t0.route 
     , distanceToNext     = t0.distanceFromOldest
     , distanceFromOldest = t0.distanceToNext
     , flipped = not t0.flipped
@@ -492,16 +510,20 @@ speedScale = 3.0 / 120.0
 trainTick :: Layout -> Trainset -> Number -> {newlayout :: Layout, newtrainset :: Trainset}
 trainTick (Layout layout) (Trainset t0) dt =
   let nextsignal = getNextSignal (Layout layout) (Trainset t0)
-      l' = fromMaybe (Layout layout) $ do
+      {reservedlayout, reserved} = fromMaybe {reservedlayout :(Layout layout), reserved : t0.reserved} $ do
             (Signal s) <- nextsignal.signal
-            if digestIndication (Signal s) > signalStop then Nothing else pure unit
+            if any (\r -> r.nodeid == s.nodeid && r.jointid == s.jointid) t0.reserved then Nothing else pure unit
             p <- find (\{nodeid, jointid} -> nodeid == s.nodeid && jointid == s.jointid) t0.program
             l' <- tryOpenRouteFor (Layout layout) p.nodeid p.jointid p.routeid
-            unlockManualStop l' p.nodeid p.jointid
-            
-      (Trainset t1) = Trainset $ t0 {signalRestriction = max t0.signalRestriction (maybe (speedScale * 15.0) signalToSpeed nextsignal.signal)}
+            l'' <- unlockManualStop l'.layout p.nodeid p.jointid
+            pure {reservedlayout : l'', reserved : t0.reserved <> [{nodeid : p.nodeid, jointid : p.jointid, routeid : p.routeid, reserveid: l'.reserveid}]}
+      
+      reverseOn = maybe false (\(Signal s) -> any (\r -> r.nodeid == s.nodeid && r.jointid == s.jointid) t0.reverseOn) nextsignal.signal 
+
+      (Trainset t1) = (if t0.speed == 0.0 && reverseOn then flipTrain else identity) 
+                        $ Trainset $ t0 {signalRestriction = max t0.signalRestriction (maybe (speedScale * 15.0) signalToSpeed nextsignal.signal), reserved = reserved}
       notch = if t0.respectSignals
-                then if t0.signalRestriction < t0.speed || brakePatternCheck t0.speed nextsignal
+                then if t0.signalRestriction < t0.speed || brakePatternCheck t0.speed nextsignal reverseOn
                       then -8
                       else if t0.signalRestriction < t0.speed + speedScale * 5.0
                             then 0
@@ -512,7 +534,7 @@ trainTick (Layout layout) (Trainset t0) dt =
             then acceralate (Trainset t1) notch dt
             else (Trainset t1)
   
-  in movefoward l' (Trainset t2) dt
+  in movefoward reservedlayout (Trainset t2) dt
  
 indicationToSpeed ∷ Int → Number
 indicationToSpeed i =
@@ -530,9 +552,9 @@ signalToSpeed = digestIndication >>> indicationToSpeed
 digestIndication :: Signal -> Int
 digestIndication signal = if (unwrap signal).manualStop then signalStop else fromMaybe signalStop $ maximum ((unwrap signal).indication)
 
-brakePatternCheck :: Number -> {signal :: Maybe Signal, sections :: Int, distance :: Number} -> Boolean
-brakePatternCheck speed signaldata =
-  let restriction = maybe 0.0 signalToSpeed signaldata.signal
+brakePatternCheck :: Number -> {signal :: Maybe Signal, sections :: Int, distance :: Number} -> Boolean -> Boolean
+brakePatternCheck speed signaldata forceStop =
+  let restriction = if forceStop then 0.0 else maybe 0.0 signalToSpeed signaldata.signal
   in  if speed < restriction then false
       else signaldata.distance < brakePattern speed restriction
 
@@ -586,31 +608,35 @@ movefoward (Layout layout) (Trainset t0) dt =
           else 
             case (do
                 (TrainRoute r) <- head t2.route
-                let jointexit = (updateRailInstance r.railinstance r.jointid).newjoint
+                let jointexit = (getRouteInfo r.railinstance r.jointid).newjoint
                 cdata <- find (\c -> c.from == jointexit) $ (unwrap (unwrap r.railinstance).node).connections
                 nextRail <- layout.rails !! cdata.nodeid
-                let routedata = updateRailInstance nextRail cdata.jointid
-                let slength = sum (shapeLength <$> routedata.shapes)
+                let updatedroute = updateRailInstance nextRail cdata.jointid
+                let slength = sum (shapeLength <$> updatedroute.shapes)
                 let t3 = Trainset $ t2 {
                       route = [TrainRoute {
                               nodeid  : cdata.nodeid
                             , jointid : cdata.jointid
                             , railinstance : nextRail
-                            , shapes : routedata.shapes
+                            , shapes : updatedroute.shapes
                             , length : slength
                           }
                         ] <> t2.route
+                    , reserved = foldl (\reserved rid -> filter (\r -> r.reserveid /= rid.reserveid) reserved) t2.reserved (filter (\rid -> rid.jointid == cdata.jointid) (unwrap (unwrap nextRail).node).reserves)
                     , distanceToNext = t2.distanceToNext + slength
                     , signalRestriction = max (speedScale * 15.0) $ maybe t2.signalRestriction signalToSpeed (find (\(Signal s) -> s.jointid == jointexit) (unwrap (unwrap r.railinstance).node).signals)
                   }
                 Just {newlayout :
                   let oldrail = layout.rails !! cdata.nodeid
-                  in  if on (==) (map (\x -> (unwrap (unwrap x).node).state)) oldrail (Just routedata.instance)
-                        then Layout layout
+                  in  if on (==) (map (\x -> (unwrap (unwrap x).node).state)) oldrail (Just updatedroute.instance)
+                        then 
+                          Layout $ layout {
+                            rails = fromMaybe layout.rails $ updateAt cdata.nodeid updatedroute.instance layout.rails
+                          }
                         else 
                           Layout $ layout {
                               updatecount = layout.updatecount + 1
-                            , rails = fromMaybe layout.rails $ updateAt cdata.nodeid routedata.instance layout.rails
+                            , rails = fromMaybe layout.rails $ updateAt cdata.nodeid updatedroute.instance layout.rails
                           }
                 , newtrainset : t3}
               ) of
@@ -628,7 +654,7 @@ getNextSignal (Layout layout) (Trainset trainset) =
               case layout.rails !! nid of
                 Nothing -> {signal: Nothing, sections: sectionsold, distance: distanceold}
                 Just ri ->
-                  let next = updateRailInstance ri jid
+                  let next = getRouteInfo ri jid
                       sections = sectionsold + 1
                       distance = if isfirst then distanceold else distanceold + sum (shapeLength <$> next.shapes)
                   in case find (\(InvalidRoute s) -> s.jointid == next.newjoint) (unwrap (unwrap ri).node).invalidRoutes of
@@ -654,15 +680,16 @@ layoutUpdate = updateTraffic >>> updateSignalIndication
 
 
 newtype SignalRoute = SignalRoute {
-      rails :: Array {nodeid :: Int, jointenter :: Int, jointexit :: Int}
-    , nextsignal :: {nodeid :: Int, jointid :: Int}
+      rails :: Array {nodeid :: Int, jointenter :: IntJoint, jointexit :: IntJoint}
+    , nextsignal :: {nodeid :: Int, jointid :: IntJoint}
+    , isSimple :: Boolean
   }
 derive instance Newtype SignalRoute _
 
 newtype Signal = Signal {
       signalname :: String
     , nodeid :: Int
-    , jointid :: Int
+    , jointid :: IntJoint
     , routes :: Array SignalRoute
     , routecond :: Array Boolean
     , colors :: Array SignalColor
@@ -673,7 +700,7 @@ derive instance Newtype Signal _
 
 newtype InvalidRoute = InvalidRoute {
       nodeid :: Int
-    , jointid :: Int
+    , jointid :: IntJoint
   }
 derive instance Newtype InvalidRoute _
 
@@ -700,7 +727,7 @@ updateTraffic (Layout layout) =
   Layout $ layout {traffic =
     foldl (\traffic (Trainset trainset) ->
         foldl (\traffic (TrainRoute route) ->
-            fromMaybe traffic $ modifyAt route.nodeid (\d -> fromMaybe d $ modifyAt route.jointid (_ <> [trainset.trainid]) d) traffic
+            fromMaybe traffic $ modifyAt route.nodeid (\d -> fromMaybe d $ modifyAt (unwrap route.jointid) (_ <> [trainset.trainid]) d) traffic
           ) traffic trainset.route
       ) (map (\(RailInstance r) -> replicate (length (unwrap (unwrap r.node).rail).getJoints) []) layout.rails) layout.trains
   }
@@ -729,7 +756,7 @@ updateSignalIndication (Layout layout) =
                                               allWithIndex (\i t ->
                                                 if length t == 0
                                                 then true
-                                                else not $ rail.isBlocked i state jointenter 
+                                                else not $ rail.isBlocked (IntJoint i) state jointenter 
                                               ) ts
                                             Nothing -> false
                                   ) (layout.rails !! nodeid) ) route.rails
@@ -743,8 +770,8 @@ updateSignalIndication (Layout layout) =
                                             Just ri ->
                                               if (unwrap (unwrap (unwrap ri).node).rail).isSimple
                                               then
-                                                let jidexit = (updateRailInstance ri jid).newjoint
-                                                in  case length <$> ((_ !! jidexit) =<< (layout.traffic !! nid)) of
+                                                let jidexit = (getRouteInfo ri jid).newjoint
+                                                in  case length <$> ((_ !! (unwrap jidexit)) =<< (layout.traffic !! nid)) of
                                                       Just 0  -> 
                                                         case find (\c -> c.from == jidexit) $ (unwrap (unwrap ri).node).connections of
                                                           Nothing -> true
@@ -768,7 +795,7 @@ updateSignalIndication (Layout layout) =
       colored =
         map (\rbd -> RailInstance $ (rbd.rail) {node = RailNode $ (unwrap (rbd.rail).node) {signals = map (\bd -> Signal $ (unwrap bd.signal) {
               routecond = (_.routecond) <$> bd.routes,
-              manualStop = (unwrap bd.signal).manualStop || if length bd.routes < 2 then false else ((_.cond) <$> bd.routes) /= ((signalStop < _) <$> (unwrap bd.signal).indication),
+              manualStop = (unwrap bd.signal).manualStop || if length bd.routes < 2 && all (\bdr -> (unwrap bdr.route).isSimple) bd.routes then false else ((_.cond) <$> bd.routes) /= ((signalStop < _) <$> (unwrap bd.signal).indication),
               indication =
                 map (\d ->
                   if d.cond then
@@ -801,7 +828,7 @@ updateSignalRoutes (Layout layout) =
       map (\(RailInstance ri) -> RailInstance ri { node = RailNode $ (unwrap ri.node) {signals = map (\(Signal signal) -> 
               Signal $ signal {
                 routes =
-                  let go nid jid rails rids =
+                  let go nid jid rails rids isSimple =
                         if length rails > searchmax then [] else
                           case layout.rails !! nid of
                             Nothing -> []
@@ -817,8 +844,8 @@ updateSignalRoutes (Layout layout) =
                                           Nothing -> []
                                           Just {nodeid, jointid} -> 
                                             if elem nodeid rids then []
-                                            else go nodeid jointid (rails <> [{nodeid : nid, jointenter : jid, jointexit : jid'}]) (insert nodeid rids)
-                                      Just s  -> [SignalRoute {nextsignal : {nodeid : nid, jointid : jid'}, rails : rails <> [{nodeid : nid, jointenter : jid, jointexit : jid'}]}]
+                                            else go nodeid jointid (rails <> [{nodeid : nid, jointenter : jid, jointexit : jid'}]) (insert nodeid rids) (isSimple && (unwrap (unwrap (unwrap ri).node).rail).isSimple)
+                                      Just s  -> [SignalRoute {nextsignal : {nodeid : nid, jointid : jid'}, rails : rails <> [{nodeid : nid, jointenter : jid, jointexit : jid'}], isSimple}]
                                   Just s  -> []
                               ) =<< jidexits
                   in case layout.rails !! signal.nodeid of
@@ -826,12 +853,12 @@ updateSignalRoutes (Layout layout) =
                         Just ri ->
                           case find (\c -> c.from == signal.jointid) $ (unwrap (unwrap ri).node).connections of
                             Nothing -> []
-                            Just {nodeid, jointid} -> go nodeid jointid [] []
+                            Just {nodeid, jointid} -> go nodeid jointid [] [] true
               }
       ) (unwrap ri.node).signals}} ) layout.rails
   }
 
-addInvalidRoute :: Layout -> Int -> Int -> Layout
+addInvalidRoute :: Layout -> Int -> IntJoint -> Layout
 addInvalidRoute (Layout layout) nodeid jointid = fromMaybe (Layout layout) $
   let signal = InvalidRoute {
             nodeid
@@ -846,7 +873,7 @@ addInvalidRoute (Layout layout) nodeid jointid = fromMaybe (Layout layout) $
     rails' <- modifyAt nodeid (\(RailInstance ri) -> RailInstance $ ri { node = RailNode $ (unwrap ri.node) {invalidRoutes = (unwrap ri.node).invalidRoutes <> [signal]}}) layout.rails
     Just $ updateSignalRoutes $ Layout $ layout {updatecount = layout.updatecount + 1, rails = rails'}
 
-addSignal :: Layout -> Int -> Int -> Layout
+addSignal :: Layout -> Int -> IntJoint -> Layout
 addSignal (Layout layout) nodeid jointid = fromMaybe (Layout layout) $
   let signal = Signal {
             signalname : show nodeid <> "_" <> show jointid
@@ -868,7 +895,7 @@ addSignal (Layout layout) nodeid jointid = fromMaybe (Layout layout) $
     Just $ updateSignalRoutes $ Layout $ layout {updatecount = layout.updatecount + 1, rails = rails'}
 
 
-removeSignal :: Layout -> Int -> Int -> Layout
+removeSignal :: Layout -> Int -> IntJoint -> Layout
 removeSignal (Layout layout) nodeid jointid = 
   updateSignalRoutes $ Layout $ layout {
     updatecount = layout.updatecount + 1, 
@@ -888,11 +915,11 @@ hasTraffic (Layout layout) (RailInstance ri) =
                       if any (\x -> (unwrap x).jointid == jid) (unwrap ri.node).signals || any (\x -> (unwrap x).jointid == jid) (unwrap ri.node).invalidRoutes
                       then false
                       else
-                        let jointexit = (updateRailInstance (RailInstance ri) jid).newjoint
+                        let jointexit = (getRouteInfo (RailInstance ri) jid).newjoint
                         in case layout.traffic !! nid of
                             Nothing -> false
                             Just ts -> 
-                              case ts !! jointexit of
+                              case ts !! (unwrap jointexit) of
                                 Nothing -> false
                                 Just ts -> 
                                   if length ts > 0 then true
@@ -902,7 +929,7 @@ hasTraffic (Layout layout) (RailInstance ri) =
                                       Just cdata -> go cdata.nodeid cdata.jointid (depth + 1)
             in any identity $ (\cdata -> go cdata.nodeid cdata.jointid 0) <$> node.connections
 
-unlockManualStop :: Layout -> Int -> Int -> Maybe Layout
+unlockManualStop :: Layout -> Int -> IntJoint -> Maybe Layout
 unlockManualStop (Layout layout) nodeid jointid = do
   (RailInstance ri) <- layout.rails !! nodeid
   {index : i, value: (Signal signal)} <- findWithIndex (\_ (Signal s) -> s.jointid == jointid) (unwrap ri.node).signals
@@ -911,20 +938,37 @@ unlockManualStop (Layout layout) nodeid jointid = do
   newRails <- updateAt nodeid newRail layout.rails
   pure $ Layout $ layout {rails = newRails}
 
-tryOpenRouteFor :: Layout -> Int -> Int -> Int -> Maybe Layout
+tryOpenRouteFor :: Layout -> Int -> IntJoint -> Int -> Maybe {layout :: Layout, reserveid :: Int}
 tryOpenRouteFor (Layout layout) nodeid jointid routeid = do
   (RailInstance ri) <- layout.rails !! nodeid
   (Signal s) <- find (\(Signal s) -> s.jointid == jointid) (unwrap ri.node).signals
   (SignalRoute r) <- s.routes !! routeid
+  let reserveid = layout.updatecount + 1
+
+
+  let go {nodeid, jointid} rs =
+        case layout.rails !! nodeid >>= (\(RailInstance ri) -> find (\(Signal s) -> s.jointid == jointid) (unwrap ri.node).signals) of
+          Nothing -> rs
+          Just (Signal s) -> 
+            case uncons s.routes of
+              Nothing -> rs
+              Just {head: (SignalRoute x), tail: xs} ->
+                if length xs > 0 || not x.isSimple
+                then rs
+                else go (x.nextsignal) (rs <> x.rails)
+  let target = go r.nextsignal r.rails
+
   {hastraffic, newrails} <- foldM (\{hastraffic, newrails} {nodeid, jointenter, jointexit} -> do
     (RailInstance ri) <- layout.rails !! nodeid
     let hastraffic' = hastraffic || hasTraffic (Layout layout) (RailInstance ri)
     newstate <- (unwrap (unwrap ri.node).rail).getRoute (unwrap ri.node).state jointenter jointexit
-    newrails' <- updateAt nodeid (RailInstance $ ri {node = RailNode $ (unwrap ri.node) {state = newstate}}) newrails
-    if newstate /= (unwrap ri.node).state && hastraffic'
+    newrails' <- updateAt nodeid (RailInstance $ ri {node = RailNode $ (unwrap ri.node) {state = newstate, reserves = (unwrap ri.node).reserves <> [{jointid : jointenter, reserveid}]}}) newrails
+    if (newstate /= (unwrap ri.node).state && hastraffic') || any (\{jointid, reserveid} -> jointenter /= jointid && ((unwrap (unwrap ri.node).rail).isBlocked jointenter (unwrap ri.node).state jointid || (unwrap (unwrap ri.node).rail).isBlocked jointenter newstate jointid) ) (unwrap ri.node).reserves 
     then Nothing
     else Just {hastraffic: hastraffic', newrails: newrails'}
-  ) {hastraffic: false, newrails: layout.rails} r.rails
-  pure $ (forceUpdate >>> layoutUpdate) (Layout $ layout {rails = newrails})
+  ) {hastraffic: false, newrails: layout.rails} target
 
-tryOpenRouteFor_ffi (Layout layout) nodeid jointid routeid = maybe {layout : (Layout layout), result: false} (\l -> {layout: l, result:true}) (tryOpenRouteFor (Layout layout) nodeid jointid routeid)
+
+  pure $ {layout: (forceUpdate >>> layoutUpdate) (Layout $ layout {rails = newrails}), reserveid}
+
+tryOpenRouteFor_ffi (Layout layout) nodeid jointid routeid = maybe {layout : (Layout layout), result: false} (\l -> {layout: l.layout, result:true}) (tryOpenRouteFor (Layout layout) nodeid jointid routeid)

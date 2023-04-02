@@ -268,6 +268,13 @@ var fromFoldableImpl = function() {
 var length = function(xs) {
   return xs.length;
 };
+var unconsImpl = function(empty2) {
+  return function(next) {
+    return function(xs) {
+      return xs.length === 0 ? empty2({}) : next(xs[0])(xs.slice(1));
+    };
+  };
+};
 var indexImpl = function(just) {
   return function(nothing) {
     return function(xs) {
@@ -355,7 +362,7 @@ var filter = function(f) {
   };
 };
 var sortByImpl = function() {
-  function mergeFromTo(compare2, fromOrdering, xs1, xs2, from2, to2) {
+  function mergeFromTo(compare3, fromOrdering, xs1, xs2, from2, to2) {
     var mid;
     var i;
     var j;
@@ -365,16 +372,16 @@ var sortByImpl = function() {
     var c;
     mid = from2 + (to2 - from2 >> 1);
     if (mid - from2 > 1)
-      mergeFromTo(compare2, fromOrdering, xs2, xs1, from2, mid);
+      mergeFromTo(compare3, fromOrdering, xs2, xs1, from2, mid);
     if (to2 - mid > 1)
-      mergeFromTo(compare2, fromOrdering, xs2, xs1, mid, to2);
+      mergeFromTo(compare3, fromOrdering, xs2, xs1, mid, to2);
     i = from2;
     j = mid;
     k = from2;
     while (i < mid && j < to2) {
       x = xs2[i];
       y = xs2[j];
-      c = fromOrdering(compare2(x)(y));
+      c = fromOrdering(compare3(x)(y));
       if (c > 0) {
         xs1[k++] = y;
         ++j;
@@ -390,14 +397,14 @@ var sortByImpl = function() {
       xs1[k++] = xs2[j++];
     }
   }
-  return function(compare2) {
+  return function(compare3) {
     return function(fromOrdering) {
       return function(xs) {
         var out;
         if (xs.length < 2)
           return xs;
         out = xs.slice(0);
-        mergeFromTo(compare2, fromOrdering, out, xs.slice(0), 0, xs.length);
+        mergeFromTo(compare3, fromOrdering, out, xs.slice(0), 0, xs.length);
         return out;
       };
     };
@@ -1109,7 +1116,7 @@ var unsafeThaw = function(xs) {
   };
 };
 var sortByImpl2 = function() {
-  function mergeFromTo(compare2, fromOrdering, xs1, xs2, from2, to2) {
+  function mergeFromTo(compare3, fromOrdering, xs1, xs2, from2, to2) {
     var mid;
     var i;
     var j;
@@ -1119,16 +1126,16 @@ var sortByImpl2 = function() {
     var c;
     mid = from2 + (to2 - from2 >> 1);
     if (mid - from2 > 1)
-      mergeFromTo(compare2, fromOrdering, xs2, xs1, from2, mid);
+      mergeFromTo(compare3, fromOrdering, xs2, xs1, from2, mid);
     if (to2 - mid > 1)
-      mergeFromTo(compare2, fromOrdering, xs2, xs1, mid, to2);
+      mergeFromTo(compare3, fromOrdering, xs2, xs1, mid, to2);
     i = from2;
     j = mid;
     k = from2;
     while (i < mid && j < to2) {
       x = xs2[i];
       y = xs2[j];
-      c = fromOrdering(compare2(x)(y));
+      c = fromOrdering(compare3(x)(y));
       if (c > 0) {
         xs1[k++] = y;
         ++j;
@@ -1144,13 +1151,13 @@ var sortByImpl2 = function() {
       xs1[k++] = xs2[j++];
     }
   }
-  return function(compare2) {
+  return function(compare3) {
     return function(fromOrdering) {
       return function(xs) {
         return function() {
           if (xs.length < 2)
             return xs;
-          mergeFromTo(compare2, fromOrdering, xs, xs.slice(0), 0, xs.length);
+          mergeFromTo(compare3, fromOrdering, xs, xs.slice(0), 0, xs.length);
           return xs;
         };
       };
@@ -1343,9 +1350,9 @@ var maximumBy = function(dictFoldable) {
   };
 };
 var maximum = function(dictOrd) {
-  var compare2 = compare(dictOrd);
+  var compare3 = compare(dictOrd);
   return function(dictFoldable) {
-    return maximumBy(dictFoldable)(compare2);
+    return maximumBy(dictFoldable)(compare3);
   };
 };
 var sum = function(dictFoldable) {
@@ -1459,6 +1466,16 @@ var unsafeIndex = function() {
   return unsafeIndexImpl;
 };
 var unsafeIndex1 = /* @__PURE__ */ unsafeIndex();
+var uncons = /* @__PURE__ */ function() {
+  return unconsImpl($$const(Nothing.value))(function(x) {
+    return function(xs) {
+      return new Just({
+        head: x,
+        tail: xs
+      });
+    };
+  });
+}();
 var sortBy = function(comp) {
   return sortByImpl(comp)(function(v) {
     if (v instanceof GT) {
@@ -1484,9 +1501,9 @@ var sortWith = function(dictOrd) {
 };
 var sortWith1 = /* @__PURE__ */ sortWith(ordInt);
 var sort = function(dictOrd) {
-  var compare2 = compare(dictOrd);
+  var compare3 = compare(dictOrd);
   return function(xs) {
-    return sortBy(compare2)(xs);
+    return sortBy(compare3)(xs);
   };
 };
 var singleton2 = function(a) {
@@ -1609,10 +1626,10 @@ var find2 = function(f) {
   };
 };
 var elemIndex = function(dictEq) {
-  var eq23 = eq(dictEq);
+  var eq24 = eq(dictEq);
   return function(x) {
     return findIndex(function(v) {
-      return eq23(v)(x);
+      return eq24(v)(x);
     });
   };
 };
@@ -2297,8 +2314,10 @@ var rowListSerializeCons = function() {
 };
 
 // output/Internal.Types.Rail/index.js
-var map5 = /* @__PURE__ */ map(functorArray);
 var unwrap4 = /* @__PURE__ */ unwrap();
+var show2 = /* @__PURE__ */ show(showInt);
+var compare2 = /* @__PURE__ */ compare(ordInt);
+var map5 = /* @__PURE__ */ map(functorArray);
 var negate2 = /* @__PURE__ */ negate(ringNumber);
 var over3 = /* @__PURE__ */ over()();
 var wrap2 = /* @__PURE__ */ wrap();
@@ -2307,6 +2326,12 @@ var map13 = /* @__PURE__ */ map(functorMaybe);
 var bind2 = /* @__PURE__ */ bind(bindMaybe);
 var join2 = /* @__PURE__ */ join(bindMaybe);
 var RailShape = function(x) {
+  return x;
+};
+var IntState = function(x) {
+  return x;
+};
+var IntJoint = function(x) {
   return x;
 };
 var DrawAdditional = function(x) {
@@ -2321,19 +2346,60 @@ var DrawInfo = function(x) {
 var RailGen = function(x) {
   return x;
 };
+var showIntJoint = {
+  show: function($189) {
+    return show2(unwrap4($189));
+  }
+};
+var eqIntState = {
+  eq: function(x) {
+    return function(y) {
+      return x === y;
+    };
+  }
+};
+var eqIntJoint = {
+  eq: function(x) {
+    return function(y) {
+      return x === y;
+    };
+  }
+};
+var ordIntJoint = {
+  compare: function(x) {
+    return function(y) {
+      return compare2(x)(y);
+    };
+  },
+  Eq0: function() {
+    return eqIntJoint;
+  }
+};
+var toSerialS = function(dictIntSerialize) {
+  var $190 = toSerial(dictIntSerialize);
+  return function($191) {
+    return IntState($190($191));
+  };
+};
+var toSerialJ = function(dictIntSerialize) {
+  var $192 = toSerial(dictIntSerialize);
+  return function($193) {
+    return IntJoint($192($193));
+  };
+};
 var shapeLength = function(v) {
   return partLength(v.start)(v.end);
 };
 var reverseShapes = /* @__PURE__ */ function() {
-  var $121 = map5(function(v) {
+  var $194 = map5(function(v) {
     return {
       start: v.end,
       end: v.start,
       length: v.length
     };
   });
-  return function($122) {
-    return $121(reverse($122));
+  return function($195) {
+    return $194(reverse($195));
   };
 }();
 var railShape = function() {
@@ -2381,8 +2447,8 @@ var opposeRail = function(v) {
     getJoints: v.getJoints,
     getStates: v.getStates,
     getOrigin: v.getOrigin,
-    getJointPos: function($123) {
-      return opposeRelPos(v.getJointPos($123));
+    getJointPos: function($196) {
+      return opposeRelPos(v.getJointPos($196));
     },
     getNewState: v.getNewState,
     getDrawInfo: function(x) {
@@ -2448,8 +2514,8 @@ var flipRail = function(v) {
     getJoints: v.getJoints,
     getStates: v.getStates,
     getOrigin: v.getOrigin,
-    getJointPos: function($124) {
-      return flipRelPos(v.getJointPos($124));
+    getJointPos: function($197) {
+      return flipRelPos(v.getJointPos($197));
     },
     getNewState: function(x) {
       return function(y) {
@@ -2486,15 +2552,15 @@ var slipShapes = function() {
   return function(v) {
     var pp = wrap2(wrap2(function() {
       var v1 = unwrap4(getDividingPoint_rel(unwrap4(v.start))(unwrap4(v.end))(0)(0.5));
-      var $98 = {};
-      for (var $99 in v1) {
-        if ({}.hasOwnProperty.call(v1, $99)) {
-          $98[$99] = v1[$99];
+      var $151 = {};
+      for (var $152 in v1) {
+        if ({}.hasOwnProperty.call(v1, $152)) {
+          $151[$152] = v1[$152];
         }
         ;
       }
       ;
-      $98.angle = function() {
+      $151.angle = function() {
         var c2 = unwrap4(unwrap4(unwrap4(v.end)).coord);
         var c1 = unwrap4(unwrap4(unwrap4(v.start)).coord);
         var dx = c2.x - c1.x;
@@ -2502,7 +2568,7 @@ var slipShapes = function() {
         var a2 = toRadian(unwrap4(unwrap4(v.end)).angle);
         return fromRadian(toRadian(unwrap4(unwrap4(v.end)).angle) + calcMidAngle(cos(a2) * dx + sin(a2) * dy)(cos(a2) * dy - sin(a2) * dx));
       }();
-      return $98;
+      return $151;
     }()));
     return [railShape1({
       start: v.start,
@@ -2518,13 +2584,13 @@ var brokenDrawInfo = {
   additionals: []
 };
 var toRail = function(dictIntSerialize) {
-  var toSerial2 = toSerial(dictIntSerialize);
+  var toSerialJ1 = toSerialJ(dictIntSerialize);
   return function(dictIntSerialize1) {
-    var toSerial1 = toSerial(dictIntSerialize1);
+    var toSerialS1 = toSerialS(dictIntSerialize1);
     return function(v) {
       var lockedBy_memo = mapFlipped2(v.getStates)(function(x) {
         return mapFlipped2(v.getStates)(function(y) {
-          return map5(toSerial2)(v.lockedBy(x)(y));
+          return map5(toSerialJ1)(v.lockedBy(x)(y));
         });
       });
       var isLegal_memo = mapFlipped2(v.getJoints)(function(x) {
@@ -2539,11 +2605,11 @@ var toRail = function(dictIntSerialize) {
           });
         });
       });
-      var getStates = mapFlipped2(v.getStates)(toSerial1);
+      var getStates = mapFlipped2(v.getStates)(toSerialS1);
       var getRoute_memo = mapFlipped2(v.getStates)(function(x) {
         return mapFlipped2(v.getJoints)(function(y) {
           return mapFlipped2(v.getJoints)(function(z) {
-            return map13(toSerial1)(v.getRoute(x)(y)(z));
+            return map13(toSerialS1)(v.getRoute(x)(y)(z));
           });
         });
       });
@@ -2551,73 +2617,73 @@ var toRail = function(dictIntSerialize) {
         return mapFlipped2(v.getStates)(function(s) {
           return function(ns) {
             return {
-              newjoint: toSerial2(ns.newjoint),
-              newstate: toSerial1(ns.newstate),
+              newjoint: toSerialJ1(ns.newjoint),
+              newstate: toSerialS1(ns.newstate),
               shape: ns.shape
             };
           }(v.getNewState(j)(s));
         });
       });
-      var getJoints2 = mapFlipped2(v.getJoints)(toSerial2);
+      var getJoints2 = mapFlipped2(v.getJoints)(toSerialJ1);
       var getJointPos_memo = mapFlipped2(v.getJoints)(v.getJointPos);
       var getDrawInfo_memo = mapFlipped2(v.getStates)(v.getDrawInfo);
       return {
         name: v.name,
         flipped: v.flipped,
         opposed: v.opposed,
-        defaultState: toSerial1(v.defaultState),
+        defaultState: toSerialS1(v.defaultState),
         getJoints: getJoints2,
         getStates,
-        getOrigin: toSerial2(v.getOrigin),
-        getJointPos: function(j) {
-          return fromMaybe(poszero)(index(getJointPos_memo)(j));
+        getOrigin: toSerialJ1(v.getOrigin),
+        getJointPos: function(v1) {
+          return fromMaybe(poszero)(index(getJointPos_memo)(v1));
         },
-        getNewState: function(j) {
-          return function(s) {
+        getNewState: function(v1) {
+          return function(v2) {
             return fromMaybe({
-              newjoint: j,
-              newstate: s,
+              newjoint: v1,
+              newstate: v2,
               shape: []
-            })(bind2(index(getNewState_memo)(j))(function(v1) {
-              return index(v1)(s);
+            })(bind2(index(getNewState_memo)(v1))(function(v3) {
+              return index(v3)(v2);
             }));
           };
         },
-        getDrawInfo: function(s) {
-          return fromMaybe(brokenDrawInfo)(index(getDrawInfo_memo)(s));
+        getDrawInfo: function(v1) {
+          return fromMaybe(brokenDrawInfo)(index(getDrawInfo_memo)(v1));
         },
-        getRoute: function(s) {
-          return function(f) {
-            return function(t) {
-              return join2(bind2(bind2(index(getRoute_memo)(s))(function(v1) {
-                return index(v1)(f);
-              }))(function(v1) {
-                return index(v1)(t);
+        getRoute: function(v1) {
+          return function(v2) {
+            return function(v3) {
+              return join2(bind2(bind2(index(getRoute_memo)(v1))(function(v4) {
+                return index(v4)(v2);
+              }))(function(v4) {
+                return index(v4)(v3);
               }));
             };
           };
         },
-        isLegal: function(j) {
-          return function(s) {
-            return fromMaybe(false)(bind2(index(isLegal_memo)(j))(function(v1) {
-              return index(v1)(s);
+        isLegal: function(v1) {
+          return function(v2) {
+            return fromMaybe(false)(bind2(index(isLegal_memo)(v1))(function(v3) {
+              return index(v3)(v2);
             }));
           };
         },
-        lockedBy: function(s) {
-          return function(s$prime) {
-            return fromMaybe([])(bind2(index(lockedBy_memo)(s))(function(v1) {
-              return index(v1)(s$prime);
+        lockedBy: function(v1) {
+          return function(v2) {
+            return fromMaybe([])(bind2(index(lockedBy_memo)(v1))(function(v3) {
+              return index(v3)(v2);
             }));
           };
         },
-        isBlocked: function(j) {
-          return function(s) {
-            return function(j$prime) {
-              return fromMaybe(false)(bind2(bind2(index(isBlocked_memo)(j))(function(v1) {
-                return index(v1)(s);
-              }))(function(v1) {
-                return index(v1)(j$prime);
+        isBlocked: function(v1) {
+          return function(v2) {
+            return function(v3) {
+              return fromMaybe(false)(bind2(bind2(index(isBlocked_memo)(v1))(function(v4) {
+                return index(v4)(v2);
+              }))(function(v4) {
+                return index(v4)(v3);
               }));
             };
           };
@@ -2670,33 +2736,38 @@ var absDrawInfo = function(p) {
 
 // output/Internal.Layout/index.js
 var map6 = /* @__PURE__ */ map(functorArray);
-var append2 = /* @__PURE__ */ append(semigroupArray);
 var unwrap5 = /* @__PURE__ */ unwrap();
+var append2 = /* @__PURE__ */ append(semigroupArray);
+var notEq4 = /* @__PURE__ */ notEq(eqIntJoint);
 var bind3 = /* @__PURE__ */ bind(bindMaybe);
 var findWithIndex2 = /* @__PURE__ */ findWithIndex(foldableWithIndexArray);
+var eq4 = /* @__PURE__ */ eq(eqIntJoint);
 var pure2 = /* @__PURE__ */ pure(applicativeMaybe);
+var identity4 = /* @__PURE__ */ identity(categoryFn);
+var nub3 = /* @__PURE__ */ nub(ordIntJoint);
 var bindFlipped2 = /* @__PURE__ */ bindFlipped(bindArray);
+var elem3 = /* @__PURE__ */ elem2(eqInt);
+var insert3 = /* @__PURE__ */ insert(ordInt);
 var conj2 = /* @__PURE__ */ conj(heytingAlgebraBoolean);
+var join3 = /* @__PURE__ */ join(bindMaybe);
 var allWithIndex2 = /* @__PURE__ */ allWithIndex(foldableWithIndexArray)(heytingAlgebraBoolean);
 var map14 = /* @__PURE__ */ map(functorMaybe);
 var bindFlipped1 = /* @__PURE__ */ bindFlipped(bindMaybe);
-var notEq4 = /* @__PURE__ */ notEq(/* @__PURE__ */ eqArray(eqBoolean));
-var identity4 = /* @__PURE__ */ identity(categoryFn);
-var nub3 = /* @__PURE__ */ nub(ordInt);
-var elem3 = /* @__PURE__ */ elem2(eqInt);
-var insert3 = /* @__PURE__ */ insert(ordInt);
-var join3 = /* @__PURE__ */ join(bindMaybe);
+var notEq22 = /* @__PURE__ */ notEq(/* @__PURE__ */ eqArray(eqBoolean));
 var sum2 = /* @__PURE__ */ sum(foldableArray)(semiringNumber);
 var join1 = /* @__PURE__ */ join(bindArray);
 var apply4 = /* @__PURE__ */ apply(applyArray);
 var composeKleisli2 = /* @__PURE__ */ composeKleisli(bindMaybe);
 var foldM3 = /* @__PURE__ */ foldM(foldableArray)(monadMaybe);
 var apply1 = /* @__PURE__ */ apply(applyMaybe);
+var notEq32 = /* @__PURE__ */ notEq(eqIntState);
 var maximum2 = /* @__PURE__ */ maximum(ordInt)(foldableArray);
 var max3 = /* @__PURE__ */ max(ordNumber);
-var eq15 = /* @__PURE__ */ eq(/* @__PURE__ */ eqMaybe(eqInt));
-var show2 = /* @__PURE__ */ show(showInt);
+var eq22 = /* @__PURE__ */ eq(/* @__PURE__ */ eqMaybe(eqIntState));
+var show3 = /* @__PURE__ */ show(showInt);
+var show1 = /* @__PURE__ */ show(showIntJoint);
 var discard2 = /* @__PURE__ */ discard(discardUnit)(bindMaybe);
+var elem1 = /* @__PURE__ */ elem2(eqIntJoint);
 var TrainRoute = function(x) {
   return x;
 };
@@ -2762,7 +2833,7 @@ var updateTraffic = function(v) {
         return foldl2(function(traffic1) {
           return function(v3) {
             return fromMaybe(traffic1)(modifyAt(v3.nodeid)(function(d) {
-              return fromMaybe(d)(modifyAt(v3.jointid)(function(v4) {
+              return fromMaybe(d)(modifyAt(unwrap5(v3.jointid))(function(v4) {
                 return append2(v4)([v2.trainid]);
               })(d));
             })(traffic1));
@@ -2791,7 +2862,10 @@ var updateRailInstance = function(v) {
             state: v1.newstate,
             signals: v3.signals,
             invalidRoutes: v3.invalidRoutes,
-            connections: v3.connections
+            connections: v3.connections,
+            reserves: filter(function(x) {
+              return notEq4(x.jointid)(j);
+            })(unwrap5(v.node).reserves)
           };
         }(),
         instanceid: v.instanceid,
@@ -2808,7 +2882,7 @@ var unlockManualStop = function(v) {
       return bind3(index(v.rails)(nodeid))(function(v1) {
         return bind3(findWithIndex2(function(v2) {
           return function(v3) {
-            return v3.jointid === jointid;
+            return eq4(v3.jointid)(jointid);
           };
         })(unwrap5(v1.node).signals))(function(v2) {
           return bind3(updateAt(v2.index)({
@@ -2830,7 +2904,8 @@ var unlockManualStop = function(v) {
                   state: v4.state,
                   signals: newSignals,
                   invalidRoutes: v4.invalidRoutes,
-                  connections: v4.connections
+                  connections: v4.connections,
+                  reserves: v4.reserves
                 };
               }(),
               instanceid: v1.instanceid,
@@ -2861,13 +2936,508 @@ var speedScale = /* @__PURE__ */ function() {
 var signalStop = 0;
 var signalReduce = 3;
 var signalClear = 4;
+var signalCaution = 2;
+var shiftIndex = function(deleted) {
+  return function(i) {
+    var $312 = i < deleted;
+    if ($312) {
+      return i;
+    }
+    ;
+    return i - 1 | 0;
+  };
+};
+var shiftRailIndex = function(deleted) {
+  return function(v) {
+    return {
+      node: function() {
+        var v2 = unwrap5(v.node);
+        return {
+          nodeid: shiftIndex(deleted)(unwrap5(v.node).nodeid),
+          rail: v2.rail,
+          state: v2.state,
+          signals: map6(function(v3) {
+            return {
+              signalname: v3.signalname,
+              nodeid: shiftIndex(deleted)(v3.nodeid),
+              jointid: v3.jointid,
+              routes: v3.routes,
+              routecond: v3.routecond,
+              colors: v3.colors,
+              indication: v3.indication,
+              manualStop: v3.manualStop
+            };
+          })(unwrap5(v.node).signals),
+          invalidRoutes: map6(function(v3) {
+            return {
+              nodeid: shiftIndex(deleted)(v3.nodeid),
+              jointid: v3.jointid
+            };
+          })(unwrap5(v.node).invalidRoutes),
+          connections: map6(function(c) {
+            return {
+              nodeid: shiftIndex(deleted)(c.nodeid),
+              from: c.from,
+              jointid: c.jointid
+            };
+          })(unwrap5(v.node).connections),
+          reserves: v2.reserves
+        };
+      }(),
+      instanceid: v.instanceid,
+      pos: v.pos
+    };
+  };
+};
+var searchmax = 30;
+var updateSignalRoutes = function(v) {
+  return {
+    version: v.version,
+    rails: map6(function(v2) {
+      return {
+        node: function() {
+          var v4 = unwrap5(v2.node);
+          return {
+            nodeid: v4.nodeid,
+            rail: v4.rail,
+            state: v4.state,
+            signals: map6(function(v5) {
+              return {
+                signalname: v5.signalname,
+                nodeid: v5.nodeid,
+                jointid: v5.jointid,
+                routes: function() {
+                  var go = function(nid) {
+                    return function(jid) {
+                      return function(rails2) {
+                        return function(rids) {
+                          return function(isSimple) {
+                            var $320 = length(rails2) > searchmax;
+                            if ($320) {
+                              return [];
+                            }
+                            ;
+                            var v72 = index(v.rails)(nid);
+                            if (v72 instanceof Nothing) {
+                              return [];
+                            }
+                            ;
+                            if (v72 instanceof Just) {
+                              var node = unwrap5(unwrap5(v72.value0).node);
+                              var jidexits = function() {
+                                var $322 = unwrap5(unwrap5(unwrap5(v72.value0).node).rail).flipped;
+                                if ($322) {
+                                  return reverse;
+                                }
+                                ;
+                                return identity4;
+                              }()(nub3(map6(function() {
+                                var $646 = unwrap5(node.rail).getNewState(jid);
+                                return function($647) {
+                                  return function(v82) {
+                                    return v82.newjoint;
+                                  }($646($647));
+                                };
+                              }())(unwrap5(node.rail).getStates)));
+                              return bindFlipped2(function(jid$prime) {
+                                var v82 = find2(function(v92) {
+                                  return eq4(v92.jointid)(jid$prime);
+                                })(node.invalidRoutes);
+                                if (v82 instanceof Nothing) {
+                                  var v9 = find2(function(v102) {
+                                    return eq4(v102.jointid)(jid$prime);
+                                  })(node.signals);
+                                  if (v9 instanceof Nothing) {
+                                    var v10 = find2(function(c) {
+                                      return eq4(c.from)(jid$prime);
+                                    })(node.connections);
+                                    if (v10 instanceof Nothing) {
+                                      return [];
+                                    }
+                                    ;
+                                    if (v10 instanceof Just) {
+                                      var $328 = elem3(v10.value0.nodeid)(rids);
+                                      if ($328) {
+                                        return [];
+                                      }
+                                      ;
+                                      return go(v10.value0.nodeid)(v10.value0.jointid)(append2(rails2)([{
+                                        nodeid: nid,
+                                        jointenter: jid,
+                                        jointexit: jid$prime
+                                      }]))(insert3(v10.value0.nodeid)(rids))(isSimple && unwrap5(unwrap5(unwrap5(v72.value0).node).rail).isSimple);
+                                    }
+                                    ;
+                                    throw new Error("Failed pattern match at Internal.Layout (line 843, column 41 - line 847, column 215): " + [v10.constructor.name]);
+                                  }
+                                  ;
+                                  if (v9 instanceof Just) {
+                                    return [{
+                                      nextsignal: {
+                                        nodeid: nid,
+                                        jointid: jid$prime
+                                      },
+                                      rails: append2(rails2)([{
+                                        nodeid: nid,
+                                        jointenter: jid,
+                                        jointexit: jid$prime
+                                      }]),
+                                      isSimple
+                                    }];
+                                  }
+                                  ;
+                                  throw new Error("Failed pattern match at Internal.Layout (line 841, column 37 - line 848, column 190): " + [v9.constructor.name]);
+                                }
+                                ;
+                                if (v82 instanceof Just) {
+                                  return [];
+                                }
+                                ;
+                                throw new Error("Failed pattern match at Internal.Layout (line 839, column 33 - line 849, column 48): " + [v82.constructor.name]);
+                              })(jidexits);
+                            }
+                            ;
+                            throw new Error("Failed pattern match at Internal.Layout (line 833, column 27 - line 850, column 45): " + [v72.constructor.name]);
+                          };
+                        };
+                      };
+                    };
+                  };
+                  var v7 = index(v.rails)(v5.nodeid);
+                  if (v7 instanceof Nothing) {
+                    return [];
+                  }
+                  ;
+                  if (v7 instanceof Just) {
+                    var v8 = find2(function(c) {
+                      return eq4(c.from)(v5.jointid);
+                    })(unwrap5(unwrap5(v7.value0).node).connections);
+                    if (v8 instanceof Nothing) {
+                      return [];
+                    }
+                    ;
+                    if (v8 instanceof Just) {
+                      return go(v8.value0.nodeid)(v8.value0.jointid)([])([])(true);
+                    }
+                    ;
+                    throw new Error("Failed pattern match at Internal.Layout (line 854, column 27 - line 856, column 83): " + [v8.constructor.name]);
+                  }
+                  ;
+                  throw new Error("Failed pattern match at Internal.Layout (line 851, column 22 - line 856, column 83): " + [v7.constructor.name]);
+                }(),
+                routecond: v5.routecond,
+                colors: v5.colors,
+                indication: v5.indication,
+                manualStop: v5.manualStop
+              };
+            })(unwrap5(v2.node).signals),
+            invalidRoutes: v4.invalidRoutes,
+            connections: v4.connections,
+            reserves: v4.reserves
+          };
+        }(),
+        instanceid: v2.instanceid,
+        pos: v2.pos
+      };
+    })(v.rails),
+    trains: v.trains,
+    signalcolors: v.signalcolors,
+    traffic: v.traffic,
+    instancecount: v.instancecount,
+    traincount: v.traincount,
+    updatecount: v.updatecount,
+    jointData: v.jointData
+  };
+};
+var saModifyAt = function(i) {
+  return function(d) {
+    return function(f) {
+      return function(v) {
+        var $345 = i < v.head;
+        if ($345) {
+          return {
+            arraydata: append2([f(Nothing.value)])(append2(replicate((v.head - i | 0) - 1 | 0)(d))(v.arraydata)),
+            head: i,
+            end: v.end
+          };
+        }
+        ;
+        var $346 = v.end <= i;
+        if ($346) {
+          return {
+            arraydata: append2(v.arraydata)(append2(replicate(i - v.end | 0)(d))([f(Nothing.value)])),
+            head: v.head,
+            end: i + 1 | 0
+          };
+        }
+        ;
+        return {
+          arraydata: fromMaybe(v.arraydata)(modifyAt(i - v.head | 0)(function($648) {
+            return f(Just.create($648));
+          })(v.arraydata)),
+          head: v.head,
+          end: v.end
+        };
+      };
+    };
+  };
+};
+var saIndex = function(i) {
+  return function(v) {
+    return index(v.arraydata)(i - v.head | 0);
+  };
+};
+var saEmpty = {
+  arraydata: [],
+  head: 0,
+  end: 0
+};
+var removeSignal = function(v) {
+  return function(nodeid) {
+    return function(jointid) {
+      return updateSignalRoutes({
+        version: v.version,
+        rails: fromMaybe(v.rails)(modifyAt(nodeid)(function(v2) {
+          return {
+            node: function() {
+              var v4 = unwrap5(v2.node);
+              return {
+                nodeid: v4.nodeid,
+                rail: v4.rail,
+                state: v4.state,
+                signals: filter(function(v5) {
+                  return notEq4(v5.jointid)(jointid);
+                })(unwrap5(v2.node).signals),
+                invalidRoutes: filter(function(v5) {
+                  return notEq4(v5.jointid)(jointid);
+                })(unwrap5(v2.node).invalidRoutes),
+                connections: v4.connections,
+                reserves: v4.reserves
+              };
+            }(),
+            instanceid: v2.instanceid,
+            pos: v2.pos
+          };
+        })(v.rails)),
+        trains: v.trains,
+        signalcolors: v.signalcolors,
+        traffic: v.traffic,
+        instancecount: v.instancecount,
+        traincount: v.traincount,
+        updatecount: v.updatecount + 1 | 0,
+        jointData: v.jointData
+      });
+    };
+  };
+};
+var removeRail = function(v) {
+  return function(nodeid) {
+    var layout$prime = function() {
+      var v1 = index(v.rails)(nodeid);
+      if (v1 instanceof Just) {
+        return unwrap5(foldl2(function(l) {
+          return function(j) {
+            return removeSignal(l)(nodeid)(j);
+          };
+        })(v)(unwrap5(unwrap5(unwrap5(v1.value0).node).rail).getJoints));
+      }
+      ;
+      if (v1 instanceof Nothing) {
+        return v;
+      }
+      ;
+      throw new Error("Failed pattern match at Internal.Layout (line 438, column 11 - line 440, column 30): " + [v1.constructor.name]);
+    }();
+    return updateSignalRoutes({
+      version: layout$prime.version,
+      rails: map6(function(v2) {
+        return shiftRailIndex(nodeid)({
+          node: function() {
+            var v4 = unwrap5(v2.node);
+            return {
+              nodeid: v4.nodeid,
+              rail: v4.rail,
+              state: v4.state,
+              signals: v4.signals,
+              invalidRoutes: v4.invalidRoutes,
+              connections: filter(function(v5) {
+                return v5.nodeid !== nodeid;
+              })(unwrap5(v2.node).connections),
+              reserves: v4.reserves
+            };
+          }(),
+          instanceid: v2.instanceid,
+          pos: v2.pos
+        });
+      })(fromMaybe(layout$prime.rails)(deleteAt(nodeid)(layout$prime.rails))),
+      trains: layout$prime.trains,
+      signalcolors: layout$prime.signalcolors,
+      traffic: layout$prime.traffic,
+      instancecount: layout$prime.instancecount,
+      traincount: layout$prime.traincount,
+      updatecount: layout$prime.updatecount + 1 | 0,
+      jointData: map23(map23(map23(function() {
+        var $649 = map6(function(v2) {
+          return {
+            pos: v2.pos,
+            nodeid: shiftIndex(nodeid)(v2.nodeid),
+            jointid: v2.jointid
+          };
+        });
+        var $650 = filter(function(v2) {
+          return v2.nodeid !== nodeid;
+        });
+        return function($651) {
+          return $649($650($651));
+        };
+      }())))(layout$prime.jointData)
+    });
+  };
+};
+var instanceDrawInfo = function(v) {
+  return absDrawInfo(v.pos)(unwrap5(unwrap5(v.node).rail).getDrawInfo(unwrap5(v.node).state));
+};
+var indicationToSpeed = function(i) {
+  if (i === 0) {
+    return 0 * speedScale;
+  }
+  ;
+  if (i === 1) {
+    return 25 * speedScale;
+  }
+  ;
+  if (i === 2) {
+    return 45 * speedScale;
+  }
+  ;
+  if (i === 3) {
+    return 65 * speedScale;
+  }
+  ;
+  if (i === 4) {
+    return 120 * speedScale;
+  }
+  ;
+  return 120 * speedScale;
+};
+var getRouteInfo = function(v) {
+  return function(j) {
+    var v1 = unwrap5(unwrap5(v.node).rail).getNewState(j)(unwrap5(v.node).state);
+    return {
+      newjoint: v1.newjoint,
+      shapes: map6(absShape(v.pos))(v1.shape)
+    };
+  };
+};
+var hasTraffic = function(v) {
+  return function(v1) {
+    var node = unwrap5(v1.node);
+    var $374 = maybe(false)(any(function(t) {
+      return length(t) > 0;
+    }))(index(v.traffic)(node.nodeid));
+    if ($374) {
+      return true;
+    }
+    ;
+    var go = function($copy_nid) {
+      return function($copy_jid) {
+        return function($copy_depth) {
+          var $tco_var_nid = $copy_nid;
+          var $tco_var_jid = $copy_jid;
+          var $tco_done = false;
+          var $tco_result;
+          function $tco_loop(nid, jid, depth) {
+            var $375 = depth > searchmax;
+            if ($375) {
+              $tco_done = true;
+              return false;
+            }
+            ;
+            var v2 = index(v.rails)(nid);
+            if (v2 instanceof Nothing) {
+              $tco_done = true;
+              return false;
+            }
+            ;
+            if (v2 instanceof Just) {
+              var $377 = any(function(x) {
+                return eq4(unwrap5(x).jointid)(jid);
+              })(unwrap5(v2.value0.node).signals) || any(function(x) {
+                return eq4(unwrap5(x).jointid)(jid);
+              })(unwrap5(v2.value0.node).invalidRoutes);
+              if ($377) {
+                $tco_done = true;
+                return false;
+              }
+              ;
+              var jointexit = getRouteInfo(v2.value0)(jid).newjoint;
+              var v3 = index(v.traffic)(nid);
+              if (v3 instanceof Nothing) {
+                $tco_done = true;
+                return false;
+              }
+              ;
+              if (v3 instanceof Just) {
+                var v4 = index(v3.value0)(unwrap5(jointexit));
+                if (v4 instanceof Nothing) {
+                  $tco_done = true;
+                  return false;
+                }
+                ;
+                if (v4 instanceof Just) {
+                  var $380 = length(v4.value0) > 0;
+                  if ($380) {
+                    $tco_done = true;
+                    return true;
+                  }
+                  ;
+                  var v5 = find2(function(c) {
+                    return eq4(c.from)(jointexit);
+                  })(unwrap5(v2.value0.node).connections);
+                  if (v5 instanceof Nothing) {
+                    $tco_done = true;
+                    return false;
+                  }
+                  ;
+                  if (v5 instanceof Just) {
+                    $tco_var_nid = v5.value0.nodeid;
+                    $tco_var_jid = v5.value0.jointid;
+                    $copy_depth = depth + 1 | 0;
+                    return;
+                  }
+                  ;
+                  throw new Error("Failed pattern match at Internal.Layout (line 927, column 37 - line 929, column 94): " + [v5.constructor.name]);
+                }
+                ;
+                throw new Error("Failed pattern match at Internal.Layout (line 922, column 31 - line 929, column 94): " + [v4.constructor.name]);
+              }
+              ;
+              throw new Error("Failed pattern match at Internal.Layout (line 919, column 28 - line 929, column 94): " + [v3.constructor.name]);
+            }
+            ;
+            throw new Error("Failed pattern match at Internal.Layout (line 912, column 19 - line 929, column 94): " + [v2.constructor.name]);
+          }
+          ;
+          while (!$tco_done) {
+            $tco_result = $tco_loop($tco_var_nid, $tco_var_jid, $copy_depth);
+          }
+          ;
+          return $tco_result;
+        };
+      };
+    };
+    return any(identity4)(map6(function(cdata) {
+      return go(cdata.nodeid)(cdata.jointid)(0);
+    })(node.connections));
+  };
+};
 var updateSignalIndication = function(v) {
-  var signals = bindFlipped2(function($596) {
+  var signals = bindFlipped2(function($654) {
     return function(v1) {
       return v1.signals;
     }(unwrap5(function(v1) {
       return v1.node;
-    }(unwrap5($596))));
+    }(unwrap5($654))));
   })(v.rails);
   var blockingData = map6(function(v1) {
     return {
@@ -2881,7 +3451,7 @@ var updateSignalIndication = function(v) {
                 var state2 = unwrap5(v5.node).state;
                 var rail = unwrap5(unwrap5(v5.node).rail);
                 var nr = rail.getNewState(v4.jointenter)(state2);
-                return nr.newjoint === v4.jointexit && rail.isLegal(v4.jointenter)(state2);
+                return eq4(nr.newjoint)(v4.jointexit) && rail.isLegal(v4.jointenter)(state2);
               })(index(v.rails)(v4.nodeid));
             })(v3.rails);
             var clearcond = all(function(v4) {
@@ -2893,8 +3463,8 @@ var updateSignalIndication = function(v) {
                 if (v6 instanceof Just) {
                   return allWithIndex2(function(i) {
                     return function(t) {
-                      var $304 = length(t) === 0;
-                      if ($304) {
+                      var $398 = length(t) === 0;
+                      if ($398) {
                         return true;
                       }
                       ;
@@ -2907,12 +3477,12 @@ var updateSignalIndication = function(v) {
                   return false;
                 }
                 ;
-                throw new Error("Failed pattern match at Internal.Layout (line 727, column 41 - line 734, column 61): " + [v6.constructor.name]);
+                throw new Error("Failed pattern match at Internal.Layout (line 754, column 41 - line 761, column 61): " + [v6.constructor.name]);
               })(index(v.rails)(v4.nodeid));
             })(v3.rails);
             var cond = function() {
-              var $309 = routecond && clearcond;
-              if ($309) {
+              var $403 = routecond && clearcond;
+              if ($403) {
                 var v4 = last(v3.rails);
                 if (v4 instanceof Just) {
                   var go = function($copy_nid) {
@@ -2928,15 +3498,15 @@ var updateSignalIndication = function(v) {
                         }
                         ;
                         if (v5 instanceof Just) {
-                          var $312 = unwrap5(unwrap5(unwrap5(v5.value0).node).rail).isSimple;
-                          if ($312) {
-                            var jidexit = updateRailInstance(v5.value0)(jid).newjoint;
+                          var $406 = unwrap5(unwrap5(unwrap5(v5.value0).node).rail).isSimple;
+                          if ($406) {
+                            var jidexit = getRouteInfo(v5.value0)(jid).newjoint;
                             var v6 = map14(length)(bindFlipped1(function(v72) {
-                              return index(v72)(jidexit);
+                              return index(v72)(unwrap5(jidexit));
                             })(index(v.traffic)(nid)));
                             if (v6 instanceof Just && v6.value0 === 0) {
                               var v7 = find2(function(c) {
-                                return c.from === jidexit;
+                                return eq4(c.from)(jidexit);
                               })(unwrap5(unwrap5(v5.value0).node).connections);
                               if (v7 instanceof Nothing) {
                                 $tco_done = true;
@@ -2949,7 +3519,7 @@ var updateSignalIndication = function(v) {
                                 return;
                               }
                               ;
-                              throw new Error("Failed pattern match at Internal.Layout (line 749, column 57 - line 751, column 102): " + [v7.constructor.name]);
+                              throw new Error("Failed pattern match at Internal.Layout (line 776, column 57 - line 778, column 102): " + [v7.constructor.name]);
                             }
                             ;
                             $tco_done = true;
@@ -2960,7 +3530,7 @@ var updateSignalIndication = function(v) {
                           return true;
                         }
                         ;
-                        throw new Error("Failed pattern match at Internal.Layout (line 741, column 43 - line 753, column 56): " + [v5.constructor.name]);
+                        throw new Error("Failed pattern match at Internal.Layout (line 768, column 43 - line 780, column 56): " + [v5.constructor.name]);
                       }
                       ;
                       while (!$tco_done) {
@@ -2977,7 +3547,7 @@ var updateSignalIndication = function(v) {
                   return false;
                 }
                 ;
-                throw new Error("Failed pattern match at Internal.Layout (line 738, column 33 - line 755, column 51): " + [v4.constructor.name]);
+                throw new Error("Failed pattern match at Internal.Layout (line 765, column 33 - line 782, column 51): " + [v4.constructor.name]);
               }
               ;
               return false;
@@ -3030,20 +3600,20 @@ var updateSignalIndication = function(v) {
                       var $tco_done1 = false;
                       var $tco_result;
                       function $tco_loop(n, v4) {
-                        var $327 = n >= length(unwrap5(bd.signal).colors);
-                        if ($327) {
+                        var $421 = n >= length(unwrap5(bd.signal).colors);
+                        if ($421) {
                           $tco_done1 = true;
                           return signalClear;
                         }
                         ;
                         var v5 = bind3(index(filtered)(v4.nodeid))(find2(function(bd1) {
-                          return unwrap5(bd1.signal).jointid === v4.jointid;
+                          return eq4(unwrap5(bd1.signal).jointid)(v4.jointid);
                         }));
                         if (v5 instanceof Just) {
                           var v6 = head(v5.value0.routes);
                           if (v6 instanceof Just) {
-                            var $330 = v6.value0.cond && (!v6.value0.manualStop || n === 0);
-                            if ($330) {
+                            var $424 = v6.value0.cond && (!v6.value0.manualStop || n === 0);
+                            if ($424) {
                               $tco_var_n = n + 1 | 0;
                               $copy_v4 = unwrap5(v6.value0.route).nextsignal;
                               return;
@@ -3058,7 +3628,7 @@ var updateSignalIndication = function(v) {
                             return fromMaybe(signalClear)(index(unwrap5(bd.signal).colors)(n));
                           }
                           ;
-                          throw new Error("Failed pattern match at Internal.Layout (line 780, column 33 - line 785, column 100): " + [v6.constructor.name]);
+                          throw new Error("Failed pattern match at Internal.Layout (line 807, column 33 - line 812, column 100): " + [v6.constructor.name]);
                         }
                         ;
                         if (v5 instanceof Nothing) {
@@ -3066,7 +3636,7 @@ var updateSignalIndication = function(v) {
                           return fromMaybe(signalClear)(index(unwrap5(bd.signal).colors)(n));
                         }
                         ;
-                        throw new Error("Failed pattern match at Internal.Layout (line 778, column 29 - line 786, column 96): " + [v5.constructor.name]);
+                        throw new Error("Failed pattern match at Internal.Layout (line 805, column 29 - line 813, column 96): " + [v5.constructor.name]);
                       }
                       ;
                       while (!$tco_done1) {
@@ -3085,12 +3655,14 @@ var updateSignalIndication = function(v) {
                 return signalStop;
               })(bd.routes),
               manualStop: unwrap5(bd.signal).manualStop || function() {
-                var $335 = length(bd.routes) < 2;
-                if ($335) {
+                var $429 = length(bd.routes) < 2 && all(function(bdr) {
+                  return unwrap5(bdr.route).isSimple;
+                })(bd.routes);
+                if ($429) {
                   return false;
                 }
                 ;
-                return notEq4(map6(function(v4) {
+                return notEq22(map6(function(v4) {
                   return v4.cond;
                 })(bd.routes))(map6(function(v4) {
                   return signalStop < v4;
@@ -3099,7 +3671,8 @@ var updateSignalIndication = function(v) {
             };
           })(rbd.signals),
           invalidRoutes: v2.invalidRoutes,
-          connections: v2.connections
+          connections: v2.connections,
+          reserves: v2.reserves
         };
       }(),
       instanceid: rbd.rail.instanceid,
@@ -3118,487 +3691,8 @@ var updateSignalIndication = function(v) {
     jointData: v.jointData
   };
 };
-var signalCaution = 2;
-var shiftIndex = function(deleted) {
-  return function(i) {
-    var $336 = i < deleted;
-    if ($336) {
-      return i;
-    }
-    ;
-    return i - 1 | 0;
-  };
-};
-var shiftRailIndex = function(deleted) {
-  return function(v) {
-    return {
-      node: function() {
-        var v2 = unwrap5(v.node);
-        return {
-          nodeid: shiftIndex(deleted)(unwrap5(v.node).nodeid),
-          rail: v2.rail,
-          state: v2.state,
-          signals: map6(function(v3) {
-            return {
-              signalname: v3.signalname,
-              nodeid: shiftIndex(deleted)(v3.nodeid),
-              jointid: v3.jointid,
-              routes: v3.routes,
-              routecond: v3.routecond,
-              colors: v3.colors,
-              indication: v3.indication,
-              manualStop: v3.manualStop
-            };
-          })(unwrap5(v.node).signals),
-          invalidRoutes: map6(function(v3) {
-            return {
-              nodeid: shiftIndex(deleted)(v3.nodeid),
-              jointid: v3.jointid
-            };
-          })(unwrap5(v.node).invalidRoutes),
-          connections: map6(function(c) {
-            return {
-              nodeid: shiftIndex(deleted)(c.nodeid),
-              from: c.from,
-              jointid: c.jointid
-            };
-          })(unwrap5(v.node).connections)
-        };
-      }(),
-      instanceid: v.instanceid,
-      pos: v.pos
-    };
-  };
-};
-var searchmax = 30;
-var updateSignalRoutes = function(v) {
-  return {
-    version: v.version,
-    rails: map6(function(v2) {
-      return {
-        node: function() {
-          var v4 = unwrap5(v2.node);
-          return {
-            nodeid: v4.nodeid,
-            rail: v4.rail,
-            state: v4.state,
-            signals: map6(function(v5) {
-              return {
-                signalname: v5.signalname,
-                nodeid: v5.nodeid,
-                jointid: v5.jointid,
-                routes: function() {
-                  var go = function(nid) {
-                    return function(jid) {
-                      return function(rails2) {
-                        return function(rids) {
-                          var $344 = length(rails2) > searchmax;
-                          if ($344) {
-                            return [];
-                          }
-                          ;
-                          var v72 = index(v.rails)(nid);
-                          if (v72 instanceof Nothing) {
-                            return [];
-                          }
-                          ;
-                          if (v72 instanceof Just) {
-                            var node = unwrap5(unwrap5(v72.value0).node);
-                            var jidexits = function() {
-                              var $346 = unwrap5(unwrap5(unwrap5(v72.value0).node).rail).flipped;
-                              if ($346) {
-                                return reverse;
-                              }
-                              ;
-                              return identity4;
-                            }()(nub3(map6(function() {
-                              var $597 = unwrap5(node.rail).getNewState(jid);
-                              return function($598) {
-                                return function(v82) {
-                                  return v82.newjoint;
-                                }($597($598));
-                              };
-                            }())(unwrap5(node.rail).getStates)));
-                            return bindFlipped2(function(jid$prime) {
-                              var v82 = find2(function(v92) {
-                                return v92.jointid === jid$prime;
-                              })(node.invalidRoutes);
-                              if (v82 instanceof Nothing) {
-                                var v9 = find2(function(v102) {
-                                  return v102.jointid === jid$prime;
-                                })(node.signals);
-                                if (v9 instanceof Nothing) {
-                                  var v10 = find2(function(c) {
-                                    return c.from === jid$prime;
-                                  })(node.connections);
-                                  if (v10 instanceof Nothing) {
-                                    return [];
-                                  }
-                                  ;
-                                  if (v10 instanceof Just) {
-                                    var $352 = elem3(v10.value0.nodeid)(rids);
-                                    if ($352) {
-                                      return [];
-                                    }
-                                    ;
-                                    return go(v10.value0.nodeid)(v10.value0.jointid)(append2(rails2)([{
-                                      nodeid: nid,
-                                      jointenter: jid,
-                                      jointexit: jid$prime
-                                    }]))(insert3(v10.value0.nodeid)(rids));
-                                  }
-                                  ;
-                                  throw new Error("Failed pattern match at Internal.Layout (line 816, column 41 - line 820, column 152): " + [v10.constructor.name]);
-                                }
-                                ;
-                                if (v9 instanceof Just) {
-                                  return [{
-                                    nextsignal: {
-                                      nodeid: nid,
-                                      jointid: jid$prime
-                                    },
-                                    rails: append2(rails2)([{
-                                      nodeid: nid,
-                                      jointenter: jid,
-                                      jointexit: jid$prime
-                                    }])
-                                  }];
-                                }
-                                ;
-                                throw new Error("Failed pattern match at Internal.Layout (line 814, column 37 - line 821, column 180): " + [v9.constructor.name]);
-                              }
-                              ;
-                              if (v82 instanceof Just) {
-                                return [];
-                              }
-                              ;
-                              throw new Error("Failed pattern match at Internal.Layout (line 812, column 33 - line 822, column 48): " + [v82.constructor.name]);
-                            })(jidexits);
-                          }
-                          ;
-                          throw new Error("Failed pattern match at Internal.Layout (line 806, column 27 - line 823, column 45): " + [v72.constructor.name]);
-                        };
-                      };
-                    };
-                  };
-                  var v7 = index(v.rails)(v5.nodeid);
-                  if (v7 instanceof Nothing) {
-                    return [];
-                  }
-                  ;
-                  if (v7 instanceof Just) {
-                    var v8 = find2(function(c) {
-                      return c.from === v5.jointid;
-                    })(unwrap5(unwrap5(v7.value0).node).connections);
-                    if (v8 instanceof Nothing) {
-                      return [];
-                    }
-                    ;
-                    if (v8 instanceof Just) {
-                      return go(v8.value0.nodeid)(v8.value0.jointid)([])([]);
-                    }
-                    ;
-                    throw new Error("Failed pattern match at Internal.Layout (line 827, column 27 - line 829, column 78): " + [v8.constructor.name]);
-                  }
-                  ;
-                  throw new Error("Failed pattern match at Internal.Layout (line 824, column 22 - line 829, column 78): " + [v7.constructor.name]);
-                }(),
-                routecond: v5.routecond,
-                colors: v5.colors,
-                indication: v5.indication,
-                manualStop: v5.manualStop
-              };
-            })(unwrap5(v2.node).signals),
-            invalidRoutes: v4.invalidRoutes,
-            connections: v4.connections
-          };
-        }(),
-        instanceid: v2.instanceid,
-        pos: v2.pos
-      };
-    })(v.rails),
-    trains: v.trains,
-    signalcolors: v.signalcolors,
-    traffic: v.traffic,
-    instancecount: v.instancecount,
-    traincount: v.traincount,
-    updatecount: v.updatecount,
-    jointData: v.jointData
-  };
-};
-var saModifyAt = function(i) {
-  return function(d) {
-    return function(f) {
-      return function(v) {
-        var $369 = i < v.head;
-        if ($369) {
-          return {
-            arraydata: append2([f(Nothing.value)])(append2(replicate((v.head - i | 0) - 1 | 0)(d))(v.arraydata)),
-            head: i,
-            end: v.end
-          };
-        }
-        ;
-        var $370 = v.end <= i;
-        if ($370) {
-          return {
-            arraydata: append2(v.arraydata)(append2(replicate(i - v.end | 0)(d))([f(Nothing.value)])),
-            head: v.head,
-            end: i + 1 | 0
-          };
-        }
-        ;
-        return {
-          arraydata: fromMaybe(v.arraydata)(modifyAt(i - v.head | 0)(function($599) {
-            return f(Just.create($599));
-          })(v.arraydata)),
-          head: v.head,
-          end: v.end
-        };
-      };
-    };
-  };
-};
-var saIndex = function(i) {
-  return function(v) {
-    return index(v.arraydata)(i - v.head | 0);
-  };
-};
-var saEmpty = {
-  arraydata: [],
-  head: 0,
-  end: 0
-};
-var removeSignal = function(v) {
-  return function(nodeid) {
-    return function(jointid) {
-      return updateSignalRoutes({
-        version: v.version,
-        rails: fromMaybe(v.rails)(modifyAt(nodeid)(function(v2) {
-          return {
-            node: function() {
-              var v4 = unwrap5(v2.node);
-              return {
-                nodeid: v4.nodeid,
-                rail: v4.rail,
-                state: v4.state,
-                signals: filter(function(v5) {
-                  return v5.jointid !== jointid;
-                })(unwrap5(v2.node).signals),
-                invalidRoutes: filter(function(v5) {
-                  return v5.jointid !== jointid;
-                })(unwrap5(v2.node).invalidRoutes),
-                connections: v4.connections
-              };
-            }(),
-            instanceid: v2.instanceid,
-            pos: v2.pos
-          };
-        })(v.rails)),
-        trains: v.trains,
-        signalcolors: v.signalcolors,
-        traffic: v.traffic,
-        instancecount: v.instancecount,
-        traincount: v.traincount,
-        updatecount: v.updatecount + 1 | 0,
-        jointData: v.jointData
-      });
-    };
-  };
-};
-var removeRail = function(v) {
-  return function(nodeid) {
-    var layout$prime = function() {
-      var v1 = index(v.rails)(nodeid);
-      if (v1 instanceof Just) {
-        return unwrap5(foldl2(function(l) {
-          return function(j) {
-            return removeSignal(l)(nodeid)(j);
-          };
-        })(v)(unwrap5(unwrap5(unwrap5(v1.value0).node).rail).getJoints));
-      }
-      ;
-      if (v1 instanceof Nothing) {
-        return v;
-      }
-      ;
-      throw new Error("Failed pattern match at Internal.Layout (line 422, column 11 - line 424, column 30): " + [v1.constructor.name]);
-    }();
-    return updateSignalRoutes({
-      version: layout$prime.version,
-      rails: map6(function(v2) {
-        return shiftRailIndex(nodeid)({
-          node: function() {
-            var v4 = unwrap5(v2.node);
-            return {
-              nodeid: v4.nodeid,
-              rail: v4.rail,
-              state: v4.state,
-              signals: v4.signals,
-              invalidRoutes: v4.invalidRoutes,
-              connections: filter(function(v5) {
-                return v5.nodeid !== nodeid;
-              })(unwrap5(v2.node).connections)
-            };
-          }(),
-          instanceid: v2.instanceid,
-          pos: v2.pos
-        });
-      })(fromMaybe(layout$prime.rails)(deleteAt(nodeid)(layout$prime.rails))),
-      trains: layout$prime.trains,
-      signalcolors: layout$prime.signalcolors,
-      traffic: layout$prime.traffic,
-      instancecount: layout$prime.instancecount,
-      traincount: layout$prime.traincount,
-      updatecount: layout$prime.updatecount + 1 | 0,
-      jointData: map23(map23(map23(function() {
-        var $600 = map6(function(v2) {
-          return {
-            pos: v2.pos,
-            nodeid: shiftIndex(nodeid)(v2.nodeid),
-            jointid: v2.jointid
-          };
-        });
-        var $601 = filter(function(v2) {
-          return v2.nodeid !== nodeid;
-        });
-        return function($602) {
-          return $600($601($602));
-        };
-      }())))(layout$prime.jointData)
-    });
-  };
-};
-var layoutUpdate = function($603) {
-  return updateSignalIndication(updateTraffic($603));
-};
-var instanceDrawInfo = function(v) {
-  return absDrawInfo(v.pos)(unwrap5(unwrap5(v.node).rail).getDrawInfo(unwrap5(v.node).state));
-};
-var indicationToSpeed = function(i) {
-  if (i === 0) {
-    return 0 * speedScale;
-  }
-  ;
-  if (i === 1) {
-    return 25 * speedScale;
-  }
-  ;
-  if (i === 2) {
-    return 45 * speedScale;
-  }
-  ;
-  if (i === 3) {
-    return 65 * speedScale;
-  }
-  ;
-  if (i === 4) {
-    return 120 * speedScale;
-  }
-  ;
-  return 120 * speedScale;
-};
-var hasTraffic = function(v) {
-  return function(v1) {
-    var node = unwrap5(v1.node);
-    var $392 = maybe(false)(any(function(t) {
-      return length(t) > 0;
-    }))(index(v.traffic)(node.nodeid));
-    if ($392) {
-      return true;
-    }
-    ;
-    var go = function($copy_nid) {
-      return function($copy_jid) {
-        return function($copy_depth) {
-          var $tco_var_nid = $copy_nid;
-          var $tco_var_jid = $copy_jid;
-          var $tco_done = false;
-          var $tco_result;
-          function $tco_loop(nid, jid, depth) {
-            var $393 = depth > searchmax;
-            if ($393) {
-              $tco_done = true;
-              return false;
-            }
-            ;
-            var v2 = index(v.rails)(nid);
-            if (v2 instanceof Nothing) {
-              $tco_done = true;
-              return false;
-            }
-            ;
-            if (v2 instanceof Just) {
-              var $395 = any(function(x) {
-                return unwrap5(x).jointid === jid;
-              })(unwrap5(v2.value0.node).signals) || any(function(x) {
-                return unwrap5(x).jointid === jid;
-              })(unwrap5(v2.value0.node).invalidRoutes);
-              if ($395) {
-                $tco_done = true;
-                return false;
-              }
-              ;
-              var jointexit = updateRailInstance(v2.value0)(jid).newjoint;
-              var v3 = index(v.traffic)(nid);
-              if (v3 instanceof Nothing) {
-                $tco_done = true;
-                return false;
-              }
-              ;
-              if (v3 instanceof Just) {
-                var v4 = index(v3.value0)(jointexit);
-                if (v4 instanceof Nothing) {
-                  $tco_done = true;
-                  return false;
-                }
-                ;
-                if (v4 instanceof Just) {
-                  var $398 = length(v4.value0) > 0;
-                  if ($398) {
-                    $tco_done = true;
-                    return true;
-                  }
-                  ;
-                  var v5 = find2(function(c) {
-                    return c.from === jointexit;
-                  })(unwrap5(v2.value0.node).connections);
-                  if (v5 instanceof Nothing) {
-                    $tco_done = true;
-                    return false;
-                  }
-                  ;
-                  if (v5 instanceof Just) {
-                    $tco_var_nid = v5.value0.nodeid;
-                    $tco_var_jid = v5.value0.jointid;
-                    $copy_depth = depth + 1 | 0;
-                    return;
-                  }
-                  ;
-                  throw new Error("Failed pattern match at Internal.Layout (line 900, column 37 - line 902, column 94): " + [v5.constructor.name]);
-                }
-                ;
-                throw new Error("Failed pattern match at Internal.Layout (line 895, column 31 - line 902, column 94): " + [v4.constructor.name]);
-              }
-              ;
-              throw new Error("Failed pattern match at Internal.Layout (line 892, column 28 - line 902, column 94): " + [v3.constructor.name]);
-            }
-            ;
-            throw new Error("Failed pattern match at Internal.Layout (line 885, column 19 - line 902, column 94): " + [v2.constructor.name]);
-          }
-          ;
-          while (!$tco_done) {
-            $tco_result = $tco_loop($tco_var_nid, $tco_var_jid, $copy_depth);
-          }
-          ;
-          return $tco_result;
-        };
-      };
-    };
-    return any(identity4)(map6(function(cdata) {
-      return go(cdata.nodeid)(cdata.jointid)(0);
-    })(node.connections));
-  };
+var layoutUpdate = function($655) {
+  return updateSignalIndication(updateTraffic($655));
 };
 var getRailJointAbsPos = function(r) {
   return function(jointid) {
@@ -3629,8 +3723,8 @@ var getNextSignal = function(v) {
                 var $tco_done = false;
                 var $tco_result;
                 function $tco_loop(nid, jid, sectionsold, distanceold, isfirst) {
-                  var $407 = sectionsold > searchmax;
-                  if ($407) {
+                  var $433 = sectionsold > searchmax;
+                  if ($433) {
                     $tco_done = true;
                     return {
                       signal: Nothing.value,
@@ -3651,7 +3745,7 @@ var getNextSignal = function(v) {
                   ;
                   if (v3 instanceof Just) {
                     var sections = sectionsold + 1 | 0;
-                    var next = updateRailInstance(v3.value0)(jid);
+                    var next = getRouteInfo(v3.value0)(jid);
                     var distance = function() {
                       if (isfirst) {
                         return distanceold;
@@ -3660,15 +3754,15 @@ var getNextSignal = function(v) {
                       return distanceold + sum2(map6(shapeLength)(next.shapes));
                     }();
                     var v4 = find2(function(v52) {
-                      return v52.jointid === next.newjoint;
+                      return eq4(v52.jointid)(next.newjoint);
                     })(unwrap5(unwrap5(v3.value0).node).invalidRoutes);
                     if (v4 instanceof Nothing) {
                       var v5 = find2(function(v62) {
-                        return v62.jointid === next.newjoint;
+                        return eq4(v62.jointid)(next.newjoint);
                       })(unwrap5(unwrap5(v3.value0).node).signals);
                       if (v5 instanceof Nothing) {
                         var v6 = find2(function(c) {
-                          return c.from === next.newjoint;
+                          return eq4(c.from)(next.newjoint);
                         })(unwrap5(unwrap5(v3.value0).node).connections);
                         if (v6 instanceof Nothing) {
                           $tco_done = true;
@@ -3688,7 +3782,7 @@ var getNextSignal = function(v) {
                           return;
                         }
                         ;
-                        throw new Error("Failed pattern match at Internal.Layout (line 638, column 29 - line 641, column 74): " + [v6.constructor.name]);
+                        throw new Error("Failed pattern match at Internal.Layout (line 664, column 29 - line 667, column 74): " + [v6.constructor.name]);
                       }
                       ;
                       if (v5 instanceof Just) {
@@ -3700,7 +3794,7 @@ var getNextSignal = function(v) {
                         };
                       }
                       ;
-                      throw new Error("Failed pattern match at Internal.Layout (line 636, column 25 - line 642, column 74): " + [v5.constructor.name]);
+                      throw new Error("Failed pattern match at Internal.Layout (line 662, column 25 - line 668, column 74): " + [v5.constructor.name]);
                     }
                     ;
                     if (v4 instanceof Just) {
@@ -3712,10 +3806,10 @@ var getNextSignal = function(v) {
                       };
                     }
                     ;
-                    throw new Error("Failed pattern match at Internal.Layout (line 634, column 22 - line 643, column 71): " + [v4.constructor.name]);
+                    throw new Error("Failed pattern match at Internal.Layout (line 660, column 22 - line 669, column 71): " + [v4.constructor.name]);
                   }
                   ;
-                  throw new Error("Failed pattern match at Internal.Layout (line 628, column 15 - line 643, column 71): " + [v3.constructor.name]);
+                  throw new Error("Failed pattern match at Internal.Layout (line 654, column 15 - line 669, column 71): " + [v3.constructor.name]);
                 }
                 ;
                 while (!$tco_done) {
@@ -3731,20 +3825,20 @@ var getNextSignal = function(v) {
       return go(v2.value0.nodeid)(v2.value0.jointid)(0)(v1.distanceToNext)(true);
     }
     ;
-    throw new Error("Failed pattern match at Internal.Layout (line 623, column 3 - line 644, column 58): " + [v2.constructor.name]);
+    throw new Error("Failed pattern match at Internal.Layout (line 649, column 3 - line 670, column 58): " + [v2.constructor.name]);
   };
 };
 var getJoints = function(v) {
   return function(joint) {
     var getrange = function(r) {
       var i = round2(r);
-      var $426 = round2(r - 0.1) < i;
-      if ($426) {
+      var $452 = round2(r - 0.1) < i;
+      if ($452) {
         return [i - 1 | 0, i];
       }
       ;
-      var $427 = i < round2(r + 0.1);
-      if ($427) {
+      var $453 = i < round2(r + 0.1);
+      if ($453) {
         return [i, i + 1 | 0];
       }
       ;
@@ -3788,15 +3882,15 @@ var getNewRailPos = function(v) {
         }
         ;
         if (mposofzero instanceof Just) {
-          var $435 = fromMaybe(false)(map14(canJoin(toAbsPos(mposofzero.value0)(jrel(v2.from))))(getJointAbsPos(v)(v2.nodeid)(v2.jointid)));
-          if ($435) {
+          var $461 = fromMaybe(false)(map14(canJoin(toAbsPos(mposofzero.value0)(jrel(v2.from))))(getJointAbsPos(v)(v2.nodeid)(v2.jointid)));
+          if ($461) {
             return new Just(mposofzero);
           }
           ;
           return Nothing.value;
         }
         ;
-        throw new Error("Failed pattern match at Internal.Layout (line 318, column 11 - line 325, column 27): " + [mposofzero.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Layout (line 329, column 11 - line 336, column 27): " + [mposofzero.constructor.name]);
       };
     })(Nothing.value)(v1.connections));
   };
@@ -3820,9 +3914,59 @@ var tryOpenRouteFor = function(v) {
       return function(routeid) {
         return bind3(index(v.rails)(nodeid))(function(v1) {
           return bind3(find2(function(v2) {
-            return v2.jointid === jointid;
+            return eq4(v2.jointid)(jointid);
           })(unwrap5(v1.node).signals))(function(v2) {
             return bind3(index(v2.routes)(routeid))(function(v3) {
+              var reserveid = v.updatecount + 1 | 0;
+              var go = function($copy_v4) {
+                return function($copy_rs) {
+                  var $tco_var_v4 = $copy_v4;
+                  var $tco_done = false;
+                  var $tco_result;
+                  function $tco_loop(v4, rs) {
+                    var v5 = bind3(index(v.rails)(v4.nodeid))(function(v62) {
+                      return find2(function(v7) {
+                        return eq4(v7.jointid)(v4.jointid);
+                      })(unwrap5(v62.node).signals);
+                    });
+                    if (v5 instanceof Nothing) {
+                      $tco_done = true;
+                      return rs;
+                    }
+                    ;
+                    if (v5 instanceof Just) {
+                      var v6 = uncons(v5.value0.routes);
+                      if (v6 instanceof Nothing) {
+                        $tco_done = true;
+                        return rs;
+                      }
+                      ;
+                      if (v6 instanceof Just) {
+                        var $481 = length(v6.value0.tail) > 0 || !v6.value0.head.isSimple;
+                        if ($481) {
+                          $tco_done = true;
+                          return rs;
+                        }
+                        ;
+                        $tco_var_v4 = v6.value0.head.nextsignal;
+                        $copy_rs = append2(rs)(v6.value0.head.rails);
+                        return;
+                      }
+                      ;
+                      throw new Error("Failed pattern match at Internal.Layout (line 953, column 13 - line 958, column 55): " + [v6.constructor.name]);
+                    }
+                    ;
+                    throw new Error("Failed pattern match at Internal.Layout (line 950, column 9 - line 958, column 55): " + [v5.constructor.name]);
+                  }
+                  ;
+                  while (!$tco_done) {
+                    $tco_result = $tco_loop($tco_var_v4, $copy_rs);
+                  }
+                  ;
+                  return $tco_result;
+                };
+              };
+              var target = go(v3.nextsignal)(v3.rails);
               return bind3(foldM3(function(v4) {
                 return function(v5) {
                   return bind3(index(v.rails)(v5.nodeid))(function(v6) {
@@ -3837,14 +3981,20 @@ var tryOpenRouteFor = function(v) {
                             state: newstate,
                             signals: v8.signals,
                             invalidRoutes: v8.invalidRoutes,
-                            connections: v8.connections
+                            connections: v8.connections,
+                            reserves: append2(unwrap5(v6.node).reserves)([{
+                              jointid: v5.jointenter,
+                              reserveid
+                            }])
                           };
                         }(),
                         instanceid: v6.instanceid,
                         pos: v6.pos
                       })(v4.newrails))(function(newrails$prime) {
-                        var $452 = newstate !== unwrap5(v6.node).state && hastraffic$prime;
-                        if ($452) {
+                        var $494 = notEq32(newstate)(unwrap5(v6.node).state) && hastraffic$prime || any(function(v7) {
+                          return notEq4(v5.jointenter)(v7.jointid) && (unwrap5(unwrap5(v6.node).rail).isBlocked(v5.jointenter)(unwrap5(v6.node).state)(v7.jointid) || unwrap5(unwrap5(v6.node).rail).isBlocked(v5.jointenter)(newstate)(v7.jointid));
+                        })(unwrap5(v6.node).reserves);
+                        if ($494) {
                           return Nothing.value;
                         }
                         ;
@@ -3859,18 +4009,21 @@ var tryOpenRouteFor = function(v) {
               })({
                 hastraffic: false,
                 newrails: v.rails
-              })(v3.rails))(function(v4) {
-                return pure2(layoutUpdate(forceUpdate({
-                  version: v.version,
-                  rails: v4.newrails,
-                  trains: v.trains,
-                  signalcolors: v.signalcolors,
-                  traffic: v.traffic,
-                  instancecount: v.instancecount,
-                  traincount: v.traincount,
-                  updatecount: v.updatecount,
-                  jointData: v.jointData
-                })));
+              })(target))(function(v4) {
+                return pure2({
+                  layout: layoutUpdate(forceUpdate({
+                    version: v.version,
+                    rails: v4.newrails,
+                    trains: v.trains,
+                    signalcolors: v.signalcolors,
+                    traffic: v.traffic,
+                    instancecount: v.instancecount,
+                    traincount: v.traincount,
+                    updatecount: v.updatecount,
+                    jointData: v.jointData
+                  })),
+                  reserveid
+                });
               });
             });
           });
@@ -3888,7 +4041,7 @@ var tryOpenRouteFor_ffi = function(v) {
           result: false
         })(function(l) {
           return {
-            layout: l,
+            layout: l.layout,
             result: true
           };
         })(tryOpenRouteFor(v)(nodeid)(jointid)(routeid));
@@ -3902,7 +4055,7 @@ var flipTrain = function(v) {
     route: reverse(map6(function(v2) {
       return {
         nodeid: v2.nodeid,
-        jointid: updateRailInstance(v2.railinstance)(v2.jointid).newjoint,
+        jointid: getRouteInfo(v2.railinstance)(v2.jointid).newjoint,
         railinstance: v2.railinstance,
         shapes: reverseShapes(v2.shapes),
         length: v2.length
@@ -3917,19 +4070,21 @@ var flipTrain = function(v) {
     respectSignals: v.respectSignals,
     realAcceralation: v.realAcceralation,
     notch: v.notch,
-    program: v.program
+    program: v.program,
+    reverseOn: v.reverseOn,
+    reserved: v.reserved
   };
 };
 var digestIndication = function(signal) {
-  var $467 = unwrap5(signal).manualStop;
-  if ($467) {
+  var $509 = unwrap5(signal).manualStop;
+  if ($509) {
     return signalStop;
   }
   ;
   return fromMaybe(signalStop)(maximum2(unwrap5(signal).indication));
 };
-var signalToSpeed = function($606) {
-  return indicationToSpeed(digestIndication($606));
+var signalToSpeed = function($656) {
+  return indicationToSpeed(digestIndication($656));
 };
 var movefoward = function($copy_v) {
   return function($copy_v1) {
@@ -3952,7 +4107,9 @@ var movefoward = function($copy_v) {
           respectSignals: v1.respectSignals,
           realAcceralation: v1.realAcceralation,
           notch: v1.notch,
-          program: v1.program
+          program: v1.program,
+          reverseOn: v1.reverseOn,
+          reserved: v1.reserved
         };
         var v3 = function() {
           var v42 = unsnoc(v2.route);
@@ -3961,8 +4118,8 @@ var movefoward = function($copy_v) {
           }
           ;
           if (v42 instanceof Just) {
-            var $473 = v2.distanceFromOldest <= v42.value0.last.length;
-            if ($473) {
+            var $515 = v2.distanceFromOldest <= v42.value0.last.length;
+            if ($515) {
               return v2;
             }
             ;
@@ -3978,14 +4135,16 @@ var movefoward = function($copy_v) {
               respectSignals: v2.respectSignals,
               realAcceralation: v2.realAcceralation,
               notch: v2.notch,
-              program: v2.program
+              program: v2.program,
+              reverseOn: v2.reverseOn,
+              reserved: v2.reserved
             };
           }
           ;
-          throw new Error("Failed pattern match at Internal.Layout (line 578, column 9 - line 583, column 101): " + [v42.constructor.name]);
+          throw new Error("Failed pattern match at Internal.Layout (line 600, column 9 - line 605, column 101): " + [v42.constructor.name]);
         }();
-        var $478 = 0 <= v3.distanceToNext;
-        if ($478) {
+        var $520 = 0 <= v3.distanceToNext;
+        if ($520) {
           $tco_done = true;
           return {
             newlayout: v,
@@ -3994,20 +4153,20 @@ var movefoward = function($copy_v) {
         }
         ;
         var v4 = bind3(head(v3.route))(function(v5) {
-          var jointexit = updateRailInstance(v5.railinstance)(v5.jointid).newjoint;
+          var jointexit = getRouteInfo(v5.railinstance)(v5.jointid).newjoint;
           return bind3(find2(function(c) {
-            return c.from === jointexit;
+            return eq4(c.from)(jointexit);
           })(unwrap5(unwrap5(v5.railinstance).node).connections))(function(cdata) {
             return bind3(index(v.rails)(cdata.nodeid))(function(nextRail) {
-              var routedata = updateRailInstance(nextRail)(cdata.jointid);
-              var slength = sum2(map6(shapeLength)(routedata.shapes));
+              var updatedroute = updateRailInstance(nextRail)(cdata.jointid);
+              var slength = sum2(map6(shapeLength)(updatedroute.shapes));
               var t3 = {
                 types: v3.types,
                 route: append2([{
                   nodeid: cdata.nodeid,
                   jointid: cdata.jointid,
                   railinstance: nextRail,
-                  shapes: routedata.shapes,
+                  shapes: updatedroute.shapes,
                   length: slength
                 }])(v3.route),
                 distanceToNext: v3.distanceToNext + slength,
@@ -4016,26 +4175,46 @@ var movefoward = function($copy_v) {
                 trainid: v3.trainid,
                 flipped: v3.flipped,
                 signalRestriction: max3(speedScale * 15)(maybe(v3.signalRestriction)(signalToSpeed)(find2(function(v7) {
-                  return v7.jointid === jointexit;
+                  return eq4(v7.jointid)(jointexit);
                 })(unwrap5(unwrap5(v5.railinstance).node).signals))),
                 respectSignals: v3.respectSignals,
                 realAcceralation: v3.realAcceralation,
                 notch: v3.notch,
-                program: v3.program
+                program: v3.program,
+                reverseOn: v3.reverseOn,
+                reserved: foldl2(function(reserved) {
+                  return function(rid) {
+                    return filter(function(r1) {
+                      return r1.reserveid !== rid.reserveid;
+                    })(reserved);
+                  };
+                })(v3.reserved)(filter(function(rid) {
+                  return eq4(rid.jointid)(cdata.jointid);
+                })(unwrap5(unwrap5(nextRail).node).reserves))
               };
               return new Just({
                 newlayout: function() {
                   var oldrail = index(v.rails)(cdata.nodeid);
-                  var $481 = on(eq15)(map14(function(x) {
+                  var $523 = on(eq22)(map14(function(x) {
                     return unwrap5(unwrap5(x).node).state;
-                  }))(oldrail)(new Just(routedata.instance));
-                  if ($481) {
-                    return v;
+                  }))(oldrail)(new Just(updatedroute.instance));
+                  if ($523) {
+                    return {
+                      version: v.version,
+                      rails: fromMaybe(v.rails)(updateAt(cdata.nodeid)(updatedroute.instance)(v.rails)),
+                      trains: v.trains,
+                      signalcolors: v.signalcolors,
+                      traffic: v.traffic,
+                      instancecount: v.instancecount,
+                      traincount: v.traincount,
+                      updatecount: v.updatecount,
+                      jointData: v.jointData
+                    };
                   }
                   ;
                   return {
                     version: v.version,
-                    rails: fromMaybe(v.rails)(updateAt(cdata.nodeid)(routedata.instance)(v.rails)),
+                    rails: fromMaybe(v.rails)(updateAt(cdata.nodeid)(updatedroute.instance)(v.rails)),
                     trains: v.trains,
                     signalcolors: v.signalcolors,
                     traffic: v.traffic,
@@ -4056,8 +4235,8 @@ var movefoward = function($copy_v) {
         }
         ;
         if (v4 instanceof Nothing) {
-          var $484 = v3.distanceToNext === 0;
-          if ($484) {
+          var $526 = v3.distanceToNext === 0;
+          if ($526) {
             $tco_done = true;
             return {
               newlayout: v,
@@ -4071,7 +4250,7 @@ var movefoward = function($copy_v) {
           return;
         }
         ;
-        throw new Error("Failed pattern match at Internal.Layout (line 587, column 13 - line 619, column 185): " + [v4.constructor.name]);
+        throw new Error("Failed pattern match at Internal.Layout (line 609, column 13 - line 645, column 185): " + [v4.constructor.name]);
       }
       ;
       while (!$tco_done) {
@@ -4102,8 +4281,8 @@ var trainsetDrawInfo = function(v) {
         function $tco_loop(w, d$prime, i) {
           var v1 = index(shapes)(i);
           if (v1 instanceof Just) {
-            var $488 = v1.value0.length < d$prime;
-            if ($488) {
+            var $530 = v1.value0.length < d$prime;
+            if ($530) {
               $tco_var_w = w;
               $tco_var_d$prime = d$prime - v1.value0.length;
               $copy_i = i + 1 | 0;
@@ -4119,7 +4298,7 @@ var trainsetDrawInfo = function(v) {
             return poszero;
           }
           ;
-          throw new Error("Failed pattern match at Internal.Layout (line 178, column 9 - line 183, column 29): " + [v1.constructor.name]);
+          throw new Error("Failed pattern match at Internal.Layout (line 187, column 9 - line 192, column 29): " + [v1.constructor.name]);
         }
         ;
         while (!$tco_done) {
@@ -4201,13 +4380,21 @@ var brakePattern = function(speed) {
 };
 var brakePatternCheck = function(speed) {
   return function(signaldata) {
-    var restriction = maybe(0)(signalToSpeed)(signaldata.signal);
-    var $497 = speed < restriction;
-    if ($497) {
-      return false;
-    }
-    ;
-    return signaldata.distance < brakePattern(speed)(restriction);
+    return function(forceStop) {
+      var restriction = function() {
+        if (forceStop) {
+          return 0;
+        }
+        ;
+        return maybe(0)(signalToSpeed)(signaldata.signal);
+      }();
+      var $540 = speed < restriction;
+      if ($540) {
+        return false;
+      }
+      ;
+      return signaldata.distance < brakePattern(speed)(restriction);
+    };
   };
 };
 var baseaccr = 0.4;
@@ -4215,17 +4402,17 @@ var calcAcceralation = function(notch) {
   return function(speed) {
     var dccr = -speed * speed * 1e-3;
     return dccr + function() {
-      var $498 = notch === 0;
-      if ($498) {
+      var $541 = notch === 0;
+      if ($541) {
         return 0;
       }
       ;
-      var $499 = notch > 0;
-      if ($499) {
-        var $500 = speed / speedScale / 30 < toNumber(notch);
-        if ($500) {
-          var $501 = speed / speedScale < 40;
-          if ($501) {
+      var $542 = notch > 0;
+      if ($542) {
+        var $543 = speed / speedScale / 30 < toNumber(notch);
+        if ($543) {
+          var $544 = speed / speedScale < 40;
+          if ($544) {
             return baseaccr;
           }
           ;
@@ -4248,12 +4435,12 @@ var addTrainset = function(v) {
             return function(jid) {
               return function(len) {
                 return bind3(index(v.rails)(nid))(function(rail) {
-                  var info = updateRailInstance(rail)(jid);
+                  var info = getRouteInfo(rail)(jid);
                   var lenhere = sum2(map6(shapeLength)(info.shapes));
-                  var $506 = lenhere < len;
-                  if ($506) {
+                  var $549 = lenhere < len;
+                  if ($549) {
                     return bind3(find2(function(c) {
-                      return c.from === info.newjoint;
+                      return eq4(c.from)(info.newjoint);
                     })(unwrap5(unwrap5(rail).node).connections))(function(cdata) {
                       return go(append2([{
                         nodeid: nid,
@@ -4283,7 +4470,9 @@ var addTrainset = function(v) {
                     realAcceralation: false,
                     notch: 0,
                     signalRestriction: 0,
-                    program: []
+                    program: [],
+                    reverseOn: [],
+                    reserved: []
                   });
                 });
               };
@@ -4292,7 +4481,7 @@ var addTrainset = function(v) {
         };
         return fromMaybe(v)(bind3(index(v.rails)(nodeid))(function(rail) {
           return bind3(find2(function(c) {
-            return c.from === jointid;
+            return eq4(c.from)(jointid);
           })(unwrap5(unwrap5(rail).node).connections))(function(start) {
             return bind3(go([])(start.nodeid)(start.jointid)(toNumber(length(types)) * (carLength + carMargin) - carMargin))(function(newtrain) {
               return new Just({
@@ -4318,7 +4507,7 @@ var addSignal = function(v) {
     return function(jointid) {
       return fromMaybe(v)(function() {
         var signal = {
-          signalname: show2(nodeid) + ("_" + show2(jointid)),
+          signalname: show3(nodeid) + ("_" + show1(jointid)),
           nodeid,
           jointid,
           routes: [],
@@ -4329,12 +4518,12 @@ var addSignal = function(v) {
         };
         return bind3(index(v.rails)(nodeid))(function(v1) {
           return discard2(function() {
-            var $513 = any(function(v2) {
-              return v2.jointid === jointid;
+            var $556 = any(function(v2) {
+              return eq4(v2.jointid)(jointid);
             })(unwrap5(v1.node).signals) || any(function(v2) {
-              return v2.jointid === jointid;
+              return eq4(v2.jointid)(jointid);
             })(unwrap5(v1.node).invalidRoutes);
-            if ($513) {
+            if ($556) {
               return Nothing.value;
             }
             ;
@@ -4350,7 +4539,8 @@ var addSignal = function(v) {
                     state: v4.state,
                     signals: append2(unwrap5(v2.node).signals)([signal]),
                     invalidRoutes: v4.invalidRoutes,
-                    connections: v4.connections
+                    connections: v4.connections,
+                    reserves: v4.reserves
                   };
                 }(),
                 instanceid: v2.instanceid,
@@ -4390,22 +4580,22 @@ var addJoint = function(v) {
           traincount: v.traincount,
           updatecount: v.updatecount,
           jointData: saModifyAt(round2(coord.z))(saEmpty)(function() {
-            var $607 = saModifyAt(round2(coord.x))(saEmpty)(function() {
-              var $610 = saModifyAt(round2(coord.y))([])(function(ma) {
+            var $657 = saModifyAt(round2(coord.x))(saEmpty)(function() {
+              var $660 = saModifyAt(round2(coord.y))([])(function(ma) {
                 return append2(fromMaybe([])(ma))([{
                   pos,
                   nodeid,
                   jointid
                 }]);
               });
-              var $611 = fromMaybe(saEmpty);
-              return function($612) {
-                return $610($611($612));
+              var $661 = fromMaybe(saEmpty);
+              return function($662) {
+                return $660($661($662));
               };
             }());
-            var $608 = fromMaybe(saEmpty);
-            return function($609) {
-              return $607($608($609));
+            var $658 = fromMaybe(saEmpty);
+            return function($659) {
+              return $657($658($659));
             };
           }())(v.jointData)
         };
@@ -4439,20 +4629,20 @@ var addRailWithPos = function(v) {
         return v2.from;
       })(v1.connections);
       var newconnections = catMaybes(map6(function(v2) {
-        var $529 = elem3(v2.jointid)(cfroms);
-        if ($529) {
+        var $572 = elem1(v2.jointid)(cfroms);
+        if ($572) {
           return Nothing.value;
         }
         ;
         return function() {
-          var $613 = map14(function(jdata) {
+          var $663 = map14(function(jdata) {
             return {
               jointData: jdata,
               jointid: v2.jointid
             };
           });
-          return function($614) {
-            return $613(head($614));
+          return function($664) {
+            return $663(head($664));
           };
         }()(filter(function(v3) {
           return canJoin(v2.pos)(v3.pos);
@@ -4462,7 +4652,7 @@ var addRailWithPos = function(v) {
       var cond = foldl2(conj2)(true)(map6(function(v2) {
         return fromMaybe(true)(map14(function(v3) {
           return all(function(c) {
-            return c.from !== v2.jointData.jointid;
+            return notEq4(c.from)(v2.jointData.jointid);
           })(v3.node.connections);
         })(index(v.rails)(v2.jointData.nodeid)));
       })(connections));
@@ -4479,7 +4669,8 @@ var addRailWithPos = function(v) {
               nodeid: v3.jointData.nodeid,
               jointid: v3.jointData.jointid
             };
-          })(newconnections))
+          })(newconnections)),
+          reserves: v1.reserves
         };
         var newrails = append2(foldl2(function(rs) {
           return function(v2) {
@@ -4496,7 +4687,8 @@ var addRailWithPos = function(v) {
                       from: v2.jointData.jointid,
                       nodeid: v1.nodeid,
                       jointid: v2.jointid
-                    }])
+                    }]),
+                    reserves: v5.reserves
                   };
                 }(v3.node),
                 instanceid: v3.instanceid,
@@ -4544,8 +4736,8 @@ var autoAdd = function(v) {
         return function(from2) {
           return fromMaybe(v)(bind3(getJointAbsPos(v)(selectednode)(selectedjoint))(function(v1) {
             var rail$prime = function() {
-              var $565 = v1.isPlus === unwrap5(unwrap5(unwrap5(rail).getJointPos(from2))).isPlus;
-              if ($565) {
+              var $608 = v1.isPlus === unwrap5(unwrap5(unwrap5(rail).getJointPos(from2))).isPlus;
+              if ($608) {
                 return opposeRail(rail);
               }
               ;
@@ -4561,7 +4753,8 @@ var autoAdd = function(v) {
                 jointid: selectedjoint
               }],
               signals: [],
-              invalidRoutes: []
+              invalidRoutes: [],
+              reserves: []
             };
             return addRail(v)(node);
           }));
@@ -4569,6 +4762,34 @@ var autoAdd = function(v) {
       };
     };
   };
+};
+var fixBrokenConnections = function(v) {
+  return foldl2(function(l) {
+    return function(v1) {
+      return fromMaybe(l)(addRailWithPos(l)(function() {
+        var v2 = unwrap5(v1.node);
+        return {
+          nodeid: v2.nodeid,
+          rail: v2.rail,
+          state: v2.state,
+          signals: v2.signals,
+          invalidRoutes: v2.invalidRoutes,
+          connections: [],
+          reserves: v2.reserves
+        };
+      }())(v1.pos));
+    };
+  })({
+    version: v.version,
+    rails: [],
+    trains: v.trains,
+    signalcolors: v.signalcolors,
+    traffic: v.traffic,
+    instancecount: v.instancecount,
+    traincount: v.traincount,
+    updatecount: v.updatecount,
+    jointData: saEmpty
+  })(v.rails);
 };
 var addInvalidRoute = function(v) {
   return function(nodeid) {
@@ -4580,12 +4801,12 @@ var addInvalidRoute = function(v) {
         };
         return bind3(index(v.rails)(nodeid))(function(v1) {
           return discard2(function() {
-            var $572 = any(function(v2) {
-              return v2.jointid === jointid;
+            var $617 = any(function(v2) {
+              return eq4(v2.jointid)(jointid);
             })(unwrap5(v1.node).signals) || any(function(v2) {
-              return v2.jointid === jointid;
+              return eq4(v2.jointid)(jointid);
             })(unwrap5(v1.node).invalidRoutes);
-            if ($572) {
+            if ($617) {
               return Nothing.value;
             }
             ;
@@ -4601,7 +4822,8 @@ var addInvalidRoute = function(v) {
                     state: v4.state,
                     signals: v4.signals,
                     invalidRoutes: append2(unwrap5(v2.node).invalidRoutes)([signal]),
-                    connections: v4.connections
+                    connections: v4.connections,
+                    reserves: v4.reserves
                   };
                 }(),
                 instanceid: v2.instanceid,
@@ -4641,7 +4863,9 @@ var acceralate = function(v) {
         respectSignals: v.respectSignals,
         realAcceralation: v.realAcceralation,
         notch: v.notch,
-        program: v.program
+        program: v.program,
+        reverseOn: v.reverseOn,
+        reserved: v.reserved
       };
     };
   };
@@ -4650,25 +4874,52 @@ var trainTick = function(v) {
   return function(v1) {
     return function(dt) {
       var nextsignal = getNextSignal(v)(v1);
-      var l$prime = fromMaybe(v)(bind3(nextsignal.signal)(function(v22) {
+      var v2 = fromMaybe({
+        reservedlayout: v,
+        reserved: v1.reserved
+      })(bind3(nextsignal.signal)(function(v32) {
         return discard2(function() {
-          var $581 = digestIndication(v22) > signalStop;
-          if ($581) {
+          var $626 = any(function(r) {
+            return r.nodeid === v32.nodeid && eq4(r.jointid)(v32.jointid);
+          })(v1.reserved);
+          if ($626) {
             return Nothing.value;
           }
           ;
           return pure2(unit);
         }())(function() {
-          return bind3(find2(function(v32) {
-            return v32.nodeid === v22.nodeid && v32.jointid === v22.jointid;
+          return bind3(find2(function(v42) {
+            return v42.nodeid === v32.nodeid && eq4(v42.jointid)(v32.jointid);
           })(v1.program))(function(p) {
-            return bind3(tryOpenRouteFor(v)(p.nodeid)(p.jointid)(p.routeid))(function(l$prime1) {
-              return unlockManualStop(l$prime1)(p.nodeid)(p.jointid);
+            return bind3(tryOpenRouteFor(v)(p.nodeid)(p.jointid)(p.routeid))(function(l$prime) {
+              return bind3(unlockManualStop(l$prime.layout)(p.nodeid)(p.jointid))(function(l$prime$prime) {
+                return pure2({
+                  reservedlayout: l$prime$prime,
+                  reserved: append2(v1.reserved)([{
+                    nodeid: p.nodeid,
+                    jointid: p.jointid,
+                    routeid: p.routeid,
+                    reserveid: l$prime.reserveid
+                  }])
+                });
+              });
             });
           });
         });
       }));
-      var v2 = {
+      var reverseOn = maybe(false)(function(v32) {
+        return any(function(r) {
+          return r.nodeid === v32.nodeid && eq4(r.jointid)(v32.jointid);
+        })(v1.reverseOn);
+      })(nextsignal.signal);
+      var v3 = function() {
+        var $632 = v1.speed === 0 && reverseOn;
+        if ($632) {
+          return flipTrain;
+        }
+        ;
+        return identity4;
+      }()({
         types: v1.types,
         route: v1.route,
         distanceToNext: v1.distanceToNext,
@@ -4680,17 +4931,19 @@ var trainTick = function(v) {
         respectSignals: v1.respectSignals,
         realAcceralation: v1.realAcceralation,
         notch: v1.notch,
-        program: v1.program
-      };
+        program: v1.program,
+        reverseOn: v1.reverseOn,
+        reserved: v2.reserved
+      });
       var notch = function() {
         if (v1.respectSignals) {
-          var $587 = v1.signalRestriction < v1.speed || brakePatternCheck(v1.speed)(nextsignal);
-          if ($587) {
+          var $635 = v1.signalRestriction < v1.speed || brakePatternCheck(v1.speed)(nextsignal)(reverseOn);
+          if ($635) {
             return -8 | 0;
           }
           ;
-          var $588 = v1.signalRestriction < v1.speed + speedScale * 5;
-          if ($588) {
+          var $636 = v1.signalRestriction < v1.speed + speedScale * 5;
+          if ($636) {
             return 0;
           }
           ;
@@ -4699,14 +4952,14 @@ var trainTick = function(v) {
         ;
         return v1.notch;
       }();
-      var v3 = function() {
+      var v4 = function() {
         if (v1.realAcceralation) {
-          return acceralate(v2)(notch)(dt);
+          return acceralate(v3)(notch)(dt);
         }
         ;
-        return v2;
+        return v3;
       }();
-      return movefoward(l$prime)(v3)(dt);
+      return movefoward(v2.reservedlayout)(v4)(dt);
     };
   };
 };
@@ -4931,7 +5184,7 @@ var eqStatesPoint = {
     };
   }
 };
-var eq16 = /* @__PURE__ */ eq(eqStatesPoint);
+var eq15 = /* @__PURE__ */ eq(eqStatesPoint);
 var eqStatesDoublePoint = {
   eq: function(x) {
     return function(y) {
@@ -4939,7 +5192,7 @@ var eqStatesDoublePoint = {
     };
   }
 };
-var eq22 = /* @__PURE__ */ eq(eqStatesDoublePoint);
+var eq23 = /* @__PURE__ */ eq(eqStatesDoublePoint);
 var eqStatesAutoPoint = {
   eq: function(x) {
     return function(y) {
@@ -4968,7 +5221,7 @@ var eqStateScissors = {
   }
 };
 var notEq5 = /* @__PURE__ */ notEq(eqStateScissors);
-var eq4 = /* @__PURE__ */ eq(eqStateScissors);
+var eq42 = /* @__PURE__ */ eq(eqStateScissors);
 var eqStateDiamond = {
   eq: function(x) {
     return function(y) {
@@ -5001,7 +5254,7 @@ var eqJointsSimple = {
     };
   }
 };
-var notEq22 = /* @__PURE__ */ notEq(eqJointsSimple);
+var notEq23 = /* @__PURE__ */ notEq(eqJointsSimple);
 var eqJointsDouble = {
   eq: function(x) {
     return function(y) {
@@ -5237,7 +5490,7 @@ var halfRail = /* @__PURE__ */ function() {
     getRoute: function(s) {
       return function(f) {
         return function(t) {
-          var $302 = notEq22(f)(t);
+          var $302 = notEq23(f)(t);
           if ($302) {
             return new Just(s);
           }
@@ -5335,7 +5588,7 @@ var longRail = /* @__PURE__ */ function() {
     getRoute: function(s) {
       return function(f) {
         return function(t) {
-          var $305 = notEq22(f)(t);
+          var $305 = notEq23(f)(t);
           if ($305) {
             return new Just(s);
           }
@@ -5433,7 +5686,7 @@ var quarterRail = /* @__PURE__ */ function() {
     getRoute: function(s) {
       return function(f) {
         return function(t) {
-          var $308 = notEq22(f)(t);
+          var $308 = notEq23(f)(t);
           if ($308) {
             return new Just(s);
           }
@@ -5531,7 +5784,7 @@ var slopeCurveLRail = /* @__PURE__ */ function() {
     getRoute: function(s) {
       return function(f) {
         return function(t) {
-          var $311 = notEq22(f)(t);
+          var $311 = notEq23(f)(t);
           if ($311) {
             return new Just(s);
           }
@@ -5630,7 +5883,7 @@ var slopeRail = /* @__PURE__ */ function() {
     getRoute: function(s) {
       return function(f) {
         return function(t) {
-          var $314 = notEq22(f)(t);
+          var $314 = notEq23(f)(t);
           if ($314) {
             return new Just(s);
           }
@@ -5728,7 +5981,7 @@ var straightRail = /* @__PURE__ */ function() {
     getRoute: function(s) {
       return function(f) {
         return function(t) {
-          var $317 = notEq22(f)(t);
+          var $317 = notEq23(f)(t);
           if ($317) {
             return new Just(s);
           }
@@ -5996,7 +6249,7 @@ var turnOutLPlusRail = /* @__PURE__ */ function() {
     },
     lockedBy: function(s) {
       return function(s$prime) {
-        var $336 = eq16(s)(s$prime);
+        var $336 = eq15(s)(s$prime);
         if ($336) {
           return [];
         }
@@ -6624,7 +6877,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ function() {
     },
     lockedBy: function(s) {
       return function(s$prime) {
-        var $391 = eq22(s)(s$prime);
+        var $391 = eq23(s)(s$prime);
         if ($391) {
           return [];
         }
@@ -6881,7 +7134,7 @@ var outerCurveLRail = /* @__PURE__ */ function() {
     getRoute: function(s) {
       return function(f) {
         return function(t) {
-          var $401 = notEq22(f)(t);
+          var $401 = notEq23(f)(t);
           if ($401) {
             return new Just(s);
           }
@@ -7265,7 +7518,7 @@ var scissorsRail = /* @__PURE__ */ function() {
     },
     lockedBy: function(s) {
       return function(s$prime) {
-        var $414 = eq4(s)(s$prime);
+        var $414 = eq42(s)(s$prime);
         if ($414) {
           return [];
         }
@@ -7621,7 +7874,7 @@ var curveLRail = /* @__PURE__ */ function() {
     getRoute: function(s) {
       return function(f) {
         return function(t) {
-          var $429 = notEq22(f)(t);
+          var $429 = notEq23(f)(t);
           if ($429) {
             return new Just(s);
           }
@@ -8054,7 +8307,7 @@ var crossoverLRail = /* @__PURE__ */ function() {
     },
     lockedBy: function(s) {
       return function(s$prime) {
-        var $449 = eq22(s)(s$prime);
+        var $449 = eq23(s)(s$prime);
         if ($449) {
           return [];
         }
@@ -8163,7 +8416,7 @@ var converterRail = /* @__PURE__ */ function() {
     getRoute: function(s) {
       return function(f) {
         return function(t) {
-          var $454 = notEq22(f)(t);
+          var $454 = notEq23(f)(t);
           if ($454) {
             return new Just(s);
           }
@@ -8639,7 +8892,7 @@ var doubleToWideLRail = /* @__PURE__ */ function() {
     },
     lockedBy: function(s) {
       return function(s$prime) {
-        var $474 = eq22(s)(s$prime);
+        var $474 = eq23(s)(s$prime);
         if ($474) {
           return [];
         }
@@ -9020,7 +9273,7 @@ var toDoubleLPlusRail = /* @__PURE__ */ function() {
     },
     lockedBy: function(s) {
       return function(s$prime) {
-        var $493 = eq16(s)(s$prime);
+        var $493 = eq15(s)(s$prime);
         if ($493) {
           return [];
         }
@@ -9338,7 +9591,7 @@ var autoTurnOutRPlusRail = /* @__PURE__ */ flipRail(autoTurnOutLPlusRail);
 // output/Main/index.js
 var eq7 = /* @__PURE__ */ eq(eqNumber);
 var unwrap7 = /* @__PURE__ */ unwrap();
-var eq17 = /* @__PURE__ */ eq(eqAngle);
+var eq16 = /* @__PURE__ */ eq(eqAngle);
 var notEq6 = /* @__PURE__ */ notEq(eqAngle);
 var map8 = /* @__PURE__ */ map(functorArray);
 var map15 = /* @__PURE__ */ map(functorMaybe);
@@ -9351,7 +9604,7 @@ var pure3 = /* @__PURE__ */ pure(applicativeArray);
 var splitSize = function(shape) {
   var $48 = on(eq7)(function(p) {
     return unwrap7(unwrap7(p).coord).z;
-  })(unwrap7(shape).start)(unwrap7(shape).end) && eq17(reverseAngle(unwrap7(unwrap7(shape).start).angle))(unwrap7(unwrap7(shape).end).angle);
+  })(unwrap7(shape).start)(unwrap7(shape).end) && eq16(reverseAngle(unwrap7(unwrap7(shape).start).angle))(unwrap7(unwrap7(shape).end).angle);
   if ($48) {
     return 1;
   }
@@ -9361,7 +9614,7 @@ var splitSize = function(shape) {
 var shapeToData = function(v) {
   var a2 = toRadian(v.end.angle);
   var a1 = toRadian(reverseAngle(v.start.angle));
-  var $52 = eq17(reverseAngle(v.start.angle))(v.end.angle);
+  var $52 = eq16(reverseAngle(v.start.angle))(v.end.angle);
   if ($52) {
     return unsafeToForeign({
       type: "straight",
@@ -9426,7 +9679,9 @@ var encodeTrainset = function(v) {
     realAcceralation: v.realAcceralation,
     notch: v.notch,
     signalRestriction: v.signalRestriction,
-    program: v.program
+    program: v.program,
+    reverseOn: v.reverseOn,
+    reserved: v.reserved
   };
 };
 var encodeRail = function(v) {
@@ -9443,7 +9698,8 @@ var encodeRailNode = function(v) {
     state: v.state,
     connections: v.connections,
     signals: v.signals,
-    invalidRoutes: v.invalidRoutes
+    invalidRoutes: v.invalidRoutes,
+    reserves: v.reserves
   };
 };
 var encodeRailInstance = function(v) {
@@ -9467,7 +9723,8 @@ var defaultLayout = /* @__PURE__ */ function() {
     rail: straightRail,
     connections: [],
     signals: [],
-    invalidRoutes: []
+    invalidRoutes: [],
+    reserves: []
   };
   var rinst = {
     node,
@@ -9503,7 +9760,8 @@ var decodeTrainRoute = function(rs) {
       rail: straightRail,
       connections: [],
       signals: [],
-      invalidRoutes: []
+      invalidRoutes: [],
+      reserves: []
     };
     var rinst = {
       node: defaultnode,
@@ -9533,28 +9791,30 @@ var decodeTrainset = function(rs) {
       realAcceralation: v.realAcceralation,
       notch: v.notch,
       signalRestriction: v.signalRestriction,
-      program: v.program
+      program: v.program,
+      reverseOn: v.reverseOn,
+      reserved: v.reserved
     };
   };
 };
 var decodeRail = function(v) {
   return map15(function() {
-    var $157 = function() {
+    var $162 = function() {
       if (v.opposed) {
         return opposeRail;
       }
       ;
       return identity5;
     }();
-    var $158 = function() {
+    var $163 = function() {
       if (v.flipped) {
         return flipRail;
       }
       ;
       return identity5;
     }();
-    return function($159) {
-      return $157($158($159));
+    return function($164) {
+      return $162($163($164));
     };
   }())(find2(function(v1) {
     return v1.name === v.name;
@@ -9568,7 +9828,8 @@ var decodeRailNode = function(v) {
       state: v.state,
       connections: v.connections,
       signals: ifUndefinedDefault([])(v.signals),
-      invalidRoutes: ifUndefinedDefault([])(v.invalidRoutes)
+      invalidRoutes: ifUndefinedDefault([])(v.invalidRoutes),
+      reserves: ifUndefinedDefault([])(v.reserves)
     };
   }))(decodeRail(v.rail));
 };
@@ -9607,14 +9868,14 @@ var decodeLayout$prime = function(v) {
     signalcolors: []
   };
   var deleted = function() {
-    var $160 = map8(function(r) {
+    var $165 = map8(function(r) {
       return r.index;
     });
-    var $161 = filter(function(r) {
+    var $166 = filter(function(r) {
       return r.isdeleted;
     });
-    return function($162) {
-      return $160($161($162));
+    return function($167) {
+      return $165($166($167));
     };
   }()(mapWithIndex(function(i) {
     return function(r) {
@@ -9624,19 +9885,6 @@ var decodeLayout$prime = function(v) {
       };
     };
   })(rawrails));
-  var defaultnode = {
-    nodeid: 0,
-    state: 0,
-    rail: straightRail,
-    connections: [],
-    signals: [],
-    invalidRoutes: []
-  };
-  var rinst = {
-    node: defaultnode,
-    instanceid: 0,
-    pos: reversePos(poszero)
-  };
   var v1 = foldl2(removeRail)(l0)(reverse(sort2(deleted)));
   var joints = bind4(v1.rails)(function(v22) {
     var nodeid = unwrap7(v22.node).nodeid;
@@ -9655,8 +9903,8 @@ var decodeLayout$prime = function(v) {
       return addJoint(l)(j.pos)(j.nodeid)(j.jointid);
     };
   })(v1)(joints));
-  var $147 = length(v2.rails) === 0;
-  if ($147) {
+  var $153 = length(v2.rails) === 0;
+  if ($153) {
     return defaultLayout;
   }
   ;
@@ -9666,8 +9914,8 @@ var decodeLayout = function(v) {
   return decodeLayout$prime({
     rails: map8(unsafeFromForeign)(v.rails),
     trains: function() {
-      var $152 = isArray(v.trains);
-      if ($152) {
+      var $158 = isArray(v.trains);
+      if ($158) {
         return unsafeFromForeign(v.trains);
       }
       ;
@@ -9682,6 +9930,8 @@ export {
   DrawAdditional,
   DrawInfo,
   DrawRail,
+  IntJoint,
+  IntState,
   InvalidRoute,
   JointBegin,
   JointData,
@@ -9754,6 +10004,7 @@ export {
   doubleWidthSLRail,
   doubleWidthSRRail,
   encodeLayout,
+  fixBrokenConnections,
   flipRail,
   flipTrain,
   forceUpdate,

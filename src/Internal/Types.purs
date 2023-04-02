@@ -42,6 +42,8 @@ import Internal.Types.Rail   (
     , railShape
     , slipShapes
     , reverseShapes
+    , IntJoint (..)
+    , IntState (..)
   ) as Ex
 
 import Internal.Types.Serial (

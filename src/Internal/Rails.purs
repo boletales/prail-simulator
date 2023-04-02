@@ -324,7 +324,7 @@ curveLRail =
     ,isSimple  : true
   }
 
-curveRRail ∷ RailGen Int Int
+curveRRail ∷ Rail
 curveRRail = flipRail curveLRail
 
 slopeCurveLRail :: Rail
@@ -355,7 +355,7 @@ slopeCurveLRail =
     ,isBlocked : \j s j' -> true
     ,isSimple  : true
   }
-slopeCurveRRail ∷ RailGen Int Int
+slopeCurveRRail ∷ Rail
 slopeCurveRRail = flipRail slopeCurveLRail
 
 outerCurveLRail :: Rail
@@ -431,7 +431,7 @@ doubleWidthSLRail =
       ,isSimple  : true
     }
 
-doubleWidthSRRail ∷ RailGen Int Int
+doubleWidthSRRail ∷ Rail
 doubleWidthSRRail = flipRail doubleWidthSLRail
 
 turnOutLPlusRail :: Rail
@@ -637,7 +637,7 @@ toDoubleLPlusRail =
       ,isSimple  : false
     }
 
-toDoubleRPlusRail ∷ RailGen Int Int
+toDoubleRPlusRail ∷ Rail
 toDoubleRPlusRail = flipRail toDoubleLPlusRail
 
 
@@ -1075,7 +1075,7 @@ doubleToWideLRail =
       ,isSimple  : false
   }
 
-doubleToWideRRail ∷ RailGen Int Int
+doubleToWideRRail ∷ Rail
 doubleToWideRRail = flipRail doubleToWideLRail
 
 

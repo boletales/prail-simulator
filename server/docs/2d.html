@@ -40,7 +40,7 @@
       document.getElementById("fakeinput").onkeydown = ()=>{return true;};
       document.getElementById("fakeinput").onchange = ()=>{document.getElementById("fakeinput").value=""};
       canvas.onclick = onclick;
-      load();
+      load(clearCache);
       tick();
     }
     function tick(){
@@ -212,6 +212,17 @@
     function ctx_lineTo(coord, camera, ctx){
       let {cx,cy} = getCanvasCoord(coord, camera);
       ctx.lineTo(cx, cy);
+    }
+
+    function download(){
+      d = document.createElement("a"); d.download="layout.json"; d.href=window.URL.createObjectURL(new Blob([localStorage.getItem("layout")], {"type":"application/json"})); d.click();
+    }
+
+    function upload(clearCache){
+      let files = document.getElementById("upload").files;
+      if(files.length > 0){
+        files[0].text().then(loadfrom.bind(null, clearCache));
+      }
     }
   </script>
   <script defer>

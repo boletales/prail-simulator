@@ -1,14 +1,19 @@
+import * as C from "./control.js";
+import * as P from "./main.js";
+
 function v3(v){
-  return new THREE.Vector3(-v.x*RAILLENGTH, v.z*HEIGHTUNIT ,v.y*RAILLENGTH);
+  return new THREE.Vector3(-v.x*C.RAILLENGTH, v.z*C.HEIGHTUNIT ,v.y*C.RAILLENGTH);
 }
 
 function a3(v){
-  return [-v.x*RAILLENGTH, v.z*HEIGHTUNIT ,v.y*RAILLENGTH];
+  return [-v.x*C.RAILLENGTH, v.z*C.HEIGHTUNIT ,v.y*C.RAILLENGTH];
 }
 
 const GUI = new lil.GUI();
 
-Object.values(keycontrols).forEach(category => {
+export let L = new C.Layout();
+
+Object.values(L.keycontrols).forEach(category => {
   let folder = GUI.addFolder(category.name);
   Object.values(category.keys).forEach(key => {
     folder.add(key, "onkey").name(key.softkey + " : " + key.text_ja);
@@ -131,7 +136,7 @@ function clearCache() {
 }
 
 function focusJoint () {
-  let pos = P.getJointAbsPos(layout)(selectedJoint.nodeid)(selectedJoint.jointid).value0;
+  let pos = P.getJointAbsPos(L.layout)(L.selectedJoint.nodeid)(L.selectedJoint.jointid).value0;
   if(pos !== undefined){
     let {x, y, z} = v3(pos.coord);
     //camera.position.x = x+  60*Math.sin(pos.angle);
@@ -157,8 +162,8 @@ function loadModel(name){
 }
 
 function main(){
-  layout = P.defaultLayout;
-  document.onkeydown = onkey;
+  L.layout = P.defaultlayout;
+  document.onkeydown = ((e)=>L.onkey(e));
   document.getElementById("fakeinput").onkeydown = ()=>{return true;};
   document.getElementById("fakeinput").onchange = ()=>{document.getElementById("fakeinput").value=""};
   let onclickold = renderer.domElement.onclick;
@@ -172,7 +177,7 @@ function main(){
     , loadModel("313_T")
     , loadModel("312_Tc")
   ]).then(()=>{
-    load();
+    L.load(clearCache);
     tick();
   })
 }
@@ -187,10 +192,10 @@ function tick(){
   if(time.length > 120){
     time.shift();
   }
-  if(!stopped ) layout = P.layoutTick(layout);
-  layout = P.layoutUpdate(layout);
+  if(!L.stopped ) L.layout = P.layoutTick(L.layout);
+  L.layout = P.layoutUpdate(L.layout);
   if(tickcount % tickrate == 0){
-    draw(layout);
+    draw(L.layout);
   }
   requestAnimationFrame(tick);
 }
@@ -209,8 +214,8 @@ function onclick(e){
   const intersects = raycaster.intersectObjects(scene.children.filter(e => e.isJoint));
 
   if (intersects.length) {
-    selectedJoint.nodeid  = layout.rails.find((v) => v.instanceid == intersects[0].object.jointInfo.instanceid).node.nodeid;
-    selectedJoint.jointid = intersects[0].object.jointInfo.jointid;
+    L.selectedJoint.nodeid  = L.layout.rails.find((v) => v.instanceid == intersects[0].object.jointInfo.instanceid).node.nodeid;
+    L.selectedJoint.jointid = intersects[0].object.jointInfo.jointid;
   }
 }
 
@@ -276,7 +281,7 @@ function draw(layout){
   
   ldi.signals.forEach(s => s.forEach(({indication, pos, signal}) => {
       indication.forEach((color, i) => meshsignalmemo[signal.nodeid][signal.jointid][i].material = signalMaterials[color]);
-      meshsignalplatememo[signal.nodeid][signal.jointid].material = signal.manualStop ? signalPlateStoppedMaterial : signalPlateMaterial;
+      meshsignalplatememo[signal.nodeid][signal.jointid].material = signal.manualStop ? signalPlatestoppedMaterial : signalPlateMaterial;
     }));
   
   ldi.trains.forEach((di) => {
@@ -291,13 +296,13 @@ function draw(layout){
   existancememo_trains    .forEach((s, i) =>{if(s !== existancememo_trains_old[i] && scenememo.trains[i]!==undefined) scenememo.trains[i].objects.forEach(mesh => scene.add   (mesh))});
   existancememo_trains_old.forEach((s, i) =>{if(s !== existancememo_trains    [i] && trains_old      [i]!==undefined) trains_old      [i].objects.forEach(mesh => scene.remove(mesh))});
   
-  updateMeshSelectionMark(layout, selectedJoint);
+  updateMeshSelectionMark(layout, L.selectedJoint);
 
   renderer.render( scene, camera );
 
-  let p = P.getJointAbsPos(layout)(selectedJoint.nodeid)(selectedJoint.jointid).value0;
+  let p = P.getJointAbsPos(layout)(L.selectedJoint.nodeid)(L.selectedJoint.jointid).value0;
   if(p !== undefined){
-    document.getElementById("coord").innerText = coordStr(p.coord) + "   selected: " + selectedJoint.nodeid + "-" + selectedJoint.jointid + "    " + getfps().toFixed(0) + "fps" ;
+    document.getElementById("coord").innerText = C.coordStr(p.coord) + "   selected: " + L.selectedJoint.nodeid + "-" + L.selectedJoint.jointid + "    " + getfps().toFixed(0) + "fps" ;
   }
 }
 
@@ -328,12 +333,12 @@ function meshRailPart(part, index){
   let tmax = P.splitSize(part.shape);
   let points = [];
   for(let i=0;i<=tmax;i++){
-    let c = P.getDividingPoint_rel(part.shape.start)(part.shape.end)( RAILWIDTH/RAILLENGTH/2)(i/tmax*1.02 -0.01).coord;
+    let c = P.getDividingPoint_rel(part.shape.start)(part.shape.end)( C.RAILWIDTH/C.RAILLENGTH/2)(i/tmax*1.02 -0.01).coord;
     c.z += index * layerheight;
     points.push(new a3(c));
   }
   for(let i=0;i<=tmax;i++){
-    let c = P.getDividingPoint_rel(part.shape.start)(part.shape.end)(-RAILWIDTH/RAILLENGTH/2)(i/tmax*1.02 -0.01).coord;
+    let c = P.getDividingPoint_rel(part.shape.start)(part.shape.end)(-C.RAILWIDTH/C.RAILLENGTH/2)(i/tmax*1.02 -0.01).coord;
     c.z += index * layerheight;
     points.push(new a3(c));
   }
@@ -367,7 +372,7 @@ function meshRailPart(part, index){
 
 const jointColor = "#018";
 function meshJoint(p){
-    let w = RAILWIDTH/RAILLENGTH;
+    let w = C.RAILWIDTH/C.RAILLENGTH;
     let h = 0.1;
     let d = 0.0;
     let points = [
@@ -395,7 +400,7 @@ function meshJoint(p){
 
 let transparentButtonMaterial = new THREE.MeshBasicMaterial({visible: false, side: THREE.DoubleSide});
 function meshJointButton(p, instanceid, jointid){
-    let w = RAILWIDTH/RAILLENGTH;
+    let w = C.RAILWIDTH/C.RAILLENGTH;
     let h = 0.2;
     let d = -0.2;
     let points = [
@@ -425,7 +430,7 @@ const signalColors = ["#800", "#f80", "#ff0", "#8f0", "#0ea"];
 const signalMaterials = 
   signalColors.map (c => new THREE.MeshBasicMaterial({color: c, side: THREE.DoubleSide}));
 const signalPlateMaterial = new THREE.MeshBasicMaterial({color: "#222", side: THREE.DoubleSide});
-const signalPlateStoppedMaterial = new THREE.MeshBasicMaterial({color: "#a00", side: THREE.DoubleSide});
+const signalPlatestoppedMaterial = new THREE.MeshBasicMaterial({color: "#a00", side: THREE.DoubleSide});
 const invalidRouteMaterial = new THREE.MeshBasicMaterial({color: "#500", side: THREE.DoubleSide});
 
 function meshSignal(p, nodeid, jointid, routeid){
@@ -460,7 +465,7 @@ function meshSignal(p, nodeid, jointid, routeid){
     return mesh;
 }
 function meshSignalPlate(p, nodeid, jointid){
-    let w = RAILWIDTH/RAILLENGTH;
+    let w = C.RAILWIDTH/C.RAILLENGTH;
     let h = 0.2;
     let d = -0.2;
     let points = [
@@ -489,7 +494,7 @@ function meshSignalPlate(p, nodeid, jointid){
 }
 
 function meshInvalidRoute(p, nodeid, jointid){
-    let w = RAILWIDTH/RAILLENGTH;
+    let w = C.RAILWIDTH/C.RAILLENGTH;
     let h = 0.2;
     let d = -0.2;
     let points = [
@@ -519,12 +524,12 @@ function meshInvalidRoute(p, nodeid, jointid){
 
 const pierColor = "#dddd00";
 function meshsPier(p){
-  const pierWidth      = 9.5/RAILLENGTH;
-  const pierLength     = 2.0/RAILLENGTH;
-  const pierMarginH    = 0.1/HEIGHTUNIT;
-  const pierThicknessH = 1.0/HEIGHTUNIT;
-  const pierThicknessW = 1.0/RAILLENGTH;
-  const minipierThicknessW = 2.0/RAILLENGTH;
+  const pierWidth      = 9.5/C.RAILLENGTH;
+  const pierLength     = 2.0/C.RAILLENGTH;
+  const pierMarginH    = 0.1/C.HEIGHTUNIT;
+  const pierThicknessH = 1.0/C.HEIGHTUNIT;
+  const pierThicknessW = 1.0/C.RAILLENGTH;
+  const minipierThicknessW = 2.0/C.RAILLENGTH;
 
   let meshs = [];
   let vs = [];
@@ -717,3 +722,18 @@ function meshsTrain({cars, trainid, flipped}){
     , objects: meshtrainmemo[trainid]
   };
 }
+
+function download(){
+  d = document.createElement("a"); d.download="layout.json"; d.href=window.URL.createObjectURL(new Blob([localStorage.getItem("L.layout")], {"type":"application/json"})); d.click();
+}
+
+function upload(clearCache){
+  let files = document.getElementById("upload").files;
+  if(files.length > 0){
+    files[0].text().then(L.loadfrom.bind(null, clearCache));
+  }
+}
+
+
+
+main();

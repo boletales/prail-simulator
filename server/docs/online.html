@@ -1,0 +1,32 @@
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+  <div id="main"></div>
+  <div id="control">
+    <span id="coord"></span><br>
+    <input type="button" value="save" onclick="save();">
+    <input type="button" value="download" onclick="download();">
+    <input id="upload" type="file" accept=".json" onchange="upload();"><a href="2d.html">2D</a><br>
+    <input id="fakeinput" placeholder="fake input for smartphone">
+  </div>
+  <script src="control.js" type="module"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js" integrity="sha256-80RGv4dbX7Dc2TgZ/+HZ4YLUZjTuhV9dkExsSsfNvJU=" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/FBXLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/utils/BufferGeometryUtils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lil-gui@0.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fflate@0.7.4/umd/index.min.js"></script>
+  <script src="./3d.js" type="module"></script>
+  <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.6.0/dist/socket.io.min.js"></script>
+  <script type="module">
+    import * as _3D from "./3d.js";
+    _3D.L
+  </script>
+  <span id="coord"></span>
+</body>
+</html>

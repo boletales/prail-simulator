@@ -22,6 +22,16 @@
   <script src="https://cdn.jsdelivr.net/npm/lil-gui@0.17"></script>
   <script src="https://cdn.jsdelivr.net/npm/fflate@0.7.4/umd/index.min.js"></script>
   <script src="./3d.js" type="module"></script>
+  <script type="module">
+    import {upload, download, L} from "./3d.js";
+    window.upload = upload;
+    window.download = download;
+    window.L = L;
+    window.save = L.save;
+    L.keycontrols.signal.keys.editRailNote.onkey  = ()=>{let note = prompt("線路に注釈を付けます"); L.editRailNote (note);};
+    L.keycontrols.signal.keys.editTrainNote.onkey = ()=>{let note = prompt("列車に注釈を付けます"); L.editTrainNote(note);};
+    L.refreshKeybinds();
+  </script>
   <span id="coord"></span>
 </body>
 </html>

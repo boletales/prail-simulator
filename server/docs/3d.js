@@ -1,5 +1,6 @@
 import * as C from "./control.js";
 import * as P from "./main.js";
+import SpriteText from 'https://cdn.jsdelivr.net/npm/three-spritetext@1.8.0/+esm';
 
 function v3(v){
   return new THREE.Vector3(-v.x*C.RAILLENGTH, v.z*C.HEIGHTUNIT ,v.y*C.RAILLENGTH);
@@ -89,6 +90,11 @@ let staticmeshmemo = [];
 let meshsignalmemo = [];
 let meshsignalplatememo = [];
 let meshinvalidroutememo = [];
+let trainnotestrmemo = [];
+let railnotestrmemo = [];
+let trainflipmemo = [];
+let trainnotespritememo = [];
+let railnotespritememo = [];
 function mergeMeshData(mds){
   return mds.reduce((d, e)=>{
     Object.keys(e.geometry).forEach(c=>{
@@ -123,6 +129,8 @@ function clearCache() {
   meshsignalplatememo.forEach(ms => ms.forEach(m => {scene.remove(m); m.geometry.dispose()}));
   meshinvalidroutememo.forEach(ms => ms.forEach(m => {scene.remove(m); m.geometry.dispose()}));
   meshtrainmemo.forEach(t => t.forEach(c => {scene.remove(c);}));
+  railnotespritememo.forEach(x=>x.forEach(o=>scene.remove(o)));
+  trainnotespritememo.forEach(o=>scene.remove(o));
   meshrailmemo = [];
   geometryrailmemo = [];
   meshtrainmemo = [];
@@ -131,6 +139,11 @@ function clearCache() {
   meshsignalmemo = [];
   meshsignalplatememo = [];
   meshinvalidroutememo = [];
+  trainnotestrmemo = [];
+  railnotestrmemo = [];
+  trainnotespritememo = [];
+  railnotespritememo = [];
+  trainflipmemo = [];
   scenememo = {rails:[], trains: []};
   lastupdate = -1;
 }
@@ -214,7 +227,7 @@ function onclick(e){
   const intersects = raycaster.intersectObjects(scene.children.filter(e => e.isJoint));
 
   if (intersects.length) {
-    L.selectedJoint.nodeid  = L.layout.rails.find((v) => v.instanceid == intersects[0].object.jointInfo.instanceid).node.nodeid;
+    L.selectedJoint.nodeid  = L.layout.rails.find((v) => v.instanceid == intersects[0].object.jointInfo.instanceid).nodeid;
     L.selectedJoint.jointid = intersects[0].object.jointInfo.jointid;
   }
 }
@@ -238,7 +251,7 @@ function draw(layout){
     staticgeometrymemo.forEach(g => {g.dispose(); });
     staticgeometrymemo = [];
     let railexists = Array(layout.instancecount).fill(false);
-    layout.rails.forEach(r=>railexists[r.node.nodeid] = true);
+    layout.rails.forEach(r=>railexists[r.nodeid] = true);
     railexists.forEach((e,i) => {if(!e && meshrailmemo[i] !== undefined) meshrailmemo[i].forEach(d => {
       Object.keys(d.geometry).forEach(c => d.geometry[c].forEach(g => g.dispose()));
       d.mesh.forEach(m => m.geometry.dispose());
@@ -281,11 +294,25 @@ function draw(layout){
   
   ldi.signals.forEach(s => s.forEach(({indication, pos, signal}) => {
       indication.forEach((color, i) => meshsignalmemo[signal.nodeid][signal.jointid][i].material = signalMaterials[color]);
-      meshsignalplatememo[signal.nodeid][signal.jointid].material = signal.manualStop ? signalPlatestoppedMaterial : signalPlateMaterial;
+      meshsignalplatememo[signal.nodeid][signal.jointid].material = signal.manualStop ? signalPlateStoppedMaterial : signalPlateMaterial;
     }));
   
+  ldi.rails.forEach((di) => {
+    if(railnotestrmemo[di.instance.instanceid] !== di.instance.note){
+      updateRailNote(di);
+      railnotestrmemo[di.instance.instanceid] = di.instance.note;
+    }
+  });
   ldi.trains.forEach((di) => {
     scenememo.trains[di.trainid] = meshsTrain(di);
+    if(railnotestrmemo[di.trainid] !== di.note){
+      updateTrainNote(di);
+      railnotestrmemo[di.trainid] = di.note;
+    }
+    if(trainflipmemo[di.trainid] != di.flipped){
+      updateTrainNote(di);
+      trainflipmemo[di.trainid] = di.flipped;
+    }
   });
   trains_old.forEach(r => {
     existancememo_trains_old[r.trainid] = true;
@@ -306,9 +333,50 @@ function draw(layout){
   }
 }
 
+
+function updateRailNote(drawinfo){
+  if(railnotespritememo[drawinfo.instance.instanceid] !== undefined){
+    railnotespritememo[drawinfo.instance.instanceid].forEach(o=>scene.remove(o));
+  }
+  if(drawinfo.instance.note != ""){
+    let rail = L.layout.rails.find(r=>r.instanceid == drawinfo.instance.instanceid);
+    if(rail ==undefined) return;
+
+    let center = drawinfo.joints.map(j=>a3(j.coord)).reduce((a,c) => [a[0]+c[0], a[1]+c[1], a[2]+c[2]], [0,0,0]).map(x => x/drawinfo.joints.length);
+
+    let sprite = new SpriteText(drawinfo.instance.note, 10, "#fff");
+    sprite.strokeWidth = 1;
+    sprite.strokeColor = "#000";
+    sprite.material.opacity = 0.5;
+    scene.add(sprite);
+    let cone = meshNote(center);
+    scene.add(cone);
+    sprite.position.set(center[0], center[1]+20, center[2]);
+    railnotespritememo[drawinfo.instance.instanceid] = [sprite, cone];
+  }
+}
+
+function updateTrainNote(drawinfo){
+  let mesh = meshtrainmemo[drawinfo.trainid][drawinfo.flipped ? drawinfo.cars.length-1 : 0];
+  if(mesh !== undefined){
+    if(trainnotespritememo[drawinfo.trainid] !== undefined){
+      meshtrainmemo[drawinfo.trainid].forEach(m => m.remove(trainnotespritememo[drawinfo.trainid]));
+    }
+    if(drawinfo.note != ""){
+      let sprite = new SpriteText(drawinfo.note, 5, "#fff");
+      sprite.strokeWidth = 1;
+      sprite.strokeColor = "#000";
+      sprite.material.opacity = 0.5;
+      sprite.position.set(0, 10, 0);
+      mesh.add(sprite);
+      trainnotespritememo[drawinfo.trainid] = sprite;
+    }
+  }
+}
+
 function updateRailGeometory({rails : rails, additionals: additionals, joints : joints, instance: instance}){
   let instanceid = instance.instanceid;
-  let state = instance.node.state;
+  let state = instance.state;
   if(meshrailmemo.length <= instanceid){
     for(let i=meshrailmemo.length-1; i<=instanceid; i++) meshrailmemo.push([]);
   }
@@ -430,9 +498,29 @@ const signalColors = ["#800", "#f80", "#ff0", "#8f0", "#0ea"];
 const signalMaterials = 
   signalColors.map (c => new THREE.MeshBasicMaterial({color: c, side: THREE.DoubleSide}));
 const signalPlateMaterial = new THREE.MeshBasicMaterial({color: "#222", side: THREE.DoubleSide});
-const signalPlatestoppedMaterial = new THREE.MeshBasicMaterial({color: "#a00", side: THREE.DoubleSide});
+const signalPlateStoppedMaterial = new THREE.MeshBasicMaterial({color: "#a00", side: THREE.DoubleSide});
 const invalidRouteMaterial = new THREE.MeshBasicMaterial({color: "#500", side: THREE.DoubleSide});
+const notePlateMaterial = new THREE.MeshBasicMaterial({color: "#fff", side: THREE.DoubleSide, opacity: 0.5, transparent:true});
 
+
+function meshNote(realcoord){
+  let w = C.RAILWIDTH;
+  let edges = 8;
+  let px = [realcoord[0], realcoord[1] +  5, realcoord[2]];
+  let points = Array(edges).fill(null).map((c,i) =>
+    [realcoord[0] + Math.cos(Math.PI*2/edges*i)*(w/3), realcoord[1] + 10, realcoord[2] +  Math.sin(Math.PI*2/edges*i)*(w/3)]
+  ).concat([px]);
+
+  let geometry = new THREE.BufferGeometry();
+  let faces = Array(edges).fill(null).map((c,i) => [edges, (i+0)%edges, (i+1)%edges]);
+  let vertices = new Float32Array(faces.flatMap(f => f.flatMap(i => points[i])).flat());
+  geometry.setAttribute('position',new THREE.BufferAttribute(vertices,3));
+  geometry.computeVertexNormals();
+
+  let mesh = new THREE.Mesh(geometry, notePlateMaterial);
+
+  return mesh;
+}
 function meshSignal(p, nodeid, jointid, routeid){
     let w = 0.03;
     let h = 0.2;
@@ -723,14 +811,14 @@ function meshsTrain({cars, trainid, flipped}){
   };
 }
 
-function download(){
+export function download(){
   d = document.createElement("a"); d.download="layout.json"; d.href=window.URL.createObjectURL(new Blob([localStorage.getItem("L.layout")], {"type":"application/json"})); d.click();
 }
 
-function upload(clearCache){
+export function upload(){
   let files = document.getElementById("upload").files;
   if(files.length > 0){
-    files[0].text().then(L.loadfrom.bind(null, clearCache));
+    files[0].text().then(L.loadfrom.bind(L, clearCache));
   }
 }
 

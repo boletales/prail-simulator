@@ -117,7 +117,11 @@ function mergeMeshData(mds){
 let lastupdate = -1;
 let scenememo = {rails: [], trains: []};
 
-function clearCache() {
+export function forceUpdateModel(){
+  lastupdate = -1;
+}
+
+export function clearCache() {
   meshrailmemo.forEach(r => r.forEach(x => {
     Object.keys(x.geometry).forEach(c => x.geometry[c].forEach(g => {g.dispose();}));
     Object.keys(x.geometryshadow).forEach(c => x.geometryshadow[c].forEach(g => {g.dispose();}));
@@ -175,7 +179,7 @@ function loadModel(name){
 }
 
 function main(){
-  L.layout = P.defaultlayout;
+  L.layout = P.defaultLayout;
   document.onkeydown = ((e)=>L.onkey(e));
   document.getElementById("fakeinput").onkeydown = ()=>{return true;};
   document.getElementById("fakeinput").onchange = ()=>{document.getElementById("fakeinput").value=""};

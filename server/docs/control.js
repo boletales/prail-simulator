@@ -7,7 +7,7 @@ class Layout {
   constructor(){
     this.stopped = false;
     this.layout  = P.defaultLayout;
-    this.selectJoint = {nodeid:0, jointid:1};
+    this.selectedJoint = {nodeid:0, jointid:1};
     this.from = 0;
     this.savetimer = 0;
     this.savecooldown = 2000;
@@ -490,7 +490,7 @@ class Layout {
     if(signal === undefined) return;
     let routeid = signal.routecond.findIndex(e => e);
     if(routeid === -1) routeid = -2;
-    this.layout = P.tryOpenRouteFor_ffi(this.layout)(this.selectedJoint.nodeid)(this.selectedJoint.jointid)((routeid + signal.indication.length + 1) % signal.indication.length).this.layout
+    this.layout = P.tryOpenRouteFor_ffi(this.layout)(this.selectedJoint.nodeid)(this.selectedJoint.jointid)((routeid + signal.indication.length + 1) % signal.indication.length).layout
   }
   
   openRouteR(){
@@ -498,7 +498,7 @@ class Layout {
     if(signal === undefined) return;
     let routeid = signal.routecond.findIndex(e => e);
     if(routeid === -1) routeid = 1;
-    this.layout = P.tryOpenRouteFor_ffi(this.layout)(this.selectedJoint.nodeid)(this.selectedJoint.jointid)((routeid + signal.indication.length - 1) % signal.indication.length).this.layout
+    this.layout = P.tryOpenRouteFor_ffi(this.layout)(this.selectedJoint.nodeid)(this.selectedJoint.jointid)((routeid + signal.indication.length - 1) % signal.indication.length).layout
   }
   
   addTrain(){

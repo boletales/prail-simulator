@@ -21,16 +21,30 @@
   <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/utils/BufferGeometryUtils.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lil-gui@0.17"></script>
   <script src="https://cdn.jsdelivr.net/npm/fflate@0.7.4/umd/index.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/socket.io@4.6.1/client-dist/socket.io.min.js"></script>
   <script src="./3d.js" type="module"></script>
   <script type="module">
-    import {upload, download, L} from "./3d.js";
+    import {upload, download, L, clearCache, forceUpdateModel} from "./3d.js";
     window.upload = upload;
     window.download = download;
     window.L = L;
     window.save = L.save;
-    L.keycontrols.signal.keys.editRailNote.onkey  = ()=>{let note = prompt("線路に注釈を付けます"); L.editRailNote (note);};
-    L.keycontrols.signal.keys.editTrainNote.onkey = ()=>{let note = prompt("列車に注釈を付けます"); L.editTrainNote(note);};
+
+    let socket = io.connect();
+    socket.on("sync",data=>{
+      let selectedJoint = L.selectedJoint;
+      L.loadfrom(()=>(forceUpdateModel()), fflate.strFromU8(fflate.decompressSync(Uint8Array.from(Array.prototype.map.call(atob(data.compressed), (x) => x.charCodeAt(0))))))
+      L.selectedJoint = selectedJoint;
+    });
+    socket.on("selectedJoint",data=>{
+      L.selectedJoint = data.selectedJoint;
+    });
+    document.onkeydown = ((e)=>{let selectedJoint={}; Object.assign(selectedJoint, L.selectedJoint); L.onkey(e); socket.emit("key", {"key" : e.key, "note":L.note, "selectedJoint":selectedJoint})});
+    L.keycontrols.signal.keys.editRailNote.onkey  = ()=>{let note = prompt("線路に注釈を付けます"); L.editRailNote (note); L.note=note;};
+    L.keycontrols.signal.keys.editTrainNote.onkey = ()=>{let note = prompt("列車に注釈を付けます"); L.editTrainNote(note); L.note=note;};
     L.refreshKeybinds();
+
+    clearCache();
   </script>
   <span id="coord"></span>
 </body>

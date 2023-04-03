@@ -33,28 +33,33 @@ app.use(express.static('docs'));
 io.on('connection',function(socket){
     socket.join("all");
 
-    socket.emit("sync", {compressed: Buffer.from(fflate.compressSync(new Uint8Array(Buffer.from(JSON.stringify(P.encodeLayout(L.layout)))))).toString('base64')});
+    socket.emit("sync", {compressed: Buffer.from(fflate.compressSync(new Uint8Array(Buffer.from(JSON.stringify(P.encodeLayout(L.layout)))))).toString('base64'), clearCache: true});
 
     socket.on("key",data=>{
       note = data.note;
       L.selectedJoint = data.selectedJoint;
       L.onkey(data);
-      sync();
+      sync(false);
       socket.emit("selectedJoint", {selectedJoint: L.selectedJoint})
+    });
+
+    socket.on("upload",data=>{
+      L.loadfrom(()=>null, data.payload);
+      sync(true);
     });
 
     socket.on('disconnect',data=>{});
 });
 
-function sync(){
-  console.log("sync " + L.layout.updatecount);
+function sync(clearCache){
+  //console.log("sync " + L.layout.updatecount);
   count = 0;
   let data = JSON.stringify(P.encodeLayout(L.layout));
-  io.emit("sync", {compressed: Buffer.from(fflate.compressSync(new Uint8Array(Buffer.from(JSON.stringify(P.encodeLayout(L.layout)))))).toString('base64')});
+  io.emit("sync", {compressed: Buffer.from(fflate.compressSync(new Uint8Array(Buffer.from(data)))).toString('base64'), clearCache: clearCache});
   fs.writeFileSync("./data.json", data)
 }
 
-http.listen(process.env.PORT || 8086);
+http.listen(process.env.PORT || 8080);
 console.log('It works!!');
 
 let count = 0;

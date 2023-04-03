@@ -24,7 +24,7 @@
   <script src="https://cdn.jsdelivr.net/npm/socket.io@4.6.1/client-dist/socket.io.min.js"></script>
   <script src="./3d.js" type="module"></script>
   <script type="module">
-    import {upload, download, L, clearCache, forceUpdateModel} from "./3d.js";
+    import {download, L, clearCache, forceUpdateModel} from "./3d.js";
     window.upload = upload;
     window.download = download;
     window.L = L;
@@ -33,7 +33,7 @@
     let socket = io.connect();
     socket.on("sync",data=>{
       let selectedJoint = L.selectedJoint;
-      L.loadfrom(()=>(forceUpdateModel()), fflate.strFromU8(fflate.decompressSync(Uint8Array.from(Array.prototype.map.call(atob(data.compressed), (x) => x.charCodeAt(0))))))
+      L.loadfrom(()=>(data.clearCache ? clearCache() : forceUpdateModel()), fflate.strFromU8(fflate.decompressSync(Uint8Array.from(Array.prototype.map.call(atob(data.compressed), (x) => x.charCodeAt(0))))))
       L.selectedJoint = selectedJoint;
     });
     socket.on("selectedJoint",data=>{
@@ -45,6 +45,13 @@
     L.refreshKeybinds();
 
     clearCache();
+
+    function upload(){
+      let files = document.getElementById("upload").files;
+      if(files.length > 0){
+        files[0].text().then(t => socket.emit("upload", {payload: t}));
+      }
+    }
   </script>
   <span id="coord"></span>
 </body>

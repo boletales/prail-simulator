@@ -452,7 +452,7 @@ class Layout {
   flipRail(){
     if(this.layout.rails.length>1){
       r = this.layout.rails[this.selectedJoint.nodeid];
-      if(r.connections[0] !== undefined){
+      if(r !== undefined && r.connections[0] !== undefined){
         this.layout = P.autoAdd(P.removeRail(this.layout)(this.selectedJoint.nodeid))(r.connections[0].nodeid)(r.connections[0].jointid)(P.flipRail(r.rail))(r.connections[0].from);
         this.selectNewestRail(this.layout);
         this.selectedJoint.jointid = (this.from+1) % this.layout.rails[this.selectedJoint.nodeid].rail.getJoints.length;
@@ -464,7 +464,7 @@ class Layout {
   rotateRail(){
     if(this.layout.rails.length>1){
       r = this.layout.rails[this.selectedJoint.nodeid];
-      if(r.connections[0] !== undefined){
+      if(r !== undefined && r.connections[0] !== undefined){
         this.layout = P.autoAdd(P.removeRail(this.layout)(this.selectedJoint.nodeid))(r.connections[0].nodeid)(r.connections[0].jointid)(r.rail)((r.connections[0].from + 1) % r.rail.getJoints.length);
         this.selectNewestRail(this.layout);
         this.selectedJoint.jointid = (this.from+1) % this.layout.rails[this.selectedJoint.nodeid].rail.getJoints.length;
@@ -482,40 +482,52 @@ class Layout {
   }
   
   manualStop(){
-    this.layout.rails[this.selectedJoint.nodeid].signals.forEach(e => {if(e.jointid == this.selectedJoint.jointid) e.manualStop = !e.manualStop});
+    if(this.layout.rails[this.selectedJoint.nodeid] !== undefined){
+      this.layout.rails[this.selectedJoint.nodeid].signals.forEach(e => {if(e.jointid == this.selectedJoint.jointid) e.manualStop = !e.manualStop});
+    }
   }
   
   openRouteL(){
-    let signal = this.layout.rails[this.selectedJoint.nodeid].signals.find(e => e.jointid == this.selectedJoint.jointid);
-    if(signal === undefined) return;
-    let routeid = signal.routecond.findIndex(e => e);
-    if(routeid === -1) routeid = -2;
-    this.layout = P.tryOpenRouteFor_ffi(this.layout)(this.selectedJoint.nodeid)(this.selectedJoint.jointid)((routeid + signal.indication.length + 1) % signal.indication.length).layout
+    if(this.layout.rails[this.selectedJoint.nodeid] !== undefined){
+      let signal = this.layout.rails[this.selectedJoint.nodeid].signals.find(e => e.jointid == this.selectedJoint.jointid);
+      if(signal === undefined) return;
+      let routeid = signal.routecond.findIndex(e => e);
+      if(routeid === -1) routeid = -2;
+      this.layout = P.tryOpenRouteFor_ffi(this.layout)(this.selectedJoint.nodeid)(this.selectedJoint.jointid)((routeid + signal.indication.length + 1) % signal.indication.length).layout
+    }
   }
   
   openRouteR(){
-    let signal = this.layout.rails[this.selectedJoint.nodeid].signals.find(e => e.jointid == this.selectedJoint.jointid);
-    if(signal === undefined) return;
-    let routeid = signal.routecond.findIndex(e => e);
-    if(routeid === -1) routeid = 1;
-    this.layout = P.tryOpenRouteFor_ffi(this.layout)(this.selectedJoint.nodeid)(this.selectedJoint.jointid)((routeid + signal.indication.length - 1) % signal.indication.length).layout
+    if(this.layout.rails[this.selectedJoint.nodeid] !== undefined){
+      let signal = this.layout.rails[this.selectedJoint.nodeid].signals.find(e => e.jointid == this.selectedJoint.jointid);
+      if(signal === undefined) return;
+      let routeid = signal.routecond.findIndex(e => e);
+      if(routeid === -1) routeid = 1;
+      this.layout = P.tryOpenRouteFor_ffi(this.layout)(this.selectedJoint.nodeid)(this.selectedJoint.jointid)((routeid + signal.indication.length - 1) % signal.indication.length).layout
+    }
   }
   
   addTrain(){
-    this.layout = P.addTrainset(this.layout)(this.selectedJoint.nodeid)(this.selectedJoint.jointid)([{type:"313_Mc", flipped:false}, {type:"313_T", flipped:false}, {type:"312_Tc", flipped:false}]);
-    this.layout.trains[this.layout.trains.length -1].realAcceralation=true;
-    this.layout.trains[this.layout.trains.length -1].respectSignals=true;
-    this.layout.trains[this.layout.trains.length -1].notch=5;
+    if(this.layout.rails[this.selectedJoint.nodeid] !== undefined){
+      this.layout = P.addTrainset(this.layout)(this.selectedJoint.nodeid)(this.selectedJoint.jointid)([{type:"313_Mc", flipped:false}, {type:"313_T", flipped:false}, {type:"312_Tc", flipped:false}]);
+      this.layout.trains[this.layout.trains.length -1].realAcceralation=true;
+      this.layout.trains[this.layout.trains.length -1].respectSignals=true;
+      this.layout.trains[this.layout.trains.length -1].notch=5;
+    }
   }
   
   flipTrain(){
-    let tis = this.layout.traffic[this.selectedJoint.nodeid].flat();
-    this.layout.trains = this.layout.trains.map(c => tis.includes(c.trainid) ? P.flipTrain(c) : c);
+    if(this.layout.traffic[this.selectedJoint.nodeid] !== undefined){
+      let tis = this.layout.traffic[this.selectedJoint.nodeid].flat();
+      this.layout.trains = this.layout.trains.map(c => tis.includes(c.trainid) ? P.flipTrain(c) : c);
+    }
   }
   
   removeTrain(){
-    let tis = this.layout.traffic[this.selectedJoint.nodeid].flat();
-    this.layout.trains = this.layout.trains.filter(c => !tis.includes(c.trainid));
+    if(this.layout.traffic[this.selectedJoint.nodeid] !== undefined){
+      let tis = this.layout.traffic[this.selectedJoint.nodeid].flat();
+      this.layout.trains = this.layout.trains.filter(c => !tis.includes(c.trainid));
+    }
   }
   
   editRailNote(note){
@@ -525,9 +537,11 @@ class Layout {
     }
   }
   editTrainNote(note){
-    this.requestSave();
-    let tis = this.layout.traffic[this.selectedJoint.nodeid].flat();
-    this.layout.trains.filter(c => tis.includes(c.trainid)).forEach(c => {c.note = note;});
+    if(this.layout.traffic[this.selectedJoint.nodeid] !== undefined){
+      let tis = this.layout.traffic[this.selectedJoint.nodeid].flat();
+      this.layout.trains.filter(c => tis.includes(c.trainid)).forEach(c => {c.note = note;});
+      this.requestSave();
+    }
   }
   
   onkey(e){

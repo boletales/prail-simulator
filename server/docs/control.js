@@ -550,6 +550,7 @@ class Layout {
       this.keybinds[e.key]();
     }
   }
+  
   requestSave(){
     let time = new Date().getTime();
     this.savetimer = time;

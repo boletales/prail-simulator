@@ -28,9 +28,20 @@
     window.download = download;
     window.L = L;
     window.save = L.save;
-    L.keycontrols.signal.keys.editRailNote.onkey  = ()=>{let note = prompt("線路に注釈を付けます"); L.editRailNote (note);};
-    L.keycontrols.signal.keys.editTrainNote.onkey = ()=>{let note = prompt("列車に注釈を付けます"); L.editTrainNote(note);};
+    L.keycontrols.signal.keys.editRailNote.onkey  = ()=>{let note = prompt("線路に注釈を付けます（なにもしなければ注釈削除）"); L.editRailNote (note);};
+    L.keycontrols.signal.keys.editTrainNote.onkey = ()=>{let note = prompt("列車に注釈を付けます（なにもしなければ注釈削除）"); L.editTrainNote(note);};
     L.refreshKeybinds();
+
+    const GUI = new lil.GUI();
+    Object.values(L.keycontrols).forEach(category => {
+      let folder = GUI.addFolder(category.name);
+      Object.values(category.keys).forEach(key => {
+        folder.add(key, "onkey").name(key.softkey + " : " + key.text_ja);
+        folder.close();
+      });
+    });
+    GUI.folders[0].open();
+    GUI.folders[2].open();
   </script>
   <span id="coord"></span>
 </body>

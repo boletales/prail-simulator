@@ -10,19 +10,7 @@ function a3(v){
   return [-v.x*C.RAILLENGTH, v.z*C.HEIGHTUNIT ,v.y*C.RAILLENGTH];
 }
 
-const GUI = new lil.GUI();
-
 export let L = new C.Layout();
-
-Object.values(L.keycontrols).forEach(category => {
-  let folder = GUI.addFolder(category.name);
-  Object.values(category.keys).forEach(key => {
-    folder.add(key, "onkey").name(key.softkey + " : " + key.text_ja);
-    folder.close();
-  });
-});
-GUI.folders[0].open();
-GUI.folders[2].open();
 
 const width = window.screen.availWidth   -20;
 const height = window.screen.availHeight -250;

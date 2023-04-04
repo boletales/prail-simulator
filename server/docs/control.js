@@ -451,7 +451,7 @@ class Layout {
   
   flipRail(){
     if(this.layout.rails.length>1){
-      r = this.layout.rails[this.selectedJoint.nodeid];
+      let r = this.layout.rails[this.selectedJoint.nodeid];
       if(r !== undefined && r.connections[0] !== undefined){
         this.layout = P.autoAdd(P.removeRail(this.layout)(this.selectedJoint.nodeid))(r.connections[0].nodeid)(r.connections[0].jointid)(P.flipRail(r.rail))(r.connections[0].from);
         this.selectNewestRail(this.layout);
@@ -463,7 +463,7 @@ class Layout {
   
   rotateRail(){
     if(this.layout.rails.length>1){
-      r = this.layout.rails[this.selectedJoint.nodeid];
+      let r = this.layout.rails[this.selectedJoint.nodeid];
       if(r !== undefined && r.connections[0] !== undefined){
         this.layout = P.autoAdd(P.removeRail(this.layout)(this.selectedJoint.nodeid))(r.connections[0].nodeid)(r.connections[0].jointid)(r.rail)((r.connections[0].from + 1) % r.rail.getJoints.length);
         this.selectNewestRail(this.layout);

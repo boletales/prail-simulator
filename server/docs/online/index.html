@@ -25,10 +25,13 @@
   <script src="../3d.js" type="module"></script>
   <script type="module">
     import {download, L, clearCache, forceUpdateModel} from "../3d.js";
+    import * as P from "../main.js";
+    window.P = P;
+
     window.upload = upload;
     window.download = download;
     window.L = L;
-    window.save = L.save;
+    window.save = ()=>{L.save()};
 
     let socket = io.connect();
     socket.on("sync",data=>{

@@ -508,6 +508,7 @@ speedScale = 3.0 / 120.0
 trainTick :: Layout -> Trainset -> Number -> {newlayout :: Layout, newtrainset :: Trainset}
 trainTick (Layout layout) (Trainset t0) dt =
   let nextsignal = getNextSignal (Layout layout) (Trainset t0)
+      {-
       {reservedlayout, reserved} = fromMaybe {reservedlayout :(Layout layout), reserved : t0.reserved} $ do
             (Signal s) <- nextsignal.signal
             if any (\r -> r.nodeid == s.nodeid && r.jointid == s.jointid) t0.reserved then Nothing else pure unit
@@ -515,11 +516,12 @@ trainTick (Layout layout) (Trainset t0) dt =
             l' <- tryOpenRouteFor (Layout layout) p.nodeid p.jointid p.routeid
             l'' <- unlockManualStop l'.layout p.nodeid p.jointid
             pure {reservedlayout : l'', reserved : t0.reserved <> [{nodeid : p.nodeid, jointid : p.jointid, routeid : p.routeid, reserveid: l'.reserveid}]}
+      -}
       
       reverseOn = maybe false (\(Signal s) -> any (\r -> r.nodeid == s.nodeid && r.jointid == s.jointid) t0.reverseOn) nextsignal.signal 
 
       (Trainset t1) = (if t0.speed == 0.0 && reverseOn then flipTrain else identity) 
-                        $ Trainset $ t0 {signalRestriction = max t0.signalRestriction (maybe (speedScale * 15.0) signalToSpeed nextsignal.signal), reserved = reserved}
+                        $ Trainset $ t0 {signalRestriction = max t0.signalRestriction (maybe (speedScale * 15.0) signalToSpeed nextsignal.signal){-, reserved = reserved-}}
       notch = if t0.respectSignals
                 then if t0.signalRestriction < t0.speed || brakePatternCheck t0.speed nextsignal reverseOn
                       then -8
@@ -532,15 +534,15 @@ trainTick (Layout layout) (Trainset t0) dt =
             then acceralate (Trainset t1) notch dt
             else (Trainset t1)
   
-  in movefoward reservedlayout (Trainset t2) dt
+  in movefoward (Layout layout) (Trainset t2) dt
  
 indicationToSpeed ∷ Int → Number
 indicationToSpeed i =
   case i of
     0 ->   0.0 * speedScale
-    1 ->  25.0 * speedScale
+    1 ->  15.0 * speedScale
     2 ->  45.0 * speedScale
-    3 ->  65.0 * speedScale
+    3 ->  80.0 * speedScale
     4 -> 120.0 * speedScale
     _ -> 120.0 * speedScale
 
@@ -679,6 +681,7 @@ layoutUpdate = updateTraffic >>> updateSignalIndication
 
 newtype SignalRoute = SignalRoute {
       rails :: Array {nodeid :: Int, jointenter :: IntJoint, jointexit :: IntJoint}
+    , length :: Number
     , nextsignal :: {nodeid :: Int, jointid :: IntJoint}
     , isSimple :: Boolean
   }
@@ -737,14 +740,14 @@ updateSignalIndication (Layout layout) =
         map (\(RailNode ri) -> {rail :ri, signals :map (\(Signal signal) ->{
             signal : (Signal signal),
             routes : map (\(SignalRoute route) ->
-                      let routecond = all (\{nodeid, jointenter, jointexit} -> maybe false (\(RailNode ri) ->
+                      let routecond = all (\{nodeid, jointenter, jointexit} -> maybe false (\(RailNode ri) -> -- 進路が開通している
                                     let rail = (unwrap ri.rail)
                                         state = (ri.state)
                                         nr = rail.getNewState jointenter state
 
                                     in  nr.newjoint == jointexit && rail.isLegal jointenter state
                                   ) (layout.rails !! nodeid) ) route.rails
-                          clearcond = all (\{nodeid, jointenter, jointexit} -> maybe false (\(RailNode ri) ->
+                          clearcond = all (\{nodeid, jointenter, jointexit} -> maybe false (\(RailNode ri) -> --進路内に他の列車がいない
                                     let rail = (unwrap ri.rail)
                                         state = (ri.state)
                                         nr = rail.getNewState jointenter state
@@ -759,26 +762,26 @@ updateSignalIndication (Layout layout) =
                                             Nothing -> false
                                   ) (layout.rails !! nodeid) ) route.rails
                           cond = if routecond && clearcond
-                              then
-                                case last (route.rails) of
-                                  Just {nodeid, jointenter, jointexit} ->
-                                    let go nid jid =
-                                          case layout.rails !! nid of
-                                            Nothing -> true
-                                            Just ri ->
-                                              if (unwrap (unwrap ri).rail).isSimple
-                                              then
-                                                let jidexit = (getRouteInfo ri jid).newjoint
-                                                in  case length <$> ((_ !! (unwrap jidexit)) =<< (layout.traffic !! nid)) of
-                                                      Just 0  -> 
-                                                        case find (\c -> c.from == jidexit) $ (unwrap ri).connections of
-                                                          Nothing -> true
-                                                          Just {nodeid, jointid} -> go nodeid jointid
-                                                      _       -> false
-                                              else true
-                                    in  go nodeid jointenter
-                                  Nothing -> false
-                              else false
+                                  then -- 単線部で、信号の先に対向列車がいない
+                                    case last (route.rails) of
+                                      Just {nodeid, jointenter, jointexit} ->
+                                        let go nid jid =
+                                              case layout.rails !! nid of
+                                                Nothing -> false -- 該当する線路がなかったら（こんなことにはならないと思うが）赤
+                                                Just ri ->
+                                                  if (unwrap (unwrap ri).rail).isSimple
+                                                  then
+                                                    let jidexit = (getRouteInfo ri jid).newjoint
+                                                    in  case length <$> ((_ !! (unwrap jidexit)) =<< (layout.traffic !! nid)) of
+                                                          Just 0  -> 
+                                                            case find (\c -> c.from == jidexit) $ (unwrap ri).connections of
+                                                              Nothing -> true -- 線路がここで終わっていたら探索終了
+                                                              Just {nodeid, jointid} -> go nodeid jointid
+                                                          _       -> false -- 対向列車がいたら赤
+                                                  else true -- 進路がシンプルでなかったらなんとかなるであろう！（楽観）
+                                        in  go nodeid jointenter
+                                      Nothing -> false -- 進路の長さが0なら赤
+                                  else false -- 進路未開通か占有済みなら赤
                 in {
                   route: (SignalRoute route),
                   routecond : routecond,
@@ -797,19 +800,19 @@ updateSignalIndication (Layout layout) =
               indication =
                 map (\d ->
                   if d.cond then
-                    let go n {nodeid, jointid} =
-                          if n >= length (unwrap bd.signal).colors then signalClear
+                    let go len {nodeid, jointid} =
+                          if len >= brakePattern (indicationToSpeed signalClear) 0.0 then (Just signalClear)
                           else
                             case (filtered !! nodeid) >>= (find (\bd -> (unwrap bd.signal).jointid == jointid)) of
                               Just bd' ->
                                 case head bd'.routes of
                                   Just d ->
-                                    if d.cond && (not d.manualStop || n == 0)
-                                    then go (n+1) ((unwrap d.route).nextsignal)
-                                    else fromMaybe signalClear ((unwrap bd.signal).colors !! n)
-                                  Nothing -> fromMaybe signalClear ((unwrap bd.signal).colors !! n)
-                              Nothing -> fromMaybe signalClear ((unwrap bd.signal).colors !! n)
-                    in go 0 {nodeid : (unwrap bd.signal).nodeid, jointid : (unwrap bd.signal).jointid}
+                                    if d.cond && (not d.manualStop || len == 0.0)
+                                    then go (len + (unwrap d.route).length) ((unwrap d.route).nextsignal)
+                                    else     maximum $ filter (\color -> len >= brakePattern (indicationToSpeed color) 0.0) (unwrap bd.signal).colors
+                                  Nothing -> maximum $ filter (\color -> len >= brakePattern (indicationToSpeed color) 0.0) (unwrap bd.signal).colors
+                              Nothing ->     maximum $ filter (\color -> len >= brakePattern (indicationToSpeed color) 0.0) (unwrap bd.signal).colors
+                    in fromMaybe signalStop $ go 0.0 {nodeid : (unwrap bd.signal).nodeid, jointid : (unwrap bd.signal).jointid}
                   else signalStop
                 ) bd.routes
             }
@@ -826,31 +829,33 @@ updateSignalRoutes (Layout layout) =
       map (\(RailNode ri) -> RailNode $ ri {signals = map (\(Signal signal) -> 
               Signal $ signal {
                 routes =
-                  let go nid jid rails rids isSimple =
+                  let go nid jid rails rids isSimple len =
                         if length rails > searchmax then [] else
                           case layout.rails !! nid of
                             Nothing -> []
                             Just (RailNode ri') ->
-                              let jidexits = (if (unwrap ri'.rail).flipped then reverse else identity) $ nub $ ((unwrap ri'.rail).getNewState jid >>> (_.newjoint)) <$> (unwrap ri'.rail).getStates
-                              in  (\jid' ->
+                              let newstates = (if (unwrap ri'.rail).flipped then reverse else identity) $ nubBy (compare `on` (_.newjoint)) $ ((unwrap ri'.rail).getNewState jid) <$> (unwrap ri'.rail).getStates
+                              in  (\{newjoint : jid', shape : s} ->
                                 case find (\(InvalidRoute s) -> s.jointid == jid') ri'.invalidRoutes of
                                   Nothing -> 
-                                    case find (\(Signal s) -> s.jointid == jid') ri'.signals of
-                                      Nothing -> 
-                                        case find (\c -> c.from == jid') $ ri'.connections of
-                                          Nothing -> []
-                                          Just {nodeid, jointid} -> 
-                                            if elem nodeid rids then []
-                                            else go nodeid jointid (rails <> [{nodeid : nid, jointenter : jid, jointexit : jid'}]) (insert nodeid rids) (isSimple && (unwrap ri'.rail).isSimple)
-                                      Just s  -> [SignalRoute {nextsignal : {nodeid : nid, jointid : jid'}, rails : rails <> [{nodeid : nid, jointenter : jid, jointexit : jid'}], isSimple}]
+                                    let newrails = rails <> [{nodeid : nid, jointenter : jid, jointexit : jid'}]
+                                        newlen = len + sum (((_.length) <<< unwrap) <$> s)
+                                    in  case find (\(Signal s) -> s.jointid == jid') ri'.signals of
+                                          Nothing -> 
+                                            case find (\c -> c.from == jid') $ ri'.connections of
+                                              Nothing -> []
+                                              Just {nodeid, jointid} -> 
+                                                if elem nodeid rids then []
+                                                else go nodeid jointid newrails (insert nodeid rids) (isSimple && (unwrap ri'.rail).isSimple) newlen
+                                          Just s  -> [SignalRoute {nextsignal : {nodeid : nid, jointid : jid'}, rails : newrails, isSimple, length : newlen}]
                                   Just s  -> []
-                              ) =<< jidexits
+                              ) =<< newstates
                   in case layout.rails !! signal.nodeid of
                         Nothing -> []
                         Just (RailNode ri') ->
                           case find (\c -> c.from == signal.jointid) $ ri'.connections of
                             Nothing -> []
-                            Just {nodeid, jointid} -> go nodeid jointid [] [] true
+                            Just {nodeid, jointid} -> go nodeid jointid [] [] true 0.0
               }
       ) ri.signals} ) layout.rails
   }
@@ -877,7 +882,7 @@ addSignal (Layout layout) nodeid jointid = fromMaybe (Layout layout) $
           , nodeid
           , jointid 
           , routes : []
-          , colors : [signalStop, signalCaution, signalReduce]
+          , colors : [signalStop, signalAlart, signalCaution, signalReduce]
           , routecond : []
           , indication : []
           , manualStop : false
@@ -934,6 +939,7 @@ unlockManualStop (Layout layout) nodeid jointid = do
   newRails <- updateAt nodeid newRail layout.rails
   pure $ Layout $ layout {rails = newRails}
 
+-- reserveは無効化した
 tryOpenRouteFor :: Layout -> Int -> IntJoint -> Int -> Maybe {layout :: Layout, reserveid :: Int}
 tryOpenRouteFor (Layout layout) nodeid jointid routeid = do
   (RailNode ri) <- layout.rails !! nodeid
@@ -941,8 +947,7 @@ tryOpenRouteFor (Layout layout) nodeid jointid routeid = do
   (SignalRoute r) <- s.routes !! routeid
   let reserveid = layout.updatecount + 1
 
-
-  let go {nodeid, jointid} rs =
+  let go {nodeid, jointid} rs = -- 開通させる進路の先、シンプルな信号機がつづくかぎりたどる
         case layout.rails !! nodeid >>= (\(RailNode ri) -> find (\(Signal s) -> s.jointid == jointid) ri.signals) of
           Nothing -> rs
           Just (Signal s) -> 
@@ -952,17 +957,17 @@ tryOpenRouteFor (Layout layout) nodeid jointid routeid = do
                 if length xs > 0 || not x.isSimple
                 then rs
                 else go (x.nextsignal) (rs <> x.rails)
-  let target = go r.nextsignal r.rails
+  let target = go r.nextsignal r.rails -- 操作した信号機から次のシンプルでない信号機までの進路
 
-  {hastraffic, newrails} <- foldM (\{hastraffic, newrails} {nodeid, jointenter, jointexit} -> do
+  {traffic, newrails} <- foldM (\{traffic, newrails} {nodeid, jointenter, jointexit} -> do
     (RailNode ri) <- layout.rails !! nodeid
-    let hastraffic' = hastraffic || hasTraffic (Layout layout) (RailNode ri)
+    let traffic' = traffic || hasTraffic (Layout layout) (RailNode ri)
     newstate <- (unwrap ri.rail).getRoute ri.state jointenter jointexit
-    newrails' <- updateAt nodeid (RailNode $ ri {state = newstate, reserves = ri.reserves <> [{jointid : jointenter, reserveid}]}) newrails
-    if (newstate /= ri.state && hastraffic') || any (\{jointid, reserveid} -> jointenter /= jointid && ((unwrap ri.rail).isBlocked jointenter ri.state jointid || (unwrap ri.rail).isBlocked jointenter newstate jointid) ) ri.reserves 
+    newrails' <- updateAt nodeid (RailNode $ ri {state = newstate, reserves = ri.reserves {-<> [{jointid : jointenter, reserveid}]-}}) newrails
+    if (newstate /= ri.state && traffic') {-|| any (\{jointid, reserveid} -> jointenter /= jointid && ((unwrap ri.rail).isBlocked jointenter ri.state jointid || (unwrap ri.rail).isBlocked jointenter newstate jointid) ) ri.reserves -}
     then Nothing
-    else Just {hastraffic: hastraffic', newrails: newrails'}
-  ) {hastraffic: false, newrails: layout.rails} target
+    else Just {traffic: traffic', newrails: newrails'}
+  ) {traffic: false, newrails: layout.rails} target
 
 
   pure $ {layout: (forceUpdate >>> layoutUpdate) (Layout $ layout {rails = newrails}), reserveid}

@@ -804,9 +804,10 @@ function meshsTrain({cars, trainid, flipped}){
 }
 
 export function download(){
+  L.save();
   let d = document.createElement("a");
   d.download="layout.json";
-  d.href=window.URL.createObjectURL(new Blob([localStorage.getItem("L.layout")], {"type":"application/json"}));
+  d.href=window.URL.createObjectURL(new Blob([localStorage.getItem("layout")], {"type":"application/json"}));
   d.click();
 }
 

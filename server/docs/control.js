@@ -392,8 +392,8 @@ class Layout {
         this.selectedJoint.nodeid = js[0].nodeid;
         let ns = this.layout.rails[this.selectedJoint.nodeid].rail.getNewState(js[0].jointid)(this.layout.rails[this.selectedJoint.nodeid].state);
         this.selectedJoint.jointid = ns.newjoint;//(js[0].jointid+1) % this.layout.rails[this.selectedJoint.nodeid].rail.getJoints.length;
-        this.layout.rails[this.selectedJoint.nodeid].state = ns.newstate;
-        this.layout.rails[this.selectedJoint.nodeid].maniputaledBy = -1;
+        //this.layout.rails[this.selectedJoint.nodeid].state = ns.newstate;
+        //this.layout.rails[this.selectedJoint.nodeid].maniputaledBy = -1;
       }
     }
   }

@@ -110,6 +110,16 @@ encodeRail (RailGen r) = {
     , opposed: r.opposed
   }
 
+roundNumber :: Number -> Number
+roundNumber num = round (num * 100000.0) / 100000.0
+
+roundPos :: Pos -> Pos
+roundPos (Pos {coord: Coord coord, angle, isPlus}) = Pos {
+    coord: Coord {x: roundNumber coord.x, y: roundNumber coord.y, z: roundNumber coord.z},
+    angle: fromRadian (roundNumber (toRadian angle)),
+    isPlus
+  }
+
 encodeRailNode :: RailNode -> RailNode_ EncodedRail
 encodeRailNode (RailNode {
       nodeid
@@ -120,19 +130,19 @@ encodeRailNode (RailNode {
     , signals
     , invalidRoutes
     , reserves
-    , pos:pos
-    , note:note
+    , pos
+    , note
   }) = RailNode {
       nodeid
     , instanceid
     , rail:encodeRail rail
     , state
     , connections
-    , signals
+    , signals : encodeSignal <$> signals
     , invalidRoutes
     , reserves
-    , pos:pos
-    , note:note
+    , pos: roundPos pos
+    , note
   }
 
 encodeTrainset :: Trainset -> EncodedTrainset
@@ -155,9 +165,9 @@ encodeTrainset (Trainset {
   }) = Trainset {
       types
     , route : encodeTrainRoute <$> route
-    , distanceToNext
-    , distanceFromOldest
-    , speed
+    , distanceToNext     : roundNumber distanceToNext    
+    , distanceFromOldest : roundNumber distanceFromOldest
+    , speed              : roundNumber speed             
     , trainid
     , flipped
     , respectSignals

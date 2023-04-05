@@ -2318,6 +2318,9 @@ var Pos = function(x) {
 var RelPos = function(x) {
   return x;
 };
+var toRadian = function(v) {
+  return v;
+};
 var rrem = function(a) {
   return function(b) {
     return a - floor(a / b) * b;
@@ -2344,8 +2347,8 @@ var angleSize = /* @__PURE__ */ function() {
 var angleSub = function(v) {
   return function(v1) {
     var tmp = rrem(v - v1)(angleSize);
-    var $45 = tmp > angleSize / 2;
-    if ($45) {
+    var $46 = tmp > angleSize / 2;
+    if ($46) {
       return tmp - angleSize;
     }
     ;
@@ -2360,16 +2363,6 @@ var anglen = function(n) {
 var reverseAngle = function(v) {
   return v + angleSize / 2;
 };
-var reversePos = function(v) {
-  return {
-    coord: v.coord,
-    angle: reverseAngle(v.angle),
-    isPlus: v.isPlus
-  };
-};
-var toRadian = function(v) {
-  return v * pi * 2 / angleSize;
-};
 var convertRelPos = function(v) {
   return function(v1) {
     return {
@@ -2381,6 +2374,13 @@ var convertRelPos = function(v) {
       angle: over22(Angle)(sub2)(v1.angle)(reverseAngle(v.angle)),
       isPlus: v.isPlus
     };
+  };
+};
+var reversePos = function(v) {
+  return {
+    coord: v.coord,
+    angle: reverseAngle(v.angle),
+    isPlus: v.isPlus
   };
 };
 var toAbsPos = function(v) {
@@ -10054,10 +10054,10 @@ var bind4 = /* @__PURE__ */ bind(bindArray);
 var pure3 = /* @__PURE__ */ pure(applicativeArray);
 var readNumber2 = /* @__PURE__ */ readNumber(monadIdentity);
 var splitSize = function(shape) {
-  var $53 = on(eq7)(function(p) {
+  var $54 = on(eq7)(function(p) {
     return unwrap7(unwrap7(p).coord).z;
   })(unwrap7(shape).start)(unwrap7(shape).end) && eq17(reverseAngle(unwrap7(unwrap7(shape).start).angle))(unwrap7(unwrap7(shape).end).angle);
-  if ($53) {
+  if ($54) {
     return 1;
   }
   ;
@@ -10066,8 +10066,8 @@ var splitSize = function(shape) {
 var shapeToData = function(v) {
   var a2 = toRadian(v.end.angle);
   var a1 = toRadian(reverseAngle(v.start.angle));
-  var $57 = eq17(reverseAngle(v.start.angle))(v.end.angle);
-  if ($57) {
+  var $58 = eq17(reverseAngle(v.start.angle))(v.end.angle);
+  if ($58) {
     return unsafeToForeign({
       type: "straight",
       angle: a1,
@@ -10094,6 +10094,20 @@ var shapeToData = function(v) {
     endangle: a1$prime
   });
 };
+var roundNumber = function(num) {
+  return round(num * 1e5) / 1e5;
+};
+var roundPos = function(v) {
+  return {
+    coord: {
+      x: roundNumber(v.coord.x),
+      y: roundNumber(v.coord.y),
+      z: roundNumber(v.coord.z)
+    },
+    angle: fromRadian(roundNumber(toRadian(v.angle))),
+    isPlus: v.isPlus
+  };
+};
 var rails = [autoTurnOutLPlusRail, curveLRail, slopeRail, slopeCurveLRail, straightRail, halfRail, quarterRail, converterRail, turnOutLPlusRail, outerCurveLRail, toDoubleLPlusRail, scissorsRail, doubleToWideLRail, doubleTurnoutLPlusRail, longRail, doubleWidthSLRail, crossoverLRail, diamondRail];
 var isArc = function(shape) {
   return notEq6(reverseAngle(unwrap7(unwrap7(shape).start).angle))(unwrap7(unwrap7(shape).end).angle);
@@ -10101,8 +10115,8 @@ var isArc = function(shape) {
 var ifUndefinedDefault = function(d) {
   return function(x) {
     var f = unsafeToForeign(x);
-    var $58 = isUndefined(f) || isNull(f);
-    if ($58) {
+    var $63 = isUndefined(f) || isNull(f);
+    if ($63) {
       return d;
     }
     ;
@@ -10122,9 +10136,9 @@ var encodeTrainset = function(v) {
   return {
     types: v.types,
     route: map9(encodeTrainRoute)(v.route),
-    distanceToNext: v.distanceToNext,
-    distanceFromOldest: v.distanceFromOldest,
-    speed: v.speed,
+    distanceToNext: roundNumber(v.distanceToNext),
+    distanceFromOldest: roundNumber(v.distanceFromOldest),
+    speed: roundNumber(v.speed),
     trainid: v.trainid,
     flipped: v.flipped,
     respectSignals: v.respectSignals,
@@ -10135,6 +10149,18 @@ var encodeTrainset = function(v) {
     reverseOn: v.reverseOn,
     reserved: v.reserved,
     note: v.note
+  };
+};
+var encodeSignal = function(v) {
+  return {
+    signalname: v.signalname,
+    nodeid: v.nodeid,
+    jointid: v.jointid,
+    colors: v.colors,
+    indication: [],
+    routes: [],
+    routecond: [],
+    manualStop: v.manualStop
   };
 };
 var encodeRail = function(v) {
@@ -10151,10 +10177,10 @@ var encodeRailNode = function(v) {
     rail: encodeRail(v.rail),
     state: v.state,
     connections: v.connections,
-    signals: v.signals,
+    signals: map9(encodeSignal)(v.signals),
     invalidRoutes: v.invalidRoutes,
     reserves: v.reserves,
-    pos: v.pos,
+    pos: roundPos(v.pos),
     note: v.note
   };
 };
@@ -10238,22 +10264,22 @@ var decodeTrainset = function(rs) {
 };
 var decodeRail = function(v) {
   return map15(function() {
-    var $188 = function() {
+    var $193 = function() {
       if (v.opposed) {
         return opposeRail;
       }
       ;
       return identity5;
     }();
-    var $189 = function() {
+    var $194 = function() {
       if (v.flipped) {
         return flipRail;
       }
       ;
       return identity5;
     }();
-    return function($190) {
-      return $188($189($190));
+    return function($195) {
+      return $193($194($195));
     };
   }())(find2(function(v1) {
     return v1.name === v.name;
@@ -10309,10 +10335,10 @@ var decodeRailInstance = function(v) {
 };
 var decodeLayout$prime = function(v) {
   var rawrails = function() {
-    var $169 = v.version <= 1;
-    if ($169) {
-      return map9(function($191) {
-        return decodeRailInstance(unsafeFromForeign(unsafeToForeign($191)));
+    var $174 = v.version <= 1;
+    if ($174) {
+      return map9(function($196) {
+        return decodeRailInstance(unsafeFromForeign(unsafeToForeign($196)));
       })(v.rails);
     }
     ;
@@ -10343,14 +10369,14 @@ var decodeLayout$prime = function(v) {
     signalcolors: []
   };
   var deleted = function() {
-    var $192 = map9(function(r) {
+    var $197 = map9(function(r) {
       return r.index;
     });
-    var $193 = filter(function(r) {
+    var $198 = filter(function(r) {
       return r.isdeleted;
     });
-    return function($194) {
-      return $192($193($194));
+    return function($199) {
+      return $197($198($199));
     };
   }()(mapWithIndex(function(i) {
     return function(r) {
@@ -10377,8 +10403,8 @@ var decodeLayout$prime = function(v) {
       return addJoint(l)(j.pos)(j.nodeid)(j.jointid);
     };
   })(v1)(joints));
-  var $175 = length(v2.rails) === 0;
-  if ($175) {
+  var $180 = length(v2.rails) === 0;
+  if ($180) {
     return defaultLayout;
   }
   ;
@@ -10388,8 +10414,8 @@ var decodeLayout = function(v) {
   return decodeLayout$prime({
     rails: map9(unsafeFromForeign)(v.rails),
     trains: function() {
-      var $182 = isArray(v.trains);
-      if ($182) {
+      var $187 = isArray(v.trains);
+      if ($187) {
         return unsafeFromForeign(v.trains);
       }
       ;

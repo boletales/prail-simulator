@@ -48,7 +48,7 @@ reverseAngle :: Angle -> Angle
 reverseAngle (Angle i) = Angle (i + angleSize / 2.0)
 
 toRadian :: Angle -> Number
-toRadian (Angle i) = i * pi * 2.0 / angleSize
+toRadian (Angle i) = i
 
 fromRadian = Angle
 

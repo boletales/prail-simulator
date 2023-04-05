@@ -59,6 +59,8 @@ defaultLayout =
           instancecount: 1,
           traincount: 0,
           updatecount: 0,
+          time : 0.0,
+          speed : 1.0,
           rails : [defaultnode],
           trains : [],
           traffic : [],
@@ -373,6 +375,8 @@ decodeLayout' {rails: rarr, trains: tarr, version: ver} =
           instancecount: 1 + foldl (\x (RailNode r) -> Prelude.max x r.instanceid) (-1) rs ,
           traincount: 1 + foldl (\x (Trainset t) -> Prelude.max x t.trainid) (-1) ts,
           version: 2,
+          time : 0.0,
+          speed : 1.0,
           traffic : [],
           signalcolors : []
         }

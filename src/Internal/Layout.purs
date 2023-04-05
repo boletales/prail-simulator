@@ -141,7 +141,9 @@ newtype Layout = Layout {
     instancecount :: Int,
     traincount :: Int,
     updatecount :: Int,
-    jointData :: SectionArray (SectionArray (SectionArray (Array JointData)))
+    jointData :: SectionArray (SectionArray (SectionArray (Array JointData))),
+    time :: Number,
+    speed :: Number
   }
 derive instance Newtype Layout _
 
@@ -533,8 +535,10 @@ trainTick (Layout layout) (Trainset t0) dt =
       (Trainset t2) = if t0.realAcceralation
             then acceralate (Trainset t1) notch dt
             else (Trainset t1)
+
+      (Trainset t3) = Trainset (t2 {route = catMaybes $ map (\(TrainRoute r) -> (\ri -> TrainRoute r {railinstance = ri}) <$> layout.rails !! r.nodeid ) t2.route})
   
-  in movefoward (Layout layout) (Trainset t2) dt
+  in movefoward (Layout layout) (Trainset t3) dt
  
 indicationToSpeed ∷ Int → Number
 indicationToSpeed i =
@@ -671,8 +675,8 @@ getNextSignal (Layout layout) (Trainset trainset) =
 
 
 layoutTick :: Layout -> Layout
-layoutTick =
-  moveTrains (1.0/60.0) 
+layoutTick (Layout l) =
+  (moveTrains (l.speed / 60.0) >>> (\(Layout l') -> Layout (l' {time = l.time + l.speed / 60.0}) )) (Layout l)
 
 layoutUpdate :: Layout -> Layout
 layoutUpdate = updateTraffic >>> updateSignalIndication

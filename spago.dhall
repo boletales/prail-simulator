@@ -21,6 +21,7 @@ to generate this file without the comments in this block.
   , "foreign-object"
   , "identity"
   , "integers"
+  , "lists"
   , "maybe"
   , "newtype"
   , "numbers"

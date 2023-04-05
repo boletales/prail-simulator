@@ -33,20 +33,23 @@ class OnlineControler {
     this.L.refreshKeybinds();
 
     this.count = 0;
-    this.COUNTMAX = 120;
+    this.COUNTMAX = 120/4;
 
     this.players = 0;
   }
 
   startLoop(){
     this.loop = setInterval(()=>{
+      let oldspeed = this.L.layout.speed;
+      this.L.layout.speed = oldspeed*4.0;
       if(!this.L.stopped ) this.L.layout = P.layoutTick(this.L.layout);
+      this.L.layout.speed = oldspeed;
       this.L.layout = P.layoutUpdate(this.L.layout);
       this.count++;
       if(this.count >= this.COUNTMAX){
         this.sync();
       }
-    }, 16);
+    }, 66);
   }
 
   onconnect(){

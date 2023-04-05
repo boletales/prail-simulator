@@ -11,6 +11,7 @@ module Main
 
 import Data.Array
 import Data.Maybe
+import Data.Either
 import Data.Newtype
 import Data.Number
 import Foreign
@@ -19,11 +20,12 @@ import Internal.Rails
 import Internal.Types
 import Prelude
 
-import Control.Monad.Except (runExceptT)
+import Control.Monad.Except (runExceptT, ExceptT)
 import Data.Either (either)
 import Data.FoldableWithIndex (foldlWithIndex)
 import Data.Function (on)
 import Data.Identity (Identity)
+import Data.List.Types
 import Effect (Effect)
 import Foreign.Object as FO
 import Internal.Layout as Ex
@@ -64,6 +66,7 @@ defaultLayout =
           rails : [defaultnode],
           trains : [],
           traffic : [],
+          isclear : [],
           signalcolors : [],
           jointData : saEmpty,
           version : 2
@@ -96,7 +99,7 @@ rails = [
 
 type EncodedSignal = Signal
 type EncodedRail = {name :: String, flipped :: Boolean, opposed :: Boolean}
-type EncodedLayout = {rails :: Array(RailNode_ EncodedRail), trains :: Array EncodedTrainset, version :: Int}
+type EncodedLayout = {rails :: Array(RailNode_ EncodedRail), trains :: Array EncodedTrainset, time :: Number, speed :: Number, version :: Int}
 type EncodedTrainset = Trainset_ Int
 type EncodedRoute = TrainRoute_ Int
 
@@ -207,6 +210,8 @@ encodeLayout :: Layout -> EncodedLayout
 encodeLayout (Layout layout) = {
     rails: encodeRailNode <$> layout.rails,
     trains: encodeTrainset <$> layout.trains,
+    time: layout.time,
+    speed: layout.speed,
     version: layout.version
   }
 
@@ -350,16 +355,18 @@ decodeSignal ( Signal {
     , manualStop
   }
 
-decodeLayout :: {rails :: Array(Foreign), trains :: Foreign, signals :: Foreign, version:: Int} -> Layout
-decodeLayout {rails: r, trains: t, version: v} =
+decodeLayout :: {rails :: Array(Foreign), trains :: Foreign, signals :: Foreign, time :: Foreign, speed :: Foreign, version:: Int} -> Layout
+decodeLayout {rails: r, trains: t, time: time, speed: speed, version: v} =
   decodeLayout' {
       rails: unsafeFromForeign <$> r
     , trains: if isArray t then unsafeFromForeign t else []
+    , time : fromRight 0.0 $ unwrap $ runExceptT $ (readNumber time  :: ExceptT (NonEmptyList ForeignError) Identity Number)
+    , speed: fromRight 1.0 $ unwrap $ runExceptT $ (readNumber speed :: ExceptT (NonEmptyList ForeignError) Identity Number)
     , version: v
   }
 
 decodeLayout' :: EncodedLayout -> Layout
-decodeLayout' {rails: rarr, trains: tarr, version: ver} =
+decodeLayout' {rails: rarr, trains: tarr, time: traw, speed: sraw, version: ver} =
   let rawrails = 
         if ver <= 1
           then (decodeRailInstance <<< unsafeFromForeign <<< unsafeToForeign) <$> rarr
@@ -375,9 +382,10 @@ decodeLayout' {rails: rarr, trains: tarr, version: ver} =
           instancecount: 1 + foldl (\x (RailNode r) -> Prelude.max x r.instanceid) (-1) rs ,
           traincount: 1 + foldl (\x (Trainset t) -> Prelude.max x t.trainid) (-1) ts,
           version: 2,
-          time : 0.0,
-          speed : 1.0,
+          time  : ifUndefinedDefault 0.0 traw,
+          speed : ifUndefinedDefault 1.0 sraw,
           traffic : [],
+          isclear : [],
           signalcolors : []
         }
       (Layout layout) = foldl removeRail l0 (reverse $ sort deleted)

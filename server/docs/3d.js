@@ -12,8 +12,8 @@ function a3(v){
 
 export let L = new C.Layout();
 
-const width = window.screen.availWidth   -20;
-const height = window.screen.availHeight -250;
+const width  = window.screen.availWidth  *0.95;
+const height = window.screen.availHeight *0.75;
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera( 75, width / height, 0.1, 8000 );
 camera.position.y = 100;

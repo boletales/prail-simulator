@@ -546,9 +546,9 @@ indicationToSpeed ∷ Int → Number
 indicationToSpeed i =
   case i of
     0 ->   0.0 * speedScale
-    1 ->  15.0 * speedScale
+    1 ->  25.0 * speedScale
     2 ->  45.0 * speedScale
-    3 ->  80.0 * speedScale
+    3 ->  65.0 * speedScale
     4 -> 120.0 * speedScale
     _ -> 120.0 * speedScale
 

@@ -3696,7 +3696,7 @@ var indicationToSpeed = function(i) {
   }
   ;
   if (i === 1) {
-    return 15 * speedScale;
+    return 25 * speedScale;
   }
   ;
   if (i === 2) {
@@ -3704,7 +3704,7 @@ var indicationToSpeed = function(i) {
   }
   ;
   if (i === 3) {
-    return 80 * speedScale;
+    return 65 * speedScale;
   }
   ;
   if (i === 4) {

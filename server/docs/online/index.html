@@ -4,6 +4,11 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Document</title>
+  <!--style>
+    .lil-gui {
+      --font-size: 0.625rem;
+    }
+  </style-->
 </head>
 <body>
   <div id="main"></div>
@@ -57,10 +62,11 @@
       }
     }
 
-    const GUI = new lil.GUI();
+    const GUI = new lil.GUI({ title : 'コントロールパネル', touchStyles: false });
+    window.GUI = GUI;
 
     Object.values(L.keycontrols).forEach(category => {
-      let folder = GUI.addFolder(category.name);
+      let folder = new lil.GUI( { parent: GUI, title: category.name, touchStyles: false } );
       Object.values(category.keys).forEach(key => {
         folder.add({
           "onkey": (()=>{
@@ -75,6 +81,10 @@
     });
     GUI.folders[0].open();
     GUI.folders[2].open();
+
+    GUI.domElement.style.opacity = 0.8;
+
+
 
     socket.emit("join", {room: location.pathname.replace(/\/$/,"").replace(/.*\//g,"")});
   </script>

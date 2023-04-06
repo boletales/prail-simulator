@@ -34,9 +34,10 @@
     L.keycontrols.signal.keys.editTrainNote.onkey = ()=>{let note = prompt("列車に注釈を付けます（なにもしなければ注釈削除）"); L.editTrainNote(note);};
     L.refreshKeybinds();
 
-    const GUI = new lil.GUI();
+    const GUI = new lil.GUI({ title : 'コントロールパネル', touchStyles: false });
+    window.GUI = GUI;
     Object.values(L.keycontrols).forEach(category => {
-      let folder = GUI.addFolder(category.name);
+      let folder = new lil.GUI( { parent: GUI, title: category.name, touchStyles: false } );
       Object.values(category.keys).forEach(key => {
         folder.add(key, "onkey").name(key.softkey + " : " + key.text_ja);
         folder.close();
@@ -44,6 +45,8 @@
     });
     GUI.folders[0].open();
     GUI.folders[2].open();
+    
+    GUI.domElement.style.opacity = 0.8;
   </script>
   <span id="coord"></span>
 </body>

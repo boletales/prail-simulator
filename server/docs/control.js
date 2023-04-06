@@ -199,7 +199,7 @@ class Layout {
             , key    : ["s"]
           },
           slopeRailD: {
-              onkey: ()=>{this.addRail(P.slopeRail);}
+              onkey: ()=>{this.addRail(P.slopeRail, 1);}
             , text_ja: "坂道レール（下り）"
             , softkey: "S"
             , key    : ["S"]
@@ -336,8 +336,8 @@ class Layout {
           doubleToWideRRail: {
               onkey: ()=>{this.addRail(P.doubleToWideRRail);}
             , text_ja: "複線幅広ポイントレール（右）"
-            , softkey: "5"
-            , key    : ["5"]
+            , softkey: "6"
+            , key    : ["6"]
           },
           crossoverLRail: {
               onkey: ()=>{this.addRail(P.crossoverLRail);}

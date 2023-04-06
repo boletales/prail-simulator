@@ -78,6 +78,7 @@ class OnlineControler {
     this.note = data.note;
     this.L.selectedJoint = data.selectedJoint;
     this.L.onkey(data);
+    this.L.layout = P.layoutUpdate(this.L.layout);
     this.sync(false);
     socket.emit("selectedJoint", {selectedJoint: this.L.selectedJoint});
   }

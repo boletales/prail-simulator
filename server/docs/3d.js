@@ -337,9 +337,9 @@ function updateRailNote(drawinfo){
     let center = drawinfo.joints.map(j=>a3(j.coord)).reduce((a,c) => [a[0]+c[0], a[1]+c[1], a[2]+c[2]], [0,0,0]).map(x => x/drawinfo.joints.length);
 
     let sprite = new SpriteText(drawinfo.instance.note, 10, "#fff");
-    sprite.strokeWidth = 1;
+    sprite.strokeWidth = 0.5;
     sprite.strokeColor = "#000";
-    sprite.material.opacity = 0.5;
+    sprite.material.opacity = 0.1;
     scene.add(sprite);
     let cone = meshNote(center);
     scene.add(cone);
@@ -358,7 +358,7 @@ function updateTrainNote(drawinfo){
       let sprite = new SpriteText(drawinfo.note, 5, "#fff");
       sprite.strokeWidth = 1;
       sprite.strokeColor = "#000";
-      sprite.material.opacity = 0.5;
+      sprite.material.opacity = 0.3;
       sprite.position.set(0, 10, 0);
       mesh.add(sprite);
       trainnotespritememo[drawinfo.trainid] = sprite;

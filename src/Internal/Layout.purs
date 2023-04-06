@@ -33,6 +33,7 @@ module Internal.Layout
   , layoutDrawInfo
   , layoutTick
   , layoutUpdate
+  , layoutUpdate_NoManualStop
   , removeRail
   , removeSignal
   , saEmpty
@@ -680,8 +681,10 @@ layoutTick (Layout l) =
   (moveTrains (l.speed / 60.0) >>> (\(Layout l') -> Layout (l' {time = l.time + l.speed / 60.0}) )) (Layout l)
 
 layoutUpdate :: Layout -> Layout
-layoutUpdate = updateTraffic >>> updateSignalIndication
+layoutUpdate = updateTraffic >>> updateSignalIndication true
 
+layoutUpdate_NoManualStop :: Layout -> Layout
+layoutUpdate_NoManualStop = updateTraffic >>> updateSignalIndication false
 
 
 newtype SignalRoute = SignalRoute {
@@ -741,8 +744,8 @@ updateTraffic (Layout layout) =
           ) ({traffic: map (\(RailNode r) ->  replicate (length (unwrap r.rail).getJoints) []) layout.rails, isclear: replicate (length layout.rails) true}) layout.trains
   in Layout $ layout {traffic = traffic, isclear = isclear}
 
-updateSignalIndication :: Layout -> Layout
-updateSignalIndication (Layout layout) = 
+updateSignalIndication :: Boolean -> Layout -> Layout
+updateSignalIndication changeManualStop (Layout layout) = 
   let signals = (unwrap >>> (_.signals)) =<< layout.rails
       blockingData = 
         map (\(RailNode ri) -> {rail :ri, signals :map (\(Signal signal) ->{
@@ -811,7 +814,7 @@ updateSignalIndication (Layout layout) =
       colored =
         map (\rbd -> RailNode $ (rbd.rail) {signals = map (\bd -> Signal $ (unwrap bd.signal) {
               routecond = (_.routecond) <$> bd.routes,
-              manualStop = (unwrap bd.signal).manualStop || if length bd.routes < 2 && all (\bdr -> (unwrap bdr.route).isSimple) bd.routes then false else ((_.cond) <$> bd.routes) /= ((signalStop < _) <$> (unwrap bd.signal).indication),
+              manualStop = (unwrap bd.signal).manualStop || if length bd.routes < 2 && all (\bdr -> (unwrap bdr.route).isSimple) bd.routes then false else changeManualStop && (((_.cond) <$> bd.routes) /= ((signalStop < _) <$> (unwrap bd.signal).indication)),
               indication =
                 map (\d ->
                   if d.cond then

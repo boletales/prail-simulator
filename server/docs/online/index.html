@@ -38,6 +38,7 @@
       let selectedJoint = L.selectedJoint;
       L.loadfrom(()=>(data.clearCache ? clearCache() : forceUpdateModel()), fflate.strFromU8(fflate.decompressSync(Uint8Array.from(Array.prototype.map.call(atob(data.compressed), (x) => x.charCodeAt(0))))))
       L.selectedJoint = selectedJoint;
+      console.log("sync");
     });
     socket.on("selectedJoint",data=>{
       L.selectedJoint = data.selectedJoint;

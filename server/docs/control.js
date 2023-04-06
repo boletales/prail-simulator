@@ -579,7 +579,7 @@ class Layout {
   
   loadfrom(clearCache, text){
     clearCache();
-    this.layout = P.decodeLayout(JSON.parse(text));
+    this.layout = P.layoutUpdate_NoManualStop(P.decodeLayout(JSON.parse(text)));
     this.selectedJoint = {nodeid:0, jointid:1};
   }
 }

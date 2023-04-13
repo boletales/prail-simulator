@@ -6,6 +6,7 @@ const HEIGHTUNIT = 7.5;
 class Layout {
   constructor(){
     this.stopped = false;
+    this.respectSignals = true;
     this.layout  = P.defaultLayout;
     this.selectedJoint = {nodeid:0, jointid:1};
     this.from = 0;
@@ -139,6 +140,13 @@ class Layout {
             , text_ja: "線路注釈"
             , softkey: "/"
             , key    : ["/"]
+          },
+          respectSignals: {
+              onkey: ()=>{ this.toggleRespectSignals();}
+            , text_ja: "信号走行↔信号無視"
+            , softkey: "extra_respectSignals"
+            , key    : ["extra_respectSignals"]
+            , skip   : true
           },
         },
       },
@@ -506,12 +514,17 @@ class Layout {
       this.layout = P.tryOpenRouteFor_ffi(this.layout)(this.selectedJoint.nodeid)(this.selectedJoint.jointid)((routeid + signal.indication.length - 1) % signal.indication.length).layout
     }
   }
+
+  toggleRespectSignals(){
+    this.respectSignals = !this.respectSignals;
+    this.layout.trains.forEach(e => e.respectSignals = this.respectSignals);
+  }
   
   addTrain(){
     if(this.layout.rails[this.selectedJoint.nodeid] !== undefined){
       this.layout = P.addTrainset(this.layout)(this.selectedJoint.nodeid)(this.selectedJoint.jointid)([{type:"313_Mc", flipped:false}, {type:"313_T", flipped:false}, {type:"312_Tc", flipped:false}]);
       this.layout.trains[this.layout.trains.length -1].realAcceralation=true;
-      this.layout.trains[this.layout.trains.length -1].respectSignals=true;
+      this.layout.trains[this.layout.trains.length -1].respectSignals=this.respectSignals;
       this.layout.trains[this.layout.trains.length -1].notch=5;
     }
   }

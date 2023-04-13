@@ -16,7 +16,8 @@
     <span id="coord"></span><br>
     <input type="button" value="save" onclick="save();">
     <input type="button" value="download" onclick="download();">
-    <input id="upload" type="file" accept=".json" onchange="upload();"><a href="../2d.html">2D</a><br>
+    <input id="upload" type="file" accept=".json" onchange="upload();">
+    <label><input type="checkbox" id="respectSignals" name="respectSignals">信号に従って走行</label><br>
     <input id="fakeinput" placeholder="fake input for smartphone">
   </div>
   <script src="../control.js" type="module"></script>
@@ -41,6 +42,9 @@
     let socket = io.connect();
     socket.on("sync",data=>{
       let selectedJoint = L.selectedJoint;
+      L.stopped = data.stopped;
+      L.respectSignals = data.respectSignals;
+      document.getElementById("respectSignals").checked = data.respectSignals;
       L.loadfrom(()=>(data.clearCache ? clearCache() : forceUpdateModel()), fflate.strFromU8(fflate.decompressSync(Uint8Array.from(Array.prototype.map.call(atob(data.compressed), (x) => x.charCodeAt(0))))))
       L.selectedJoint = selectedJoint;
       console.log("sync");
@@ -48,7 +52,12 @@
     socket.on("selectedJoint",data=>{
       L.selectedJoint = data.selectedJoint;
     });
-    document.onkeydown = ((e)=>{let selectedJoint={}; Object.assign(selectedJoint, L.selectedJoint); L.onkey(e); socket.emit("key", {"key" : e.key, "note":L.note, "selectedJoint":selectedJoint})});
+    document.onkeydown = ((e)=>{
+      let selectedJoint={};
+      Object.assign(selectedJoint, L.selectedJoint);
+      L.onkey(e);
+      socket.emit("key", {"key" : e.key, "note":L.note, "selectedJoint":selectedJoint});
+    });
     L.keycontrols.signal.keys.editRailNote.onkey  = ()=>{let note = prompt("線路に注釈を付けます（なにもしなければ注釈削除）"); L.editRailNote (note); L.note=note;};
     L.keycontrols.signal.keys.editTrainNote.onkey = ()=>{let note = prompt("列車に注釈を付けます（なにもしなければ注釈削除）"); L.editTrainNote(note); L.note=note;};
     L.refreshKeybinds();
@@ -68,6 +77,7 @@
     Object.values(L.keycontrols).forEach(category => {
       let folder = new lil.GUI( { parent: GUI, title: category.name, touchStyles: false } );
       Object.values(category.keys).forEach(key => {
+        if(key.skip) return;
         folder.add({
           "onkey": (()=>{
             let selectedJoint={};
@@ -84,7 +94,13 @@
 
     GUI.domElement.style.opacity = 0.7;
 
-
+    document.getElementById("respectSignals").oninput = ()=>{
+      let k = "extra_respectSignals";
+      let selectedJoint={};
+      Object.assign(selectedJoint, L.selectedJoint);
+      L.onkey(k);
+      socket.emit("key", {"key" : k, "note":L.note, "selectedJoint":selectedJoint});
+    }
 
     socket.emit("join", {room: location.pathname.replace(/\/$/,"").replace(/.*\//g,"")});
   </script>

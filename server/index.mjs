@@ -70,7 +70,7 @@ class OnlineControler {
     //console.log("sync " + L.layout.updatecount);
     this.count = 0;
     let data = JSON.stringify(P.encodeLayout(this.L.layout));
-    io.to(this.name).emit("sync", {compressed: Buffer.from(fflate.compressSync(new Uint8Array(Buffer.from(data)))).toString('base64'), clearCache: clearCache});
+    io.to(this.name).emit("sync", getPayload(this.L));
     fs.writeFileSync(this.file, data);
   }
 
@@ -100,7 +100,16 @@ function onconnect(socket, room){
 
   players[socket.id] = room;
   rooms[room].onconnect();
-  socket.emit("sync", {compressed: Buffer.from(fflate.compressSync(new Uint8Array(Buffer.from(JSON.stringify(P.encodeLayout(rooms[room].L.layout)))))).toString('base64'), clearCache: true});
+  socket.emit("sync", getPayload(rooms[room].L, true));
+}
+
+function getPayload(layoutctl, clearCache = false){
+  return {
+      stopped: layoutctl.stopped
+    , respectSignals: layoutctl.respectSignals
+    , compressed: Buffer.from(fflate.compressSync(new Uint8Array(Buffer.from(JSON.stringify(P.encodeLayout(layoutctl.layout)))))).toString('base64')
+    , clearCache: clearCache
+  };
 }
 
 function ondisconnect(socket, data){

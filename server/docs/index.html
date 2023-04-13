@@ -11,7 +11,8 @@
     <span id="coord"></span><br>
     <input type="button" value="save" onclick="save();">
     <input type="button" value="download" onclick="download();">
-    <input id="upload" type="file" accept=".json" onchange="upload();"><a href="2d.html">2D</a><br>
+    <input id="upload" type="file" accept=".json" onchange="upload();"><a href="2d.html">2D</a>
+    <label><input type="checkbox" id="respectSignals" name="respectSignals">信号に従って走行</label><br>
     <input id="fakeinput" placeholder="fake input for smartphone">
   </div>
   <script src="control.js" type="module"></script>
@@ -39,14 +40,21 @@
     Object.values(L.keycontrols).forEach(category => {
       let folder = new lil.GUI( { parent: GUI, title: category.name, touchStyles: false } );
       Object.values(category.keys).forEach(key => {
+        if(key.skip) return;
         folder.add(key, "onkey").name(key.softkey + " : " + key.text_ja);
-        folder.close();
       });
+      folder.close();
     });
     GUI.folders[0].open();
     GUI.folders[2].open();
 
     GUI.domElement.style.opacity = 0.7;
+
+    document.getElementById("respectSignals").oninput = ()=>{
+      let k = "extra_respectSignals";
+      L.onkey(k);
+      document.getElementById("respectSignals").checked = L.respectSignals;
+    }
   </script>
   <span id="coord"></span>
 </body>

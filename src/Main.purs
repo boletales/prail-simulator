@@ -9,29 +9,32 @@ module Main
   )
   where
 
-import Data.Array
-import Data.Maybe
-import Data.Either
-import Data.Newtype
-import Data.Number
-import Foreign
+import Data.Array (catMaybes, filter, find, foldl, length, mapWithIndex, reverse, sort, (!!))
+import Data.Maybe (Maybe(..), fromMaybe, isNothing, maybe)
+import Data.Newtype (class Newtype, unwrap)
+import Data.Number (abs, cos, pi, round, sign, sin)
+import Foreign  (Foreign, ForeignError, isArray, isNull, isUndefined, readNumber, unsafeFromForeign, unsafeToForeign)
 import Internal.Layout
 import Internal.Rails
 import Internal.Types
 import Prelude
 
 import Control.Monad.Except (runExceptT, ExceptT)
-import Data.Either (either)
-import Data.FoldableWithIndex (foldlWithIndex)
+import Data.Either (either, fromRight, hush)
 import Data.Function (on)
 import Data.Identity (Identity)
-import Data.List.Types
-import Effect (Effect)
+import Data.List.Types (NonEmptyList)
 import Foreign.Object as FO
 import Internal.Layout as Ex
 import Internal.Rails as Ex
 import Internal.Types as Ex
 import Prelude as Prelude
+import Data.String.Regex        as Re
+import Data.String.Regex.Flags  as Re
+import Data.String.Regex.Unsafe as Re
+import Data.String as St
+import Data.Int as Int
+
 
 ifUndefinedDefault :: forall a. a -> a -> a
 ifUndefinedDefault d x =
@@ -97,9 +100,11 @@ rails = [
     , diamondRail
   ]
 
-type EncodedSignal = Signal
+type EncodedSignalRule = String
+type EncodedSignal = { signalname :: String, nodeid :: Int, jointid :: IntJoint, manualStop :: Boolean, rules :: Array EncodedSignalRule}
 type EncodedRail = {name :: String, flipped :: Boolean, opposed :: Boolean}
-type EncodedLayout = {rails :: Array(RailNode_ EncodedRail), trains :: Array EncodedTrainset, time :: Number, speed :: Number, version :: Int}
+type EncodedRailNode = {nodeid :: Int, instanceid :: Int, rail :: EncodedRail, state :: IntState, signals :: Array EncodedSignal, invalidRoutes :: Array (InvalidRoute), connections :: Array ({from :: IntJoint, nodeid :: Int, jointid :: IntJoint}), reserves :: Array ({reserveid :: IntReserve, jointid :: IntJoint}), pos  :: Pos, note :: String}
+type EncodedLayout = {rails :: Array EncodedRailNode, trains :: Array EncodedTrainset, time :: Number, speed :: Number, version :: Int}
 type EncodedTrainset = Trainset_ Int
 type EncodedRoute = TrainRoute_ Int
 
@@ -120,7 +125,7 @@ roundPos (Pos {coord: Coord coord, angle, isPlus}) = Pos {
     isPlus
   }
 
-encodeRailNode :: RailNode -> RailNode_ EncodedRail
+encodeRailNode :: RailNode -> EncodedRailNode
 encodeRailNode (RailNode {
       nodeid
     , instanceid
@@ -132,7 +137,7 @@ encodeRailNode (RailNode {
     , reserves
     , pos
     , note
-  }) = RailNode {
+  }) = {
       nodeid
     , instanceid
     , rail:encodeRail rail
@@ -158,9 +163,6 @@ encodeTrainset (Trainset {
     , realAcceralation
     , notch
     , signalRestriction
-    , program
-    , reverseOn
-    , reserved
     , note
   }) = Trainset {
       types
@@ -174,9 +176,6 @@ encodeTrainset (Trainset {
     , realAcceralation
     , notch
     , signalRestriction
-    , program
-    , reverseOn
-    , reserved
     , note
   }
 
@@ -200,21 +199,25 @@ encodeSignal (Signal {
       signalname
     , nodeid
     , jointid
-    , routes
-    , indication
-    , routecond
-    , colors
     , manualStop
-  }) = Signal {
+    , rules
+  }) = {
       signalname
     , nodeid
     , jointid
-    , colors
-    , indication : []
-    , routes : []
-    , routecond : []
     , manualStop
+    , rules : encodeSignalRule <$> rules
   }
+
+encodeSignalRule :: SignalRule -> EncodedSignalRule
+encodeSignalRule rule =
+  case rule of
+    RuleOpen       tag route   -> "o " <> Re.source tag <> " " <> show route
+    RuleUpdate     tag from to -> "u " <> Re.source tag <> " " <> Re.source from <> " " <> to
+    RuleStop       tag         -> "s " <> Re.source tag <> " "
+    RuleStopOpen   tag route   -> "O " <> Re.source tag <> " " <> show route
+    RuleStopUpdate tag from to -> "U " <> Re.source tag <> " " <> Re.source from <> " " <> to
+    RuleReverse    tag         -> "r " <> Re.source tag <> " "
 
 encodeLayout :: Layout -> EncodedLayout
 encodeLayout (Layout layout) = {
@@ -234,8 +237,8 @@ decodeRail {name: name, flipped: flipped, opposed: opposed} =
   then opposeRail
   else identity)) <$> (find (\(RailGen r) -> r.name == name) rails)
 
-decodeRailNode :: RailNode_ EncodedRail -> Maybe RailNode
-decodeRailNode (RailNode {
+decodeRailNode :: EncodedRailNode -> Maybe RailNode
+decodeRailNode ({
       nodeid
     , instanceid
     , rail
@@ -252,7 +255,7 @@ decodeRailNode (RailNode {
     , rail:_
     , state
     , connections
-    , signals: ifUndefinedDefault [] signals
+    , signals: decodeSignal <$> ifUndefinedDefault [] signals
     , invalidRoutes: ifUndefinedDefault [] invalidRoutes
     , reserves: ifUndefinedDefault [] reserves
     , pos: pos
@@ -269,7 +272,6 @@ decodeRailNode_v1 (RailNode {
     , signals
     , invalidRoutes
     , reserves
-    , pos
     , note
   }) = RailNode <$> {
       nodeid
@@ -309,9 +311,6 @@ decodeTrainset rs (Trainset {
     , realAcceralation
     , notch
     , signalRestriction
-    , program
-    , reverseOn
-    , reserved
     , note
   }) = Trainset {
       types
@@ -325,9 +324,6 @@ decodeTrainset rs (Trainset {
     , realAcceralation
     , notch
     , signalRestriction
-    , program
-    , reverseOn
-    , reserved
     , note : ifUndefinedDefault "" note
   }
 
@@ -347,23 +343,36 @@ decodeTrainRoute rs (TrainRoute {
         }
 
 decodeSignal :: EncodedSignal -> Signal
-decodeSignal ( Signal {
+decodeSignal ( {
       signalname
     , nodeid
     , jointid
-    , colors
     , manualStop
-    , routecond
+    , rules
   }) = Signal {
       signalname
     , nodeid
     , jointid
-    , routes : []
+    , routes     : []
     , indication : []
-    , routecond : []
-    , colors
+    , routecond  : []
+    , colors     : []
     , manualStop
+    , rules : ifUndefinedDefault [] (catMaybes $ (\r -> decodeSignalRule (ifUndefinedDefault "" r)) <$> rules)
   }
+
+decodeSignalRule :: EncodedSignalRule -> Maybe SignalRule
+decodeSignalRule rule =
+  let rule_ = Re.replace (Re.unsafeRegex  "\\s*" Re.global) " " $ St.trim rule
+      spl   = St.split (St.Pattern " ") rule_
+  in case spl !! 0 of
+      Just "o" -> (\tag route   -> RuleOpen       tag route  ) <$> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 1) <*> (Int.fromString =<< spl !! 2)
+      Just "u" -> (\tag from to -> RuleUpdate     tag from to) <$> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 1) <*> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 2) <*> spl !! 3
+      Just "s" -> (\tag         -> RuleStop       tag        ) <$> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 1)
+      Just "O" -> (\tag route   -> RuleStopOpen   tag route  ) <$> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 1) <*> (Int.fromString =<< spl !! 2)
+      Just "U" -> (\tag from to -> RuleStopUpdate tag from to) <$> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 1) <*> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 2) <*> spl !! 3
+      Just "r" -> (\tag         -> RuleReverse    tag        ) <$> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 1)
+      _        -> Nothing
 
 decodeLayout :: {rails :: Array(Foreign), trains :: Foreign, signals :: Foreign, time :: Foreign, speed :: Foreign, version:: Int} -> Layout
 decodeLayout {rails: r, trains: t, time: time, speed: speed, version: v} =
@@ -432,7 +441,7 @@ shapeToData (RailShape shape) =
     else  let _r  = (cos a1 * ((unwrap p2.coord).x - (unwrap p1.coord).x) + sin a1 * ((unwrap p2.coord).y - (unwrap p1.coord).y)) / sin (a2 - a1)
               r   = abs _r
               a1' = a1 - pi/2.0 * sign _r
-              a2' = a2 - pi/2.0 * sign _r
+              -- a2' = a2 - pi/2.0 * sign _r
               x0  = (unwrap p1.coord).x - r * cos a1'
               y0  = (unwrap p1.coord).y - r * sin a1'
           in unsafeToForeign {type: "arc", center : Coord {x:x0, y:y0, z:((unwrap p1.coord).z+(unwrap p2.coord).z)/2.0}, radius : r, startangle : a1', endangle : a1'}

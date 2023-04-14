@@ -1,4 +1,3 @@
-import { L } from "./3d.js";
 import * as P from "./main.js"
 const RAILLENGTH = 21.4;
 const RAILWIDTH = 3.8;

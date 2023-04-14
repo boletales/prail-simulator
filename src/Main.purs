@@ -1,7 +1,9 @@
 module Main
   ( decodeLayout
+  , decodeSignalRules
   , defaultLayout
   , encodeLayout
+  , encodeSignalRules
   , isArc
   , module Ex
   , shapeToData
@@ -9,31 +11,31 @@ module Main
   )
   where
 
-import Data.Array (catMaybes, filter, find, foldl, length, mapWithIndex, reverse, sort, (!!))
-import Data.Maybe (Maybe(..), fromMaybe, isNothing, maybe)
-import Data.Newtype (class Newtype, unwrap)
-import Data.Number (abs, cos, pi, round, sign, sin)
-import Foreign  (Foreign, ForeignError, isArray, isNull, isUndefined, readNumber, unsafeFromForeign, unsafeToForeign)
 import Internal.Layout
 import Internal.Rails
 import Internal.Types
 import Prelude
 
 import Control.Monad.Except (runExceptT, ExceptT)
+import Data.Array (catMaybes, filter, find, foldl, length, mapWithIndex, reverse, sort, (!!))
 import Data.Either (either, fromRight, hush)
 import Data.Function (on)
 import Data.Identity (Identity)
+import Data.Int as Int
 import Data.List.Types (NonEmptyList)
+import Data.Maybe (Maybe(..), fromMaybe, isNothing, maybe)
+import Data.Newtype (class Newtype, unwrap)
+import Data.Number (abs, cos, pi, round, sign, sin)
+import Data.String as St
+import Data.String.Regex as Re
+import Data.String.Regex.Flags as Re
+import Data.String.Regex.Unsafe as Re
+import Foreign (Foreign, ForeignError, isArray, isNull, isUndefined, readNumber, unsafeFromForeign, unsafeToForeign)
 import Foreign.Object as FO
 import Internal.Layout as Ex
 import Internal.Rails as Ex
 import Internal.Types as Ex
 import Prelude as Prelude
-import Data.String.Regex        as Re
-import Data.String.Regex.Flags  as Re
-import Data.String.Regex.Unsafe as Re
-import Data.String as St
-import Data.Int as Int
 
 
 ifUndefinedDefault :: forall a. a -> a -> a
@@ -45,7 +47,7 @@ ifUndefinedDefault d x =
 
 defaultnode :: RailNode
 defaultnode = RailNode {
-            nodeid : 0,
+            nodeid : IntNode 0,
             instanceid : 0,
             state : IntState 0,
             rail : straightRail,
@@ -71,6 +73,7 @@ defaultLayout =
           traffic : [],
           isclear : [],
           signalcolors : [],
+          routequeue : [],
           jointData : saEmpty,
           version : 2
         }
@@ -101,10 +104,10 @@ rails = [
   ]
 
 type EncodedSignalRule = String
-type EncodedSignal = { signalname :: String, nodeid :: Int, jointid :: IntJoint, manualStop :: Boolean, rules :: Array EncodedSignalRule}
+type EncodedSignal = { signalname :: String, nodeid :: IntNode, jointid :: IntJoint, manualStop :: Boolean, rules :: Array EncodedSignalRule}
 type EncodedRail = {name :: String, flipped :: Boolean, opposed :: Boolean}
-type EncodedRailNode = {nodeid :: Int, instanceid :: Int, rail :: EncodedRail, state :: IntState, signals :: Array EncodedSignal, invalidRoutes :: Array (InvalidRoute), connections :: Array ({from :: IntJoint, nodeid :: Int, jointid :: IntJoint}), reserves :: Array ({reserveid :: IntReserve, jointid :: IntJoint}), pos  :: Pos, note :: String}
-type EncodedLayout = {rails :: Array EncodedRailNode, trains :: Array EncodedTrainset, time :: Number, speed :: Number, version :: Int}
+type EncodedRailNode = {nodeid :: IntNode, instanceid :: Int, rail :: EncodedRail, state :: IntState, signals :: Array EncodedSignal, invalidRoutes :: Array (InvalidRoute), connections :: Array ({from :: IntJoint, nodeid :: IntNode, jointid :: IntJoint}), reserves :: Array ({reserveid :: IntReserve, jointid :: IntJoint}), pos  :: Pos, note :: String}
+type EncodedLayout = {rails :: Array EncodedRailNode, trains :: Array EncodedTrainset, time :: Number, speed :: Number, version :: Int, routequeue :: Array RouteQueueElement}
 type EncodedTrainset = Trainset_ Int
 type EncodedRoute = TrainRoute_ Int
 
@@ -164,6 +167,8 @@ encodeTrainset (Trainset {
     , notch
     , signalRestriction
     , note
+    , tags
+    , signalRulePhase
   }) = Trainset {
       types
     , route : encodeTrainRoute <$> route
@@ -177,6 +182,8 @@ encodeTrainset (Trainset {
     , notch
     , signalRestriction
     , note
+    , tags
+    , signalRulePhase
   }
 
 encodeTrainRoute :: TrainRoute -> EncodedRoute
@@ -212,12 +219,16 @@ encodeSignal (Signal {
 encodeSignalRule :: SignalRule -> EncodedSignalRule
 encodeSignalRule rule =
   case rule of
+    RuleComment    comment     -> comment
     RuleOpen       tag route   -> "o " <> Re.source tag <> " " <> show route
     RuleUpdate     tag from to -> "u " <> Re.source tag <> " " <> Re.source from <> " " <> to
-    RuleStop       tag         -> "s " <> Re.source tag <> " "
+    RuleStop       tag         -> "s " <> Re.source tag
     RuleStopOpen   tag route   -> "O " <> Re.source tag <> " " <> show route
     RuleStopUpdate tag from to -> "U " <> Re.source tag <> " " <> Re.source from <> " " <> to
-    RuleReverse    tag         -> "r " <> Re.source tag <> " "
+    RuleReverse    tag         -> "r " <> Re.source tag
+
+encodeSignalRules :: Array SignalRule -> Array EncodedSignalRule
+encodeSignalRules = map encodeSignalRule
 
 encodeLayout :: Layout -> EncodedLayout
 encodeLayout (Layout layout) = {
@@ -225,7 +236,8 @@ encodeLayout (Layout layout) = {
     trains: encodeTrainset <$> layout.trains,
     time: layout.time,
     speed: layout.speed,
-    version: layout.version
+    version: layout.version,
+    routequeue: layout.routequeue
   }
 
 decodeRail :: EncodedRail -> Maybe Rail
@@ -312,6 +324,8 @@ decodeTrainset rs (Trainset {
     , notch
     , signalRestriction
     , note
+    , tags
+    , signalRulePhase
   }) = Trainset {
       types
     , route : decodeTrainRoute rs <$> route
@@ -325,6 +339,8 @@ decodeTrainset rs (Trainset {
     , notch
     , signalRestriction
     , note : ifUndefinedDefault "" note
+    , tags : ifUndefinedDefault [] tags
+    , signalRulePhase : ifUndefinedDefault signalRulePhase_unfired signalRulePhase
   }
 
 decodeTrainRoute :: Array RailNode ->  EncodedRoute -> TrainRoute
@@ -358,14 +374,17 @@ decodeSignal ( {
     , routecond  : []
     , colors     : []
     , manualStop
-    , rules : ifUndefinedDefault [] (catMaybes $ (\r -> decodeSignalRule (ifUndefinedDefault "" r)) <$> rules)
+    , rules : decodeSignalRules (ifUndefinedDefault [] rules)
   }
 
-decodeSignalRule :: EncodedSignalRule -> Maybe SignalRule
+decodeSignalRules :: Array String -> Array SignalRule
+decodeSignalRules rules = (\r -> decodeSignalRule (ifUndefinedDefault "" r)) <$> rules
+
+decodeSignalRule :: EncodedSignalRule -> SignalRule
 decodeSignalRule rule =
-  let rule_ = Re.replace (Re.unsafeRegex  "\\s*" Re.global) " " $ St.trim rule
+  let rule_ = Re.replace (Re.unsafeRegex  "\\s+" Re.global) " " $ St.trim rule
       spl   = St.split (St.Pattern " ") rule_
-  in case spl !! 0 of
+  in fromMaybe (RuleComment rule) $ case spl !! 0 of
       Just "o" -> (\tag route   -> RuleOpen       tag route  ) <$> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 1) <*> (Int.fromString =<< spl !! 2)
       Just "u" -> (\tag from to -> RuleUpdate     tag from to) <$> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 1) <*> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 2) <*> spl !! 3
       Just "s" -> (\tag         -> RuleStop       tag        ) <$> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 1)
@@ -374,23 +393,24 @@ decodeSignalRule rule =
       Just "r" -> (\tag         -> RuleReverse    tag        ) <$> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 1)
       _        -> Nothing
 
-decodeLayout :: {rails :: Array(Foreign), trains :: Foreign, signals :: Foreign, time :: Foreign, speed :: Foreign, version:: Int} -> Layout
-decodeLayout {rails: r, trains: t, time: time, speed: speed, version: v} =
+decodeLayout :: {rails :: Array(Foreign), trains :: Foreign, signals :: Foreign, time :: Foreign, speed :: Foreign, version:: Int, routequeue :: Foreign} -> Layout
+decodeLayout {rails: r, trains: t, time: time, speed: speed, version: v, routequeue:routequeue} =
   decodeLayout' {
       rails: unsafeFromForeign <$> r
     , trains: if isArray t then unsafeFromForeign t else []
     , time : fromRight 0.0 $ unwrap $ runExceptT $ (readNumber time  :: ExceptT (NonEmptyList ForeignError) Identity Number)
     , speed: fromRight 1.0 $ unwrap $ runExceptT $ (readNumber speed :: ExceptT (NonEmptyList ForeignError) Identity Number)
     , version: v
+    , routequeue: if isArray routequeue then unsafeFromForeign routequeue else []
   }
 
 decodeLayout' :: EncodedLayout -> Layout
-decodeLayout' {rails: rarr, trains: tarr, time: traw, speed: sraw, version: ver} =
+decodeLayout' {rails: rarr, trains: tarr, time: traw, speed: sraw, routequeue: routequeue, version: ver} =
   let rawrails = 
         if ver <= 1
           then (decodeRailInstance <<< unsafeFromForeign <<< unsafeToForeign) <$> rarr
           else decodeRailNode <$> rarr
-      deleted = (mapWithIndex (\i r -> {index: i, isdeleted: isNothing r}) >>> filter (\r -> r.isdeleted) >>> map (\r -> r.index)) rawrails
+      deleted = (mapWithIndex (\i r -> {index: IntNode i, isdeleted: isNothing r}) >>> filter (\r -> r.isdeleted) >>> map (\r -> r.index)) rawrails
       rs = catMaybes rawrails
       ts = decodeTrainset rs <$> tarr
       l0 = Layout {
@@ -404,6 +424,7 @@ decodeLayout' {rails: rarr, trains: tarr, time: traw, speed: sraw, version: ver}
           time  : ifUndefinedDefault 0.0 traw,
           speed : ifUndefinedDefault 1.0 sraw,
           traffic : [],
+          routequeue : ifUndefinedDefault [] routequeue,
           isclear : [],
           signalcolors : []
         }

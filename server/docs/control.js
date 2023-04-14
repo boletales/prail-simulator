@@ -1,3 +1,4 @@
+import { L } from "./3d.js";
 import * as P from "./main.js"
 const RAILLENGTH = 21.4;
 const RAILWIDTH = 3.8;
@@ -9,6 +10,7 @@ class Layout {
     this.respectSignals = true;
     this.layout  = P.defaultLayout;
     this.selectedJoint = {nodeid:0, jointid:1};
+    this.selectedTrain = -1;
     this.from = 0;
     this.savetimer = 0;
     this.savecooldown = 2000;
@@ -129,23 +131,80 @@ class Layout {
             , softkey: "*"
             , key    : ["*"]
           },
-          editTrainNote: {
-              onkey: ()=>this.editTrainNote(this.nextTrainNote)
-            , text_ja: "列車注釈"
-            , softkey: ":"
-            , key    : [":"]
-          },
-          editRailNote: {
-              onkey: ()=>this.editRailNote(this.nextRailNote)
-            , text_ja: "線路注釈"
-            , softkey: "/"
-            , key    : ["/"]
+          selectTrain: {
+              onkey: (data)=>this.selectTrain()
+            , text_ja: "列車選択"
+            , softkey: "u"
+            , key    : ["u"]
           },
           respectSignals: {
               onkey: ()=>{ this.toggleRespectSignals();}
             , text_ja: "信号走行↔信号無視"
             , softkey: "extra_respectSignals"
             , key    : ["extra_respectSignals"]
+            , skip   : true
+          },
+          editTrainNote: {
+              onkey: (data)=>this.editTrainNote(data.note)
+            , text_ja: "列車注釈"
+            , softkey: "extra_edittrainote"
+            , key    : ["extra_edittrainote"]
+            , skip   : true
+          },
+          editRailNote: {
+              onkey: (data)=>this.editRailNote(data.note)
+            , text_ja: "線路注釈"
+            , softkey: "extra_editrailnote"
+            , key    : ["extra_editrailnote"]
+            , skip   : true
+          },
+          removeTrainS: {
+              onkey: (data)=>{ this.layout.trains = L.layout.trains.filter(t => t.trainid != data.trainid)}
+            , text_ja: "選択列車削除"
+            , softkey: "extra_removetrain"
+            , key    : ["extra_removetrain"]
+            , skip   : true
+          },
+          flipTrainS: {
+              onkey: (data)=>{ this.layout.trains = this.layout.trains.map(c => {if(c.trainid == data.trainid && c.speed < 0.01){return P.flipTrain(c)}else{return c;}});}
+            , text_ja: "選択列車反転"
+            , softkey: "extra_reverse"
+            , key    : ["extra_reverse", "l"]
+            , skip   : true
+          },
+          setNotchS: {
+              onkey: (data)=>{ this.layout.trains.forEach(c => {if(c.trainid == data.trainid){c.notch = data.notch}});}
+            , text_ja: "ノッチ変更"
+            , softkey: "extra_setnotch"
+            , key    : ["extra_setnotch"]
+            , skip   : true
+          },
+          notchPlus: {
+              onkey: (data)=>{ this.layout.trains.forEach(c => {if(c.trainid == data.trainid){c.notch = Math.min(5, c.notch+1)}});}
+            , text_ja: "ノッチ上げ"
+            , softkey: "j"
+            , key    : ["extra_notchplus", "j"]
+            , skip   : true
+          },
+          notchMinus: {
+              onkey: (data)=>{ this.layout.trains.forEach(c => {if(c.trainid == data.trainid){c.notch = Math.max(-8, c.notch-1)}});}
+            , text_ja: "ノッチ下げ"
+            , softkey: "k"
+            , key    : ["extra_notchminus", "k"]
+            , skip   : true
+          },
+          setTrainTagsS: {
+              onkey: (data)=>{ this.layout.trains.forEach(c => {if(c.trainid == data.trainid){c.tags = data.tags.split("\n")}});}
+            , text_ja: "列車タグ設定"
+            , softkey: "extra_settraintag"
+            , key    : ["extra_settraintag"]
+            , skip   : true
+          },
+          setSignalRules: {
+              onkey: (data)=>{ this.setSignalRules(data.rules)}
+            , text_ja: "信号タグ設定"
+            , softkey: "extra_setsignaltag"
+            , key    : ["extra_setsignaltag"]
             , skip   : true
           },
         },
@@ -374,6 +433,25 @@ class Layout {
       };
   }
 
+  syncwithdata = (key, data, selectedJoint, selectedTrain) => {};
+  setSyncMethod(f){
+    syncwithdata = f;
+  }
+
+  tick(speed = 1.0){
+    let oldspeed = this.layout.speed;
+    this.layout.speed = oldspeed * speed;
+    if(!this.stopped ) this.layout = P.layoutTick(this.layout);
+    this.layout = P.layoutUpdate(this.layout);
+    if(this.layout.rails[this.selectedJoint.nodeid] === undefined){
+      selectNewestRail(this.layout);
+    }
+    if(this.layout.trains.find(t=>t.trainid == this.selectedTrain) === undefined && this.layout.trains.length > 0){
+      this.selectedTrain = this.layout.trains[this.layout.trains.length-1].trainid;
+    }
+    this.layout.speed = oldspeed;
+  }
+
   refreshKeybinds(){
     let keybinds = {};
     Object.values(this.keycontrols).forEach(category => {Object.values(category.keys).forEach(key => key.key.forEach(k => keybinds[k] = key.onkey));});
@@ -542,10 +620,31 @@ class Layout {
       this.layout.trains = this.layout.trains.filter(c => !tis.includes(c.trainid));
     }
   }
+  selectTrain(){
+    if(this.layout.traffic[this.selectedJoint.nodeid] !== undefined){
+      let tis = this.layout.traffic[this.selectedJoint.nodeid].flat();
+      let trains = this.layout.trains.filter(c => tis.includes(c.trainid));
+      if(trains.length > 0){
+        this.selectedTrain = trains[0].trainid;
+      }
+    }
+  }
   
   editRailNote(note){
     if(this.layout.rails[this.selectedJoint.nodeid] !== undefined){
       this.layout.rails[this.selectedJoint.nodeid].note = note;
+      this.requestSave();
+    }
+  }
+  getSignalTag(note){
+    if(this.layout.rails[this.selectedJoint.nodeid] !== undefined){
+      this.layout.rails[this.selectedJoint.nodeid].note = note;
+      this.requestSave();
+    }
+  }
+  setSignalRules(rulestr){
+    if(this.layout.rails[this.selectedJoint.nodeid] !== undefined){
+      this.layout.rails[this.selectedJoint.nodeid].signals.forEach(s => {if(s.jointid == this.selectedJoint.jointid){s.rules = P.decodeSignalRules(rulestr.split("\n"))}});
       this.requestSave();
     }
   }
@@ -556,11 +655,26 @@ class Layout {
       this.requestSave();
     }
   }
+
+  getSelectedRail(){
+    if(this.layout.rails[this.selectedJoint.nodeid] !== undefined){
+      return this.layout.rails[this.selectedJoint.nodeid];
+    }
+  }
+  getSelectedTrains(){
+    if(this.layout.traffic[this.selectedJoint.nodeid] !== undefined){
+      let tis = this.layout.traffic[this.selectedJoint.nodeid].flat();
+      return this.layout.trains.filter(c => tis.includes(c.trainid));
+    }
+  }
   
-  onkey(e){
+  onkey(e, data){
+    let selectedTrain = this.selectedTrain;
+    let selectedJoint={};
+    Object.assign(selectedJoint, this.selectedJoint);
     console.log(e);
     if(this.keybinds[e.key] !== undefined){
-      this.keybinds[e.key]();
+      this.syncwithdata(e.key, this.keybinds[e.key](data), selectedJoint, selectedTrain);
     }
   }
   

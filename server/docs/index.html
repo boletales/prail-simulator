@@ -14,15 +14,29 @@
     <input id="upload" type="file" accept=".json" onchange="upload();"><a href="2d.html">2D</a>
     <label><input type="checkbox" id="respectSignals" name="respectSignals">信号に従って走行</label><br>
     <input id="fakeinput" placeholder="fake input for smartphone">
+    <div id="minicontrols">
+      <hr>
+      <div id="railcontrol">
+        <span>レール操作：</span><br>
+        <label>レール注釈：<input id="railnote"     ></label><br>
+        <label>信号制御：<textarea id="signalrules" ></textarea></label><br>
+      </div>
+      <hr>
+      <div id="traincontrol">
+        <span>列車操作：</span><br>
+        <span id="trainid"></span><br>
+        <span>ノッチ操作：</span> <input type="button" id="notchplus" value="+(j)"><input type="button" id="notchminus" value="-(k)"> <input type="button" value="反転(l)" id="reverse"> <span id="speedinfo"></span><br>
+        <label>列車番号：<input id="trainnote"   ></label><br>
+        <label>列車タグ：<textarea id="traintags"></textarea></label><br>
+      </div>
+    </div>
   </div>
-  <script src="control.js" type="module"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js" integrity="sha256-80RGv4dbX7Dc2TgZ/+HZ4YLUZjTuhV9dkExsSsfNvJU=" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/FBXLoader.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/utils/BufferGeometryUtils.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lil-gui@0.17"></script>
   <script src="https://cdn.jsdelivr.net/npm/fflate@0.7.4/umd/index.min.js"></script>
-  <script src="./3d.js" type="module"></script>
   <script type="module">
     import * as P from "../main.js";
     import {upload, download, L} from "./3d.js";
@@ -31,29 +45,35 @@
     window.download = download;
     window.L = L;
     window.save = ()=>{L.save()};
-    L.keycontrols.signal.keys.editRailNote.onkey  = ()=>{let note = prompt("線路に注釈を付けます（なにもしなければ注釈削除）"); L.editRailNote (note);};
-    L.keycontrols.signal.keys.editTrainNote.onkey = ()=>{let note = prompt("列車に注釈を付けます（なにもしなければ注釈削除）"); L.editTrainNote(note);};
-    L.refreshKeybinds();
+
+    document.getElementById("minicontrols").onkeydown = (e)=>{e.stopPropagation(); true;};
 
     const GUI = new lil.GUI({ title : 'コントロールパネル', touchStyles: false });
     window.GUI = GUI;
+
     Object.values(L.keycontrols).forEach(category => {
       let folder = new lil.GUI( { parent: GUI, title: category.name, touchStyles: false } );
       Object.values(category.keys).forEach(key => {
         if(key.skip) return;
-        folder.add(key, "onkey").name(key.softkey + " : " + key.text_ja);
+        folder.add({
+          "onkey": (()=>{
+            L.onkey(key.key[0]);
+          })
+        }, "onkey").name(key.softkey + " : " + key.text_ja);
+        folder.close();
       });
-      folder.close();
     });
     GUI.folders[0].open();
     GUI.folders[2].open();
 
     GUI.domElement.style.opacity = 0.7;
+    
+    document.onkeydown = ((e)=>{
+      L.onkey(e, {trainid: L.selectedTrain});
+    });
 
     document.getElementById("respectSignals").oninput = ()=>{
-      let k = "extra_respectSignals";
-      L.onkey(k);
-      document.getElementById("respectSignals").checked = L.respectSignals;
+      L.onkey({key: "extra_respectSignals"});
     }
   </script>
   <span id="coord"></span>

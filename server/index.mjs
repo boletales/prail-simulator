@@ -28,8 +28,6 @@ class OnlineControler {
     }
     this.L.loadfrom(()=>null, fs.readFileSync(this.file));
 
-    this.L.keycontrols.signal.keys.editRailNote.onkey  = ()=>{this.L.editRailNote (this.note);};
-    this.L.keycontrols.signal.keys.editTrainNote.onkey = ()=>{this.L.editTrainNote(this.note);};
     this.L.refreshKeybinds();
 
     this.count = 0;
@@ -40,11 +38,8 @@ class OnlineControler {
 
   startLoop(){
     this.loop = setInterval(()=>{
-      let oldspeed = this.L.layout.speed;
-      this.L.layout.speed = oldspeed*4.0;
-      if(!this.L.stopped ) this.L.layout = P.layoutTick(this.L.layout);
-      this.L.layout.speed = oldspeed;
-      this.L.layout = P.layoutUpdate(this.L.layout);
+      L.tick(4.0);
+
       this.count++;
       if(this.count >= this.COUNTMAX){
         this.sync();
@@ -75,9 +70,8 @@ class OnlineControler {
   }
 
   onkey(socket, data){
-    this.note = data.note;
     this.L.selectedJoint = data.selectedJoint;
-    this.L.onkey(data);
+    this.L.onkey(data.data);
     this.L.layout = P.layoutUpdate(this.L.layout);
     this.sync(false);
     socket.emit("selectedJoint", {selectedJoint: this.L.selectedJoint});

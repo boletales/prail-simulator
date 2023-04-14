@@ -168,7 +168,6 @@ function loadModel(name){
 
 function main(){
   L.layout = P.defaultLayout;
-  document.onkeydown = ((e)=>L.onkey(e));
   document.getElementById("fakeinput").onkeydown = ()=>{return true;};
   document.getElementById("fakeinput").onchange = ()=>{document.getElementById("fakeinput").value=""};
   let onclickold = renderer.domElement.onclick;
@@ -197,8 +196,7 @@ function tick(){
   if(time.length > 120){
     time.shift();
   }
-  if(!L.stopped ) L.layout = P.layoutTick(L.layout);
-  L.layout = P.layoutUpdate(L.layout);
+  L.tick();
   if(tickcount % tickrate == 0){
     draw(L.layout);
   }
@@ -323,6 +321,62 @@ function draw(layout){
   if(p !== undefined){
     document.getElementById("coord").innerText = C.coordStr(p.coord) + "   selected: " + L.selectedJoint.nodeid + "-" + L.selectedJoint.jointid + "    " + getfps().toFixed(0) + "fps" ;
   }
+
+  let train = L.layout.trains.find(t => t.trainid == L.selectedTrain);
+  if(train !== undefined){
+    let notchToStr = (n) => (train.notch == 0 ? "N" : (n>0 ? "P"+n : "B"+(-n)));
+    let maxnotch = P.getMaxNotch(L.layout)(train);
+    document.getElementById("trainid").innerText = "編成 #" + (L.selectedTrain+1);
+    document.getElementById("speedinfo").innerText = notchToStr(train.notch) + (train.notch < maxnotch ? "" : (" -> " + notchToStr(maxnotch))) + "  " + (train.speed / P.speedScale).toFixed(1) + "km/h";
+    document.getElementById("trainnote").value = train.note;
+    document.getElementById("traintags").value = train.tags.join("\n");
+
+    document.getElementById("notchplus").onclick  = ()=> L.onkey({key: L.keycontrols.signal.keys.notchPlus.key[0]    }, {trainid: L.selectedTrain});
+    document.getElementById("notchminus").onclick = ()=> L.onkey({key: L.keycontrols.signal.keys.notchMinus.key[0]   }, {trainid: L.selectedTrain});
+    document.getElementById("reverse").onclick    = ()=> L.onkey({key: L.keycontrols.signal.keys.notchMinus.key[0]   }, {trainid: L.selectedTrain});
+    document.getElementById("trainnote").oninput  = ()=> L.onkey({key: L.keycontrols.signal.keys.editTrainNote.key[0]}, {trainid: L.selectedTrain, note: document.getElementById("trainnote").value});
+    document.getElementById("traintags").oninput  = ()=> L.onkey({key: L.keycontrols.signal.keys.setTrainTagsS.key[0]}, {trainid: L.selectedTrain, tags: document.getElementById("traintags").value});
+
+    document.getElementById("notchplus").disabled = false;
+    document.getElementById("notchminus").disabled = false;
+    document.getElementById("reverse").disabled    = train.speed > 0;
+    document.getElementById("trainnote").disabled = false;
+    document.getElementById("traintags").disabled = false;
+  }else{
+    document.getElementById("notchplus").disabled = true;
+    document.getElementById("notchminus").disabled = true;
+    document.getElementById("reverse").disabled    = true;
+    document.getElementById("trainnote").disabled = true;
+    document.getElementById("traintags").disabled = true;
+  }
+
+  if(L.layout.rails[L.selectedJoint.nodeid] !== undefined){
+    document.getElementById("railnote").value   = L.layout.rails[L.selectedJoint.nodeid].note;
+    document.getElementById("railnote").oninput      = ()=> L.onkey({key: L.keycontrols.signal.keys.editRailNote.key[0]}, {note: document.getElementById("railnote").value});
+    let signal = L.layout.rails[L.selectedJoint.nodeid].signals.find(s => s.jointid == L.selectedJoint.jointid);
+    if(signal !== undefined){
+      document.getElementById("signalrules").value   = P.encodeSignalRules(signal.rules).join("\n");
+      document.getElementById("signalrules").oninput = ()=> L.onkey({key: L.keycontrols.signal.keys.setSignalRules.key[0]}, {rules: document.getElementById("signalrules").value});
+      document.getElementById("signalrules").disabled = false;
+    }else{
+      document.getElementById("signalrules").disabled = true;
+    }
+  }else{
+    document.getElementById("railnote").disabled = true;
+    document.getElementById("signalrules").disabled = true;
+  }
+/*
+  <span>列車操作：</span><br>
+  <span id="trainid"></span><br>
+  <span>ノッチ操作：</span><input type="button" id="notchplus" value="+(j)"><input type="button" id="notchminus" value="-(k)"><span id="speedinfo"><br>
+  <label>列車番号：<input id="trainnote"></label><br>
+  <label>列車タグ：<textarea id="traintags"></textarea></label><br>
+</div>
+<div id="railcontrol">
+  <span>レール操作：</span><br>
+  <label>レール注釈：<input id="railnote"></label><br>
+  <label>信号制御：<textarea id="signalrules"></textarea></label><br>
+</div>*/
 }
 
 

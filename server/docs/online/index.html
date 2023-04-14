@@ -19,8 +19,23 @@
     <input id="upload" type="file" accept=".json" onchange="upload();">
     <label><input type="checkbox" id="respectSignals" name="respectSignals">信号に従って走行</label><br>
     <input id="fakeinput" placeholder="fake input for smartphone">
+    <div id="minicontrols">
+      <hr>
+      <div id="railcontrol">
+        <span>レール操作：</span><br>
+        <label>レール注釈：<input id="railnote"     ></label><br>
+        <label>信号制御：<textarea id="signalrules" ></textarea></label><br>
+      </div>
+      <hr>
+      <div id="traincontrol">
+        <span>列車操作：</span><br>
+        <span id="trainid"></span><br>
+        <span>ノッチ操作：</span> <input type="button" id="notchplus" value="+(j)"><input type="button" id="notchminus" value="-(k)"> <input type="button" value="反転(l)" id="reverse"> <span id="speedinfo"></span><br>
+        <label>列車番号：<input id="trainnote"   ></label><br>
+        <label>列車タグ：<textarea id="traintags"></textarea></label><br>
+      </div>
+    </div>
   </div>
-  <script src="../control.js" type="module"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js" integrity="sha256-80RGv4dbX7Dc2TgZ/+HZ4YLUZjTuhV9dkExsSsfNvJU=" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/FBXLoader.js"></script>
@@ -28,9 +43,8 @@
   <script src="https://cdn.jsdelivr.net/npm/lil-gui@0.17"></script>
   <script src="https://cdn.jsdelivr.net/npm/fflate@0.7.4/umd/index.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/socket.io@4.6.1/client-dist/socket.io.min.js"></script>
-  <script src="../3d.js" type="module"></script>
   <script type="module">
-    import {download, L, clearCache, forceUpdateModel} from "../3d.js";
+    import {download, L, clearCache, forceUpdateModel, setSyncMethod} from "../3d.js";
     import * as P from "../main.js";
     window.P = P;
 
@@ -39,27 +53,31 @@
     window.L = L;
     window.save = ()=>{L.save()};
 
+    document.getElementById("minicontrols").onkeydown = (e)=>{e.stopPropagation(); true;};
+
     let socket = io.connect();
+
+    L.setSyncMethod((key, data, selectedJoint, selectedTrain)=>{
+      socket.emit("key", {"key" : key, "data":{data}, "selectedJoint":selectedJoint, "selectedTrain":L.selectedTrain});
+    });
+    
     socket.on("sync",data=>{
       let selectedJoint = L.selectedJoint;
+      let selectedTrain = L.selectedTrain;
       L.stopped = data.stopped;
       L.respectSignals = data.respectSignals;
       document.getElementById("respectSignals").checked = data.respectSignals;
       L.loadfrom(()=>(data.clearCache ? clearCache() : forceUpdateModel()), fflate.strFromU8(fflate.decompressSync(Uint8Array.from(Array.prototype.map.call(atob(data.compressed), (x) => x.charCodeAt(0))))))
       L.selectedJoint = selectedJoint;
+      L.selectedTrain = selectedTrain;
       console.log("sync");
     });
     socket.on("selectedJoint",data=>{
       L.selectedJoint = data.selectedJoint;
     });
     document.onkeydown = ((e)=>{
-      let selectedJoint={};
-      Object.assign(selectedJoint, L.selectedJoint);
-      L.onkey(e);
-      socket.emit("key", {"key" : e.key, "note":L.note, "selectedJoint":selectedJoint});
+      L.onkey(e, {trainid: L.selectedTrain});
     });
-    L.keycontrols.signal.keys.editRailNote.onkey  = ()=>{let note = prompt("線路に注釈を付けます（なにもしなければ注釈削除）"); L.editRailNote (note); L.note=note;};
-    L.keycontrols.signal.keys.editTrainNote.onkey = ()=>{let note = prompt("列車に注釈を付けます（なにもしなければ注釈削除）"); L.editTrainNote(note); L.note=note;};
     L.refreshKeybinds();
 
     clearCache();
@@ -80,10 +98,7 @@
         if(key.skip) return;
         folder.add({
           "onkey": (()=>{
-            let selectedJoint={};
-            Object.assign(selectedJoint, L.selectedJoint);
-            key.onkey();
-            socket.emit("key", {"key" : key.key[0], "note":L.note, "selectedJoint":selectedJoint});
+            L.onkey(key.key[0]);
           })
         }, "onkey").name(key.softkey + " : " + key.text_ja);
         folder.close();
@@ -95,15 +110,10 @@
     GUI.domElement.style.opacity = 0.7;
 
     document.getElementById("respectSignals").oninput = ()=>{
-      let k = "extra_respectSignals";
-      let selectedJoint={};
-      Object.assign(selectedJoint, L.selectedJoint);
-      L.onkey(k);
-      socket.emit("key", {"key" : k, "note":L.note, "selectedJoint":selectedJoint});
+      L.onkey({key: "extra_respectSignals"});
     }
 
     socket.emit("join", {room: location.pathname.replace(/\/$/,"").replace(/.*\//g,"")});
   </script>
-  <span id="coord"></span>
 </body>
 </html>

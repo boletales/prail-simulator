@@ -44,7 +44,7 @@
   <script src="https://cdn.jsdelivr.net/npm/fflate@0.7.4/umd/index.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/socket.io@4.6.1/client-dist/socket.io.min.js"></script>
   <script type="module">
-    import {download, L, clearCache, forceUpdateModel, setSyncMethod} from "../3d.js";
+    import {download, L, clearCache, forceUpdateModel} from "../3d.js";
     import * as P from "../main.js";
     window.P = P;
 
@@ -58,7 +58,7 @@
     let socket = io.connect();
 
     L.setSyncMethod((key, data, selectedJoint, selectedTrain)=>{
-      socket.emit("key", {"key" : key, "data":{data}, "selectedJoint":selectedJoint, "selectedTrain":L.selectedTrain});
+      socket.emit("key", {"key" : key, "data":data, "selectedJoint":selectedJoint, "selectedTrain":L.selectedTrain});
     });
     
     socket.on("sync",data=>{
@@ -74,6 +74,7 @@
     });
     socket.on("selectedJoint",data=>{
       L.selectedJoint = data.selectedJoint;
+      L.selectedTrain = data.selectedTrain;
     });
     document.onkeydown = ((e)=>{
       L.onkey(e, {trainid: L.selectedTrain});

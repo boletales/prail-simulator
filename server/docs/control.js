@@ -144,63 +144,70 @@ class Layout {
             , skip   : true
           },
           editTrainNote: {
-              onkey: (data)=>this.editTrainNote(data.note)
+              onkey: (data)=>{this.editTrainNote(data.note); return data;}
             , text_ja: "列車注釈"
             , softkey: "extra_edittrainote"
             , key    : ["extra_edittrainote"]
             , skip   : true
           },
           editRailNote: {
-              onkey: (data)=>this.editRailNote(data.note)
+              onkey: (data)=>{this.editRailNote(data.note); return data;}
             , text_ja: "線路注釈"
             , softkey: "extra_editrailnote"
             , key    : ["extra_editrailnote"]
             , skip   : true
           },
           removeTrainS: {
-              onkey: (data)=>{ this.layout.trains = L.layout.trains.filter(t => t.trainid != data.trainid)}
+              onkey: (data)=>{ this.layout.trains = L.layout.trains.filter(t => t.trainid != data.trainid); return data;}
             , text_ja: "選択列車削除"
             , softkey: "extra_removetrain"
             , key    : ["extra_removetrain"]
             , skip   : true
           },
           flipTrainS: {
-              onkey: (data)=>{ this.layout.trains = this.layout.trains.map(c => {if(c.trainid == data.trainid && c.speed < 0.01){return P.flipTrain(c)}else{return c;}});}
+              onkey: (data)=>{ this.layout.trains = this.layout.trains.map(c => {if(c.trainid == data.trainid && c.speed < 0.01){return P.flipTrain(c)}else{return c;}}); return data;}
             , text_ja: "選択列車反転"
             , softkey: "extra_reverse"
             , key    : ["extra_reverse", "l"]
             , skip   : true
           },
           setNotchS: {
-              onkey: (data)=>{ this.layout.trains.forEach(c => {if(c.trainid == data.trainid){c.notch = data.notch}});}
+              onkey: (data)=>{ this.layout.trains.forEach(c => {if(c.trainid == data.trainid){c.notch = data.notch}}); return data;}
             , text_ja: "ノッチ変更"
             , softkey: "extra_setnotch"
             , key    : ["extra_setnotch"]
             , skip   : true
           },
+          editTrainNoteS: {
+              onkey: (data)=>{this.layout.trains.forEach(c => {if(c.trainid == data.trainid){c.note = data.note}});; return data;}
+            , text_ja: "選択列車注釈"
+            , softkey: "extra_edittrainoteS"
+            , key    : ["extra_edittrainoteS"]
+            , skip   : true
+          },
           notchPlus: {
-              onkey: (data)=>{ this.layout.trains.forEach(c => {if(c.trainid == data.trainid){c.notch = Math.min(5, c.notch+1)}});}
+              onkey: (data)=>{ this.layout.trains.forEach(c => {if(c.trainid == data.trainid){c.notch = Math.min(5, c.notch+1)}});; return data;}
             , text_ja: "ノッチ上げ"
             , softkey: "j"
             , key    : ["extra_notchplus", "j"]
             , skip   : true
           },
           notchMinus: {
-              onkey: (data)=>{ this.layout.trains.forEach(c => {if(c.trainid == data.trainid){c.notch = Math.max(-8, c.notch-1)}});}
+              onkey: (data)=>{ this.layout.trains.forEach(c => {if(c.trainid == data.trainid){c.notch = Math.max(-8, c.notch-1)}});; return data;}
             , text_ja: "ノッチ下げ"
             , softkey: "k"
             , key    : ["extra_notchminus", "k"]
             , skip   : true
           },
           setTrainTagsS: {
-              onkey: (data)=>{ this.layout.trains.forEach(c => {if(c.trainid == data.trainid){c.tags = data.tags.split("\n")}});}
+              onkey: (data)=>{ this.layout.trains.forEach(c => {if(c.trainid == data.trainid){c.tags = data.tags.split("\n")}});; return data;}
             , text_ja: "列車タグ設定"
             , softkey: "extra_settraintag"
             , key    : ["extra_settraintag"]
             , skip   : true
           },
           setSignalRules: {
-              onkey: (data)=>{ this.setSignalRules(data.rules)}
+              onkey: (data)=>{ this.setSignalRules(data.rules); return data;}
             , text_ja: "信号タグ設定"
             , softkey: "extra_setsignaltag"
             , key    : ["extra_setsignaltag"]
@@ -434,7 +441,7 @@ class Layout {
 
   syncwithdata = (key, data, selectedJoint, selectedTrain) => {};
   setSyncMethod(f){
-    syncwithdata = f;
+    this.syncwithdata = f;
   }
 
   tick(speed = 1.0){
@@ -671,7 +678,7 @@ class Layout {
     let selectedTrain = this.selectedTrain;
     let selectedJoint={};
     Object.assign(selectedJoint, this.selectedJoint);
-    console.log(e);
+    console.log(e, data);
     if(this.keybinds[e.key] !== undefined){
       this.syncwithdata(e.key, this.keybinds[e.key](data), selectedJoint, selectedTrain);
     }

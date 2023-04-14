@@ -38,7 +38,7 @@ class OnlineControler {
 
   startLoop(){
     this.loop = setInterval(()=>{
-      L.tick(4.0);
+      this.L.tick(4.0);
 
       this.count++;
       if(this.count >= this.COUNTMAX){
@@ -71,10 +71,11 @@ class OnlineControler {
 
   onkey(socket, data){
     this.L.selectedJoint = data.selectedJoint;
-    this.L.onkey(data.data);
+    this.L.selectedTrain = data.selectedTrain;
+    this.L.onkey({key:data.key}, data.data);
     this.L.layout = P.layoutUpdate(this.L.layout);
     this.sync(false);
-    socket.emit("selectedJoint", {selectedJoint: this.L.selectedJoint});
+    socket.emit("selectedJoint", {selectedJoint: this.L.selectedJoint, selectedTrain: this.L.selectedTrain});
   }
 
   onupload(socket, data){

@@ -141,7 +141,7 @@ export function clearCache() {
 }
 
 function focusJoint () {
-  let pos = P.getJointAbsPos(L.layout)(L.selectedJoint.nodeid)(L.selectedJoint.jointid).value0;
+  let pos = P.fromJust()(P.getJointAbsPos(L.layout)(L.selectedJoint.nodeid)(L.selectedJoint.jointid));
   if(pos !== undefined){
     let {x, y, z} = v3(pos.coord);
     //camera.position.x = x+  60*Math.sin(pos.angle);
@@ -196,7 +196,8 @@ function tick(){
   if(time.length > 120){
     time.shift();
   }
-  L.tick();
+  let speed = tick.length >= 2 ? Math.min((time[time.length-1]-time[time.length-2])*60, 5) : 1;
+  L.tick(speed);
   if(tickcount % tickrate == 0){
     draw(L.layout);
   }
@@ -284,7 +285,7 @@ function draw(layout){
   
   ldi.signals.forEach(s => s.forEach(({indication, pos, signal}) => {
       indication.forEach((color, i) => meshsignalmemo[signal.nodeid][signal.jointid][i].material = signalMaterials[color]);
-      meshsignalplatememo[signal.nodeid][signal.jointid].material = signal.manualStop ? signalPlateStoppedMaterial : signalPlateMaterial;
+      meshsignalplatememo[signal.nodeid][signal.jointid].material = signal.restraint ? signalPlateRestraintMaterial : (signal.manualStop ? signalPlateStoppedMaterial : signalPlateMaterial);
     }));
   
   ldi.rails.forEach((di) => {
@@ -317,8 +318,10 @@ function draw(layout){
 
   renderer.render( scene, camera );
 
-  let p = P.getJointAbsPos(layout)(L.selectedJoint.nodeid)(L.selectedJoint.jointid).value0;
-  if(p !== undefined){
+  let p = P.fromJust()(P.getJointAbsPos(layout)(L.selectedJoint.nodeid)(L.selectedJoint.jointid));
+  if(p === undefined){
+    document.getElementById("coord").innerText = C.coordStr(P.poszero.coord) + "   selected: none    " + getfps().toFixed(0) + "fps" ;
+  }else{
     document.getElementById("coord").innerText = C.coordStr(p.coord) + "   selected: " + L.selectedJoint.nodeid + "-" + L.selectedJoint.jointid + "    " + getfps().toFixed(0) + "fps" ;
   }
 
@@ -540,11 +543,12 @@ function meshJointButton(p, instanceid, jointid){
     return data;
 }
 
-const signalColors = ["#800", "#f80", "#ff0", "#8f0", "#0ea"];
+const signalColors = ["#800", "#f80", "#ff0", "#0f4", "#0ee"];
 const signalMaterials = 
   signalColors.map (c => new THREE.MeshBasicMaterial({color: c, side: THREE.DoubleSide}));
 const signalPlateMaterial = new THREE.MeshBasicMaterial({color: "#222", side: THREE.DoubleSide});
 const signalPlateStoppedMaterial = new THREE.MeshBasicMaterial({color: "#a00", side: THREE.DoubleSide});
+const signalPlateRestraintMaterial = new THREE.MeshBasicMaterial({color: "#80d", side: THREE.DoubleSide});
 const invalidRouteMaterial = new THREE.MeshBasicMaterial({color: "#500", side: THREE.DoubleSide});
 const notePlateMaterial = new THREE.MeshBasicMaterial({color: "#fff", side: THREE.DoubleSide, opacity: 0.5, transparent:true});
 
@@ -794,7 +798,7 @@ const meshSelectionMark = (()=>{
 scene.add(meshSelectionMark);
 
 function updateMeshSelectionMark(layout, selectedJoint){
-  let p = P.getJointAbsPos(layout)(selectedJoint.nodeid)(selectedJoint.jointid).value0;
+  let p = P.fromJust()(P.getJointAbsPos(layout)(selectedJoint.nodeid)(selectedJoint.jointid));
   if(p !== undefined){
     //camera.lookAt(v3(p.coord));
     let a = a3(p.coord);

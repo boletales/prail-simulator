@@ -91,7 +91,7 @@ function draw(layout, camera, ctx){
   drawSelectionMark(layout, L.selectedJoint, camera, ctx);
 
 
-  let p = P.getJointAbsPos(layout)(L.selectedJoint.nodeid)(L.selectedJoint.jointid).value0;
+  let p = P.fromJust()(P.getJointAbsPos(layout)(L.selectedJoint.nodeid)(L.selectedJoint.jointid));
   if(p !== undefined){
     document.getElementById("coord").innerText = C.coordStr(p.coord);
   }
@@ -152,7 +152,7 @@ function easeFlash(_t){
 const selectionColor = "#ffff00";
 function drawSelectionMark(layout, selectedJoint, camera, ctx){
   ctx.beginPath();
-  let p = P.getJointAbsPos(layout)(selectedJoint.nodeid)(selectedJoint.jointid).value0;
+  let p = P.fromJust()(P.getJointAbsPos(layout)(selectedJoint.nodeid)(selectedJoint.jointid));
   if(p !== undefined){
     let w = 0.1;
     let h = 0.1;

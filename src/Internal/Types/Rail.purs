@@ -7,9 +7,10 @@ import Data.Number
 import Internal.Types.Pos
 import Internal.Types.Serial
 import Prelude
-import Prelude
 import Type.Proxy
 
+
+import Partial.Unsafe
 import Data.Array (reverse, any)
 import Data.Symbol (class IsSymbol)
 import Data.Traversable (scanl)
@@ -129,19 +130,52 @@ toSerialJ = toSerial >>> IntJoint
 toSerialS ∷ ∀ (b116 ∷ Type). IntSerialize b116 ⇒ b116 → IntState
 toSerialS = toSerial >>> IntState
 
-toRail :: forall joint state.
-            IntSerialize joint => IntSerialize state =>
-            RailGen joint state -> Rail
-toRail (RailGen rgen) = 
+fromSerialJ ∷ ∀ (b123 ∷ Type). IntSerialize b123 ⇒ IntJoint → Maybe b123
+fromSerialJ = unwrap >>> fromSerial
+fromSerialS ∷ ∀ (b116 ∷ Type). IntSerialize b116 ⇒ IntState → Maybe b116
+fromSerialS = unwrap >>> fromSerial
+
+fallbackindex1 :: forall e. e -> Array e -> Int -> e
+fallbackindex1 e a1 x = 
+  if x < length a1
+  then unsafePartial $ unsafeIndex a1 x
+  else e
+
+fallbackindex2 :: forall e. e -> Array (Array e) -> Int -> Int -> e
+fallbackindex2 e a1 x y = 
+  if x < length a1
+  then  if y < length (unsafePartial $ unsafeIndex a1 x) 
+        then unsafePartial $ unsafeIndex (unsafePartial $ unsafeIndex a1 x) y
+        else e
+  else e
+
+fallbackindex3 :: forall e. e -> Array (Array (Array e)) -> Int -> Int -> Int -> e
+fallbackindex3 e a1 x y z = 
+  if x < length a1
+  then  if y < length (unsafePartial $ unsafeIndex a1 x) 
+        then  if z < length (unsafePartial $ unsafeIndex (unsafePartial $ unsafeIndex a1 x) y)
+              then unsafePartial $ unsafeIndex (unsafePartial $ unsafeIndex (unsafePartial $ unsafeIndex a1 x) y) z
+              else e
+        else e
+  else e
+
+flipDrawInfo :: DrawInfo RelPos → DrawInfo RelPos
+flipDrawInfo   (DrawInfo de) = DrawInfo {rails: flipDrawRail   <$> de.rails, additionals : flipAdditional   <$> de.additionals}
+
+opposeDrawInfo :: DrawInfo RelPos → DrawInfo RelPos
+opposeDrawInfo (DrawInfo de) = DrawInfo {rails: opposeDrawRail <$> de.rails, additionals : opposeAdditional <$> de.additionals}
+
+toRail:: forall joint state.
+             IntSerialize joint => IntSerialize state =>
+             RailGen joint state -> Rail
+toRail = toRail_ >>> memorizeRail
+
+toRail_ :: forall joint state.
+             IntSerialize joint => IntSerialize state =>
+             RailGen joint state -> Rail
+toRail_ (RailGen rgen) = 
   let getJoints = rgen.getJoints <#> toSerialJ
       getStates = rgen.getStates <#> toSerialS
-      getJointPos_memo = rgen.getJoints <#> rgen.getJointPos
-      getNewState_memo = (rgen.getJoints <#> (\j -> rgen.getStates <#> (\s -> (\ns -> {newjoint: toSerialJ ns.newjoint, newstate: toSerialS ns.newstate, shape: ns.shape}) $ rgen.getNewState j s)))
-      getDrawInfo_memo = rgen.getStates <#> rgen.getDrawInfo
-      getRoute_memo   = (rgen.getStates <#> (\x -> rgen.getJoints <#> (\y -> rgen.getJoints <#> (\z -> toSerialS <$> rgen.getRoute x y z))))
-      isLegal_memo    = (rgen.getJoints <#> (\x -> rgen.getStates <#> (\y ->                           rgen.isLegal   x y   )))
-      lockedBy_memo   = (rgen.getStates <#> (\x -> rgen.getStates <#> (\y ->            toSerialJ <$> (rgen.lockedBy  x y)  )))
-      isBlocked_memo  = (rgen.getJoints <#> (\x -> rgen.getStates <#> (\y -> rgen.getJoints <#> (\z -> rgen.isBlocked x y z))))
   in RailGen {
     name: rgen.name,
     flipped: rgen.flipped,
@@ -150,6 +184,65 @@ toRail (RailGen rgen) =
     getJoints   : getJoints,
     getStates   : getStates,
     getOrigin   : toSerialJ (rgen.getOrigin :: joint),
+    getJointPos: \(IntJoint j)                            -> fromMaybe (RelPos poszero)                                        $  rgen.getJointPos <$> (fromSerial j)                                       ,
+    getNewState: \(IntJoint j) (IntState s)               -> fromMaybe {newjoint: IntJoint j, newstate: IntState s, shape: []} $ (rgen.getNewState <$> (fromSerial j) <*> (fromSerial s)) <#> (\ns -> {newjoint: toSerialJ ns.newjoint, newstate: toSerialS ns.newstate, shape: ns.shape})                    ,
+    getDrawInfo: \(IntState s)                            -> fromMaybe brokenDrawInfo                                          $  rgen.getDrawInfo <$> (fromSerial s)                                       ,
+    getRoute   : \(IntState s) (IntJoint f) (IntJoint t)  -> fromMaybe Nothing                                                 $ (rgen.getRoute    <$> (fromSerial s) <*> (fromSerial f) <*> (fromSerial t)) <#> (map toSerialS),
+    isLegal    : \(IntJoint j) (IntState s)               -> fromMaybe false                                                   $  rgen.isLegal     <$> (fromSerial j) <*> (fromSerial s)                    ,
+    lockedBy   : \(IntState s) (IntState s')              -> fromMaybe []                                                      $ (rgen.lockedBy    <$> (fromSerial s) <*> (fromSerial s')) <#> (map toSerialJ),
+    isBlocked  : \(IntJoint j) (IntState s) (IntJoint j') -> fromMaybe false                                                   $  rgen.isBlocked   <$> (fromSerial j) <*> (fromSerial s) <*> (fromSerial j'),
+    isSimple   : rgen.isSimple
+  }
+
+newtate_fallback = {newjoint: IntJoint 0, newstate: IntState 0, shape: []}
+memorizeRail :: Rail -> Rail
+memorizeRail (RailGen rgen) = 
+  let getJoints = rgen.getJoints
+      getStates = rgen.getStates
+      getJointPos_memo = rgen.getJoints <#> rgen.getJointPos
+      getNewState_memo = (rgen.getJoints <#> (\j -> rgen.getStates <#> (\s -> (\ns -> {newjoint: ns.newjoint, newstate: ns.newstate, shape: ns.shape}) $ rgen.getNewState j s)))
+      getDrawInfo_memo = rgen.getStates <#> rgen.getDrawInfo
+      getRoute_memo   = (rgen.getStates <#> (\x -> rgen.getJoints <#> (\y -> rgen.getJoints <#> (\z -> rgen.getRoute x y z))))
+      isLegal_memo    = (rgen.getJoints <#> (\x -> rgen.getStates <#> (\y ->                           rgen.isLegal   x y   )))
+      lockedBy_memo   = (rgen.getStates <#> (\x -> rgen.getStates <#> (\y ->                          (rgen.lockedBy  x y)  )))
+      isBlocked_memo  = (rgen.getJoints <#> (\x -> rgen.getStates <#> (\y -> rgen.getJoints <#> (\z -> rgen.isBlocked x y z))))
+  in RailGen {
+    name: rgen.name,
+    flipped: rgen.flipped,
+    opposed: rgen.opposed,
+    defaultState: rgen.defaultState,
+    getJoints   : getJoints,
+    getStates   : getStates,
+    getOrigin   : rgen.getOrigin,
+    getJointPos: \(IntJoint j)                            -> fallbackindex1 (RelPos poszero) getJointPos_memo j,
+    getNewState: \(IntJoint j) (IntState s)               -> fallbackindex2 newtate_fallback getNewState_memo j s,
+    getDrawInfo: \(IntState s)                            -> fallbackindex1 brokenDrawInfo   getDrawInfo_memo s,
+    getRoute   : \(IntState s) (IntJoint f) (IntJoint t)  -> fallbackindex3 Nothing          getRoute_memo s f t,
+    isLegal    : \(IntJoint j) (IntState s)               -> fallbackindex2 false            isLegal_memo   j s    ,
+    lockedBy   : \(IntState s) (IntState s')              -> fallbackindex2 []               lockedBy_memo  s s'   ,
+    isBlocked  : \(IntJoint j) (IntState s) (IntJoint j') -> fallbackindex3 false            isBlocked_memo j s  j',
+    isSimple   : rgen.isSimple
+  }
+{-
+flipRail :: Rail -> Rail
+flipRail (RailGen rgen) = 
+  let getJoints        = rgen.getJoints
+      getStates        = rgen.getStates
+      getJointPos_memo = rgen.getJoints <#> rgen.getJointPos <#> flipRelPos
+      getNewState_memo = (rgen.getJoints <#> (\j -> rgen.getStates <#> (\s -> (\ns -> {newjoint: ns.newjoint, newstate: ns.newstate, shape: flipShape <$> ns.shape}) $ rgen.getNewState j s)))
+      getDrawInfo_memo = rgen.getStates <#> rgen.getDrawInfo <#> (\(DrawInfo de ) -> DrawInfo {rails: flipDrawRail <$> de.rails , additionals : flipAdditional <$> de.additionals})
+      getRoute_memo    = (rgen.getStates <#> (\x -> rgen.getJoints <#> (\y -> rgen.getJoints <#> (\z -> rgen.getRoute x y z))))
+      isLegal_memo     = (rgen.getJoints <#> (\x -> rgen.getStates <#> (\y ->                           rgen.isLegal   x y   )))
+      lockedBy_memo    = (rgen.getStates <#> (\x -> rgen.getStates <#> (\y ->                          (rgen.lockedBy  x y)  )))
+      isBlocked_memo   = (rgen.getJoints <#> (\x -> rgen.getStates <#> (\y -> rgen.getJoints <#> (\z -> rgen.isBlocked x y z))))
+  in RailGen {
+    name: rgen.name,
+    flipped:  not rgen.flipped,
+    opposed: rgen.opposed,
+    defaultState: rgen.defaultState,
+    getJoints   : getJoints,
+    getStates   : getStates,
+    getOrigin   : rgen.getOrigin,
     getJointPos: \(IntJoint j)   -> fromMaybe (RelPos poszero) (getJointPos_memo !! j),
 
     getNewState: \(IntJoint j) (IntState s) -> fromMaybe {newjoint: IntJoint j, newstate: IntState s, shape: []} ((getNewState_memo !! j) >>= (_ !! s)),
@@ -162,6 +255,39 @@ toRail (RailGen rgen) =
     isBlocked: \(IntJoint j) (IntState s) (IntJoint j') -> fromMaybe false ((isBlocked_memo !! j) >>= (_ !! s) >>= (_ !! j')),
     isSimple : rgen.isSimple
   }
+
+opposeRail :: Rail -> Rail
+opposeRail (RailGen rgen) = 
+  let getJoints = rgen.getJoints
+      getStates = rgen.getStates
+      getJointPos_memo = rgen.getJoints <#> rgen.getJointPos <#> opposeRelPos
+      getNewState_memo = (rgen.getJoints <#> (\j -> rgen.getStates <#> (\s -> (\ns -> {newjoint: ns.newjoint, newstate: ns.newstate, shape: ns.shape}) $ rgen.getNewState j s)))
+      getDrawInfo_memo = rgen.getStates <#> rgen.getDrawInfo <#> (\(DrawInfo de) -> DrawInfo {rails: opposeDrawRail <$> de.rails, additionals : opposeAdditional <$> de.additionals})
+      getRoute_memo   = (rgen.getStates <#> (\x -> rgen.getJoints <#> (\y -> rgen.getJoints <#> (\z -> rgen.getRoute x y z))))
+      isLegal_memo    = (rgen.getJoints <#> (\x -> rgen.getStates <#> (\y ->                           rgen.isLegal   x y   )))
+      lockedBy_memo   = (rgen.getStates <#> (\x -> rgen.getStates <#> (\y ->                          (rgen.lockedBy  x y)  )))
+      isBlocked_memo  = (rgen.getJoints <#> (\x -> rgen.getStates <#> (\y -> rgen.getJoints <#> (\z -> rgen.isBlocked x y z))))
+  in RailGen {
+    name: rgen.name,
+    flipped: rgen.flipped,
+    opposed: not rgen.opposed,
+    defaultState: rgen.defaultState,
+    getJoints   : getJoints,
+    getStates   : getStates,
+    getOrigin   : rgen.getOrigin,
+    getJointPos: \(IntJoint j)   -> fromMaybe (RelPos poszero) (getJointPos_memo !! j),
+
+    getNewState: \(IntJoint j) (IntState s) -> fromMaybe {newjoint: IntJoint j, newstate: IntState s, shape: []} ((getNewState_memo !! j) >>= (_ !! s)),
+
+    getDrawInfo: \(IntState s) -> fromMaybe brokenDrawInfo ((getDrawInfo_memo !! s)),
+
+    getRoute : \(IntState s) (IntJoint f) (IntJoint t)  -> join            ((getRoute_memo  !! s) >>= (_ !! f) >>= (_ !! t )),
+    isLegal  : \(IntJoint j) (IntState s)               -> fromMaybe false ((isLegal_memo   !! j) >>= (_ !! s)              ),
+    lockedBy : \(IntState s) (IntState s')              -> fromMaybe []    ((lockedBy_memo  !! s) >>= (_ !! s')             ),
+    isBlocked: \(IntJoint j) (IntState s) (IntJoint j') -> fromMaybe false ((isBlocked_memo !! j) >>= (_ !! s) >>= (_ !! j')),
+    isSimple : rgen.isSimple
+  }
+-}
 
 {-
 fromRail :: forall joint state.
@@ -215,8 +341,8 @@ opposeRelPos (RelPos (Pos p)) = RelPos (Pos $ p {
     isPlus = not p.isPlus
   })
 
-flipRail :: forall x y. RailGen x y -> RailGen x y
-flipRail (RailGen r) = RailGen $ r {
+flipRail_ :: forall x y. RailGen x y -> RailGen x y
+flipRail_ (RailGen r) = RailGen $ r {
     flipped = not r.flipped,
     getJointPos  = r.getJointPos >>> flipRelPos,
     getNewState  = \x y -> (\{newstate:ns, newjoint:nj, shape:s} -> {newstate:ns, newjoint:nj, shape:flipShape <$> s}) (r.getNewState x y),
@@ -228,8 +354,8 @@ flipRail (RailGen r) = RailGen $ r {
           }
   }
 
-opposeRail :: forall x y. RailGen x y -> RailGen x y
-opposeRail (RailGen r) = RailGen $ r {
+opposeRail_ :: forall x y. RailGen x y -> RailGen x y
+opposeRail_ (RailGen r) = RailGen $ r {
     opposed = not r.opposed,
     getJointPos  = r.getJointPos >>> opposeRelPos,
     getDrawInfo  = \x   -> 
@@ -240,6 +366,11 @@ opposeRail (RailGen r) = RailGen $ r {
           }
   }
 
+flipRail :: Rail -> Rail
+flipRail = flipRail_ >>> memorizeRail
+
+opposeRail :: Rail -> Rail
+opposeRail = opposeRail_ >>> memorizeRail
 
 reverseShapes :: forall x. Array (RailShape x) -> Array (RailShape x)
 reverseShapes = reverse >>> map (\(RailShape s) -> RailShape {start: s.end, end: s.start, length: s.length})

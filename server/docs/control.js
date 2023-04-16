@@ -94,11 +94,17 @@ class Layout {
             , softkey: "-"
             , key    : ["-"]
           },
-          stopSignal: {
+          toggleStop: {
               onkey: ()=>this.manualStop()
-            , text_ja: "停止現示（手動）"
+            , text_ja: "自動停止現示･抑止切替"
             , softkey: "p"
             , key    : ["p"]
+          },
+          restraint: {
+              onkey: ()=>this.restraint()
+            , text_ja: "抑止"
+            , softkey: "P"
+            , key    : ["P"]
           },
           openRouteL: {
               onkey: ()=>this.openRouteL()
@@ -465,7 +471,7 @@ class Layout {
   }
 
   focusJoint(){
-    let pos = P.getJointAbsPos(this.layout)(this.selectedJoint.nodeid)(this.selectedJoint.jointid).value0;
+    let pos = P.fromJust()(P.getJointAbsPos(this.layout)(this.selectedJoint.nodeid)(this.selectedJoint.jointid));
     if(pos !== undefined){
       this.camera2d.center = pos.coord;
     }
@@ -575,7 +581,13 @@ class Layout {
   
   manualStop(){
     if(this.layout.rails[this.selectedJoint.nodeid] !== undefined){
-      this.layout.rails[this.selectedJoint.nodeid].signals.forEach(e => {if(e.jointid == this.selectedJoint.jointid) e.manualStop = !e.manualStop});
+      this.layout.rails[this.selectedJoint.nodeid].signals.forEach(e => {if(e.jointid == this.selectedJoint.jointid) if(e.manualStop || e.restraint){e.manualStop = false; e.restraint = false;}else{e.restraint = true;}});
+    }
+  }
+  
+  restraint(){
+    if(this.layout.rails[this.selectedJoint.nodeid] !== undefined){
+      this.layout.rails[this.selectedJoint.nodeid].signals.forEach(e => {if(e.jointid == this.selectedJoint.jointid){e.restraint = true;}});
     }
   }
   
@@ -610,6 +622,7 @@ class Layout {
       this.layout.trains[this.layout.trains.length -1].realAcceralation=true;
       this.layout.trains[this.layout.trains.length -1].respectSignals=this.respectSignals;
       this.layout.trains[this.layout.trains.length -1].notch=5;
+      this.selectedTrain = this.layout.trains[this.layout.trains.length -1].trainid;
     }
   }
   

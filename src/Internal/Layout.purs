@@ -17,6 +17,7 @@ module Internal.Layout
   , Traffic
   , TrainRoute
   , TrainRoute_(..)
+  , TrainTag(..)
   , TrainTagPattern(..)
   , Trainset
   , TrainsetDrawInfo(..)
@@ -172,7 +173,8 @@ newtype Layout = Layout {
     jointData :: SectionArray (SectionArray (SectionArray (Array JointData))),
     routequeue :: Array RouteQueueElement,
     time :: Number,
-    speed :: Number
+    speed :: Number,
+    activeReserves :: Array ({reserveid :: IntReserve, reserver :: Int})
   }
 derive instance Newtype Layout _
 
@@ -518,6 +520,10 @@ signalRulePhase_unfired      = SignalRulePhase 0
 signalRulePhase_fired        = SignalRulePhase 1
 signalRulePhase_stoppedFired = SignalRulePhase 3
 
+newtype TrainTag = TrainTag String
+derive instance Eq TrainTag
+derive instance Newtype TrainTag _
+
 type Trainset = Trainset_ RailNode
 newtype Trainset_ x = Trainset {
       types :: Array CarType
@@ -532,7 +538,7 @@ newtype Trainset_ x = Trainset {
     , realAcceralation :: Boolean
     , notch :: Int
     , note :: String
-    , tags :: Array String
+    , tags :: Array TrainTag
     , signalRulePhase :: SignalRulePhase
   }
 derive instance Newtype (Trainset_ x) _
@@ -580,34 +586,38 @@ trainTick (Layout layout) (Trainset t0) dt =
             if t0.signalRulePhase == signalRulePhase_unfired then
               (\{l, t} -> {firedlayout:l, firedtrain: Trainset $ (unwrap t) {signalRulePhase = signalRulePhase_fired}}) $ foldl (\{l, t} r -> 
                 let tag = getTag r
-                in  if any (Re.test tag) t0.tags
+                in  if any (Re.test tag) (map unwrap t0.tags)
                     then case r of
-                          RuleComment    _         -> {l, t}
-                          RuleOpen       _ route   -> {l:addRouteQueue l signal.nodeid signal.jointid route, t}
-                          RuleUpdate     _ from to -> {l:l, t:Trainset $ (unwrap t) {tags = (\told -> replace from told to) <$> (unwrap t).tags}}
-                          RuleStop       _         -> {l:setManualStop l signal.nodeid signal.jointid true, t}
-                          RuleStopOpen   _ _       -> {l:setManualStop l signal.nodeid signal.jointid true, t}
-                          RuleStopUpdate _ _ _     -> {l:setManualStop l signal.nodeid signal.jointid true, t}
-                          RuleReverse    _         -> {l:setManualStop l signal.nodeid signal.jointid true, t}
+                          RuleComment              _ -> {l, t}
+                          RuleComplex              _ -> {l, t}
+                          RuleSpeed      _ _       _ -> {l, t}
+                          RuleOpen       _ route   _ -> {l:addRouteQueue l signal.nodeid signal.jointid route t0.trainid, t}
+                          RuleUpdate     _ from to _ -> {l:l, t:Trainset $ (unwrap t) {tags = (\told -> wrap $ replace from (unwrap told) to) <$> (unwrap t).tags}}
+                          RuleStop       _         _ -> {l:setManualStop l signal.nodeid signal.jointid true, t}
+                          RuleStopOpen   _ _       _ -> {l:setManualStop l signal.nodeid signal.jointid true, t}
+                          RuleStopUpdate _ _ _     _ -> {l:setManualStop l signal.nodeid signal.jointid true, t}
+                          RuleReverse    _         _ -> {l:setManualStop l signal.nodeid signal.jointid true, t}
                     else {l, t}
             ) {l:Layout layout, t:Trainset t0} signal.rules
             else if t0.signalRulePhase == signalRulePhase_fired && t0.speed == 0.0 then
               (\{l, t} -> {firedlayout:l, firedtrain: if (unwrap t).signalRulePhase == signalRulePhase_fired then Trainset $ (unwrap t) {signalRulePhase = signalRulePhase_stoppedFired} else t}) $ foldl (\{l, t} r -> 
                 let tag = getTag r
-                in  if any (Re.test tag) t0.tags
+                in  if any (Re.test tag) (map unwrap t0.tags)
                     then case r of
-                          RuleComment    _         -> {l, t}
-                          RuleOpen       _ _       -> {l, t}
-                          RuleUpdate     _ _ _     -> {l, t}
-                          RuleStop       _         -> {l, t}
-                          RuleStopOpen   _ route   -> {l:addRouteQueue l signal.nodeid signal.jointid route, t}
-                          RuleStopUpdate _ from to -> {l:l, t:Trainset $ (unwrap t) {tags = (\told -> replace from told to) <$> (unwrap t).tags}}
-                          RuleReverse    _         -> {l:l, t:flipTrain (Trainset $ (unwrap t) {signalRulePhase = signalRulePhase_unfired})}
+                          RuleComment              _ -> {l, t}
+                          RuleComplex              _ -> {l, t}
+                          RuleSpeed      _ _       _ -> {l, t}
+                          RuleOpen       _ _       _ -> {l, t}
+                          RuleUpdate     _ _ _     _ -> {l, t}
+                          RuleStop       _         _ -> {l, t}
+                          RuleStopOpen   _ route   _ -> {l:addRouteQueue l signal.nodeid signal.jointid route t0.trainid, t}
+                          RuleStopUpdate _ from to _ -> {l:l, t:Trainset $ (unwrap t) {tags = (\told -> wrap $ replace from (unwrap told) to) <$> (unwrap t).tags}}
+                          RuleReverse    _         _ -> {l:l, t:flipTrain (Trainset $ (unwrap t) {signalRulePhase = signalRulePhase_unfired})}
                     else {l, t}
               ) {l:Layout layout, t:Trainset t0} signal.rules
             else {firedlayout:Layout layout, firedtrain:Trainset t0}
                 
-      (Trainset t2) = Trainset $ t1 {signalRestriction = max t1.signalRestriction (maybe (speedScale * 45.0) signalToSpeed nextsignal.signal)}
+      (Trainset t2) = Trainset $ t1 {signalRestriction = max t1.signalRestriction (maybe (speedScale * 25.0) signalToSpeed nextsignal.signal)}
       
       notch = min (t2.notch) (getMaxNotch_ nextsignal (Trainset t2))
       
@@ -622,7 +632,7 @@ trainTick (Layout layout) (Trainset t0) dt =
 getMaxNotch_ :: forall x. { distance ∷ Number , sections ∷ Int , signal ∷ Maybe Signal } -> Trainset_ x -> Int
 getMaxNotch_ nextsignal (Trainset t2) =
   if t2.respectSignals
-  then if t2.signalRestriction < t2.speed || brakePatternCheck t2.speed nextsignal false
+  then if t2.signalRestriction < t2.speed || brakePatternCheck t2.speed nextsignal t2.tags
         then -8
         else if t2.signalRestriction < t2.speed + speedScale * 5.0
               then 0
@@ -634,8 +644,8 @@ getMaxNotch (Layout layout) (Trainset t0) =
   let nextsignal = getNextSignal (Layout layout) (Trainset t0)
   in  getMaxNotch_ nextsignal (Trainset t0)
 
-addRouteQueue :: Layout -> IntNode -> IntJoint -> Int -> Layout
-addRouteQueue l n j r = Layout $ (unwrap l) {routequeue = (unwrap l).routequeue <> [RouteQueueElement {jointid: j, nodeid: n, routeid: r, time: (unwrap l).time, retryafter: (unwrap l).time}]}
+addRouteQueue :: Layout -> IntNode -> IntJoint -> Int -> Int -> Layout
+addRouteQueue l n j r t = Layout $ (unwrap l) {routequeue = (unwrap l).routequeue <> [RouteQueueElement {jointid: j, nodeid: n, routeid: r, time: (unwrap l).time, retryafter: (unwrap l).time, trainid: t}]}
 
 indicationToSpeed ∷ Int → Number
 indicationToSpeed i =
@@ -651,11 +661,11 @@ signalToSpeed :: Signal -> Number
 signalToSpeed = digestIndication >>> indicationToSpeed
 
 digestIndication :: Signal -> Int
-digestIndication signal = if (unwrap signal).manualStop then signalStop else fromMaybe signalStop $ maximum ((unwrap signal).indication)
+digestIndication signal = if (unwrap signal).manualStop || (unwrap signal).restraint then signalStop else fromMaybe signalStop $ maximum ((unwrap signal).indication)
 
-brakePatternCheck :: Number -> {signal :: Maybe Signal, sections :: Int, distance :: Number} -> Boolean -> Boolean
-brakePatternCheck speed signaldata forceStop =
-  let restriction = if forceStop then 0.0 else maybe 0.0 signalToSpeed signaldata.signal
+brakePatternCheck :: Number -> {signal :: Maybe Signal, sections :: Int, distance :: Number} -> Array TrainTag -> Boolean
+brakePatternCheck speed signaldata tags =
+  let restriction = maybe 15.0 (getRestriction tags) signaldata.signal
   in  if speed < restriction then false
       else signaldata.distance < brakePattern speed restriction
 
@@ -691,7 +701,16 @@ calcAcceralation notch speed =
           else baseaccr / (speed / speedScale / magic2) * (max 0.0 $ (toNumber notch - 0.5 - speed / speedScale / magic1) * 2.0 + 1.0)
         else
           basedccr * (toNumber notch)/8.0)
-  
+
+getRestriction :: Array TrainTag -> Signal -> Number
+getRestriction tags signal = 
+  foldl (\s r -> 
+            case r of
+              RuleSpeed tag s' _ -> if any (Re.test tag) (map unwrap tags)
+                                    then min s s'
+                                    else s
+              _                  -> s
+            ) (if (unwrap signal).manualStop || (unwrap signal).restraint then 0.0 else signalToSpeed signal) (unwrap signal).rules
 
 movefoward :: Layout -> Trainset -> Number -> {newlayout :: Layout, newtrainset :: Trainset}
 movefoward (Layout layout) (Trainset t0) dt =
@@ -713,6 +732,7 @@ movefoward (Layout layout) (Trainset t0) dt =
                 cdata <- find (\c -> c.from == jointexit) $ (unwrap r.railinstance).connections
                 nextRail <- getRailNode (Layout layout) cdata.nodeid
                 let updatedroute = updateRailNode nextRail cdata.jointid
+                let newinstance = (\(RailNode rn) -> RailNode $ rn {reserves = filter (\r -> r.jointid /= cdata.jointid) rn.reserves}) $ updatedroute.instance
                 let slength = sum (shapeLength <$> updatedroute.shapes)
                 let t3 = Trainset $ t2 {
                       route = [TrainRoute {
@@ -724,7 +744,7 @@ movefoward (Layout layout) (Trainset t0) dt =
                           }
                         ] <> t2.route
                     , distanceToNext = t2.distanceToNext + slength
-                    , signalRestriction = max (speedScale * 15.0) $ maybe t2.signalRestriction signalToSpeed (find (\(Signal s) -> s.jointid == jointexit) (unwrap r.railinstance).signals)
+                    , signalRestriction = max (speedScale * 15.0) $ maybe t2.signalRestriction (getRestriction t2.tags) (find (\(Signal s) -> s.jointid == jointexit) (unwrap r.railinstance).signals)
                     , signalRulePhase = if any (\(Signal s) -> s.jointid == jointexit) (unwrap r.railinstance).signals then signalRulePhase_unfired else t2.signalRulePhase
                   }
                 Just {newlayout :
@@ -732,12 +752,12 @@ movefoward (Layout layout) (Trainset t0) dt =
                   in  if on (==) (map (\x -> (unwrap x).state)) oldrail (Just updatedroute.instance)
                         then 
                           Layout $ layout {
-                            rails = fromMaybe layout.rails $ updateAt (unwrap cdata.nodeid) updatedroute.instance layout.rails
+                            rails = fromMaybe layout.rails $ updateAt (unwrap cdata.nodeid) newinstance layout.rails
                           }
                         else 
                           Layout $ layout {
                               updatecount = layout.updatecount + 1
-                            , rails = fromMaybe layout.rails $ updateAt (unwrap cdata.nodeid) updatedroute.instance layout.rails
+                            , rails = fromMaybe layout.rails $ updateAt (unwrap cdata.nodeid) newinstance layout.rails
                           }
                 , newtrainset : t3}
               ) of
@@ -778,43 +798,56 @@ layoutTick (Layout l) =
         (\{layout, queuenew} -> Layout $ (unwrap layout) {routequeue = queuenew}) $ foldl (\{layout: l'', queuenew} (RouteQueueElement x) ->
           if l'.time < x.retryafter
           then {layout: l'', queuenew: queuenew <> [RouteQueueElement x]}
-          else case tryOpenRouteFor l'' x.nodeid x.jointid x.routeid true of
+          else case tryOpenRouteFor l'' x.nodeid x.jointid x.routeid x.trainid of
                 Nothing -> {layout: l'', queuenew: queuenew <> [RouteQueueElement $ x {retryafter = l'.time + 0.25}]}
                 Just {layout} -> {layout: setManualStop layout x.nodeid x.jointid false, queuenew: queuenew}
         ) {layout: Layout l', queuenew: []} l'.routequeue
       ) >>> (\(Layout l') -> Layout (l' {time = l.time + l.speed / 60.0}) )
   ) (Layout l)
 
+newreserve :: Int -> IntReserve -> Layout -> Layout
+newreserve reserver reserveid (Layout layout) =
+  Layout $ layout {activeReserves = [{reserveid, reserver}] <> layout.activeReserves}
+
+updateReserves :: Layout -> Layout
+updateReserves (Layout layout) =
+  Layout $ layout {activeReserves = catMaybes $ (\reserver -> find (\reserve -> reserve.reserver == reserver) layout.activeReserves) <$> ((unwrap >>> (_.trainid)) <$> layout.trains)}
+
 layoutUpdate :: Layout -> Layout
-layoutUpdate = updateTraffic >>> updateSignalIndication true
+layoutUpdate = updateTraffic >>> updateReserves >>> updateSignalIndication true
 
 layoutUpdate_NoManualStop :: Layout -> Layout
-layoutUpdate_NoManualStop = updateTraffic >>> updateSignalIndication false
+layoutUpdate_NoManualStop = updateTraffic >>> updateReserves >>> updateSignalIndication false
 
 type TrainTagPattern = Regex
 
 data SignalRule = 
-    RuleComment    String
-  | RuleOpen       TrainTagPattern Int
-  | RuleUpdate     TrainTagPattern TrainTagPattern String
-  | RuleStop       TrainTagPattern
-  | RuleStopOpen   TrainTagPattern Int
-  | RuleStopUpdate TrainTagPattern TrainTagPattern String
-  | RuleReverse    TrainTagPattern
+    RuleComment                                           String
+  | RuleComplex                                           String
+  | RuleSpeed      TrainTagPattern Number                 String
+  | RuleOpen       TrainTagPattern Int                    String
+  | RuleUpdate     TrainTagPattern TrainTagPattern String String
+  | RuleStop       TrainTagPattern                        String
+  | RuleStopOpen   TrainTagPattern Int                    String
+  | RuleStopUpdate TrainTagPattern TrainTagPattern String String
+  | RuleReverse    TrainTagPattern                        String
 
-isComment :: SignalRule -> Boolean
-isComment (RuleComment _) = true
-isComment _               = false
+isComplex :: SignalRule -> Boolean
+isComplex (RuleComplex _) = true
+isComplex _               = false
 
+getTag ∷ SignalRule → TrainTagPattern
 getTag rule = 
   case rule of
-    RuleComment    _       -> Re.unsafeRegex "(?!.*)" Re.noFlags
-    RuleOpen       tag _   -> tag
-    RuleUpdate     tag _ _ -> tag
-    RuleStop       tag     -> tag
-    RuleStopOpen   tag _   -> tag
-    RuleStopUpdate tag _ _ -> tag
-    RuleReverse    tag     -> tag
+    RuleComment            _ -> Re.unsafeRegex "(?!.*)" Re.noFlags
+    RuleComplex            _ -> Re.unsafeRegex "(?!.*)" Re.noFlags
+    RuleSpeed      tag _   _ -> tag
+    RuleOpen       tag _   _ -> tag
+    RuleUpdate     tag _ _ _ -> tag
+    RuleStop       tag     _ -> tag
+    RuleStopOpen   tag _   _ -> tag
+    RuleStopUpdate tag _ _ _ -> tag
+    RuleReverse    tag     _ -> tag
 
 {-
 matchSignalRuleStop :: forall x. Trainset_ x -> SignalRule -> Boolean
@@ -844,6 +877,7 @@ newtype RouteQueueElement = RouteQueueElement {
     , nodeid     :: IntNode
     , jointid    :: IntJoint
     , routeid    :: Int
+    , trainid    :: Int
   }
 
 newtype SignalRoute = SignalRoute {
@@ -863,6 +897,7 @@ newtype Signal = Signal {
     , colors :: Array SignalColor
     , indication :: Array SignalColor
     , manualStop :: Boolean
+    , restraint  :: Boolean
     , rules      :: Array SignalRule
   }
 derive instance Newtype Signal _
@@ -911,12 +946,16 @@ updateSignalIndication changeManualStop (Layout layout) =
         map (\(RailNode ri) -> {rail :ri, signals :map (\(Signal signal) ->{
             signal : (Signal signal),
             routes : map (\(SignalRoute route) ->
-                      let routecond = all (\{nodeid, jointenter, jointexit} -> maybe false (\(RailNode ri) -> -- 進路が開通している
-                                    let rail = (unwrap ri.rail)
-                                        state = (ri.state)
-                                        nr = rail.getNewState jointenter state
-                                    in  nr.newjoint == jointexit && rail.isLegal jointenter state
-                                  ) (getRailNode (Layout layout) nodeid) ) route.rails
+                      let routecond = all (\{nodeid, jointenter, jointexit} ->  -- 進路が開通している
+                                    case (getRailNode (Layout layout) nodeid) of
+                                      Just (RailNode ri) ->
+                                        let rail = (unwrap ri.rail)
+                                            state = (ri.state)
+                                            nr = rail.getNewState jointenter state
+                                        in  nr.newjoint == jointexit && rail.isLegal jointenter state
+                                      Nothing -> false
+
+                                  ) route.rails
 
                           clearcond = all (\{nodeid, jointenter, jointexit} -> --進路内に他の列車がいない
                               if isRailClear (Layout layout) nodeid== Just true
@@ -965,6 +1004,7 @@ updateSignalIndication changeManualStop (Layout layout) =
                   route: (SignalRoute route),
                   routecond : routecond,
                   manualStop : signal.manualStop,
+                  restraint  : signal.restraint,
                   cond : cond
                 }
               ) signal.routes
@@ -975,7 +1015,14 @@ updateSignalIndication changeManualStop (Layout layout) =
       colored =
         map (\rbd -> RailNode $ (rbd.rail) {signals = map (\bd -> Signal $ (unwrap bd.signal) {
               routecond = (_.routecond) <$> bd.routes,
-              manualStop = (unwrap bd.signal).manualStop || if length bd.routes < 2 && all (\bdr -> (unwrap bdr.route).isSimple) bd.routes && all isComment (unwrap bd.signal).rules then false else changeManualStop && (((_.cond) <$> bd.routes) /= ((signalStop < _) <$> (unwrap bd.signal).indication)),
+              manualStop = 
+                    (unwrap bd.signal).manualStop
+                 || changeManualStop                --赤現示ロック可
+                       && not (length bd.routes < 2 --自動閉塞信号でない
+                            && all (\bdr -> (unwrap bdr.route).isSimple) bd.routes
+                            && all (isComplex >>> not) (unwrap bd.signal).rules
+                          )
+                      && (any identity (zipWith (\route routecond -> (routecond /= route.routecond) ) bd.routes (unwrap bd.signal).routecond) || any identity (zipWith (\route indication -> ((indication > 0) && not route.cond)) bd.routes (unwrap bd.signal).indication)),
               indication =
                 map (\d ->
                   if d.cond then
@@ -986,7 +1033,7 @@ updateSignalIndication changeManualStop (Layout layout) =
                               Just bd' ->
                                 case head bd'.routes of
                                   Just d ->
-                                    if d.cond && (not d.manualStop || len == 0.0)
+                                    if d.cond && ((not d.manualStop && not d.restraint) || len == 0.0)
                                     then go (len + (unwrap d.route).length) ((unwrap d.route).nextsignal)
                                     else     maximum $ filter (\color -> len >= brakePattern (indicationToSpeed color) 0.0) [signalStop, signalAlart, signalCaution, signalReduce]
                                   Nothing -> maximum $ filter (\color -> len >= brakePattern (indicationToSpeed color) 0.0) [signalStop, signalAlart, signalCaution, signalReduce]
@@ -1066,6 +1113,7 @@ addSignal (Layout layout) nodeid jointid = fromMaybe (Layout layout) $
           , indication : []
           , rules : []
           , manualStop : false
+          , restraint : false
         }
   in  do
     (RailNode ri) <- getRailNode (Layout layout) nodeid
@@ -1120,12 +1168,13 @@ setManualStop (Layout layout) nodeid jointid stop = fromMaybe (Layout layout) do
   pure $ Layout $ layout {rails = newRails}
 
 -- reserveは無効化した
-tryOpenRouteFor :: Layout -> IntNode -> IntJoint -> Int -> Boolean -> Maybe {layout :: Layout, reserveid :: Int}
-tryOpenRouteFor (Layout layout) nodeid jointid routeid preventmanualstop = do
+tryOpenRouteFor :: Layout -> IntNode -> IntJoint -> Int -> Int -> Maybe {layout :: Layout, reserveid :: IntReserve}
+tryOpenRouteFor (Layout layout) nodeid jointid routeid reserver = do
   (RailNode ri) <- getRailNode (Layout layout) nodeid
   (Signal s) <- find (\(Signal s) -> s.jointid == jointid) ri.signals
   (SignalRoute r) <- s.routes !! routeid
-  let reserveid = layout.updatecount + 1
+  let reserveid = IntReserve $ layout.updatecount + 1
+  let programmedroute = reserver /= -1
 
   let go {nodeid, jointid} rs = -- 開通させる進路の先、シンプルな信号機がつづくかぎりたどる
         case getRailNode (Layout layout) nodeid >>= (\(RailNode ri) -> find (\(Signal s) -> s.jointid == jointid) ri.signals) of
@@ -1143,13 +1192,13 @@ tryOpenRouteFor (Layout layout) nodeid jointid routeid preventmanualstop = do
     (RailNode ri) <- getRailNode (Layout layout) nodeid
     let traffic' = traffic || hasTraffic (Layout layout) (RailNode ri)
     newstate <- (unwrap ri.rail).getRoute ri.state jointenter jointexit
-    newrails' <- updateAt (unwrap nodeid) (RailNode $ ri {state = newstate, reserves = ri.reserves {-<> [{jointid : jointenter, reserveid}]-}}) newrails
-    if (newstate /= ri.state && traffic') {-|| any (\{jointid, reserveid} -> jointenter /= jointid && ((unwrap ri.rail).isBlocked jointenter ri.state jointid || (unwrap ri.rail).isBlocked jointenter newstate jointid) ) ri.reserves -}
+    newrails' <- updateAt (unwrap nodeid) (RailNode $ ri {state = newstate, reserves = ri.reserves <> [{jointid : jointenter, reserveid}]}) newrails
+    if (newstate /= ri.state && traffic') || programmedroute && (s.restraint || any (\{jointid, reserveid} -> jointenter /= jointid && ((unwrap ri.rail).isBlocked jointenter ri.state jointid || (unwrap ri.rail).isBlocked jointenter newstate jointid) && any (\a -> a.reserveid == reserveid) layout.activeReserves) ri.reserves)
     then Nothing
     else Just {traffic: traffic', newrails: newrails'}
-  ) {traffic: false, newrails: if preventmanualstop then map (\(RailNode r) -> if r.nodeid == nodeid then RailNode $ r {signals = map (\(Signal s) -> if s.jointid == jointid then Signal $ s {indication = mapWithIndex (\i _ -> if i == routeid then signalClear else signalStop) s.routes} else (Signal s)) r.signals} else (RailNode r)) layout.rails else layout.rails} target
+  ) {traffic: false, newrails: if programmedroute then layout.rails else map (\(RailNode r) -> if r.nodeid == nodeid then RailNode $ r {signals = map (\(Signal s) -> if s.jointid == jointid then Signal $ s {manualStop = true} else (Signal s)) r.signals} else (RailNode r)) layout.rails } target
 
 
-  pure $ {layout: (forceUpdate >>> layoutUpdate) (Layout $ layout {rails = newrails}), reserveid}
+  pure $ {layout: (forceUpdate >>> layoutUpdate >>> newreserve reserver reserveid) (Layout $ layout {rails = newrails}), reserveid}
 
-tryOpenRouteFor_ffi (Layout layout) nodeid jointid routeid = maybe {layout : (Layout layout), result: false} (\l -> {layout: l.layout, result:true}) (tryOpenRouteFor (Layout layout) nodeid jointid routeid false)
+tryOpenRouteFor_ffi (Layout layout) nodeid jointid routeid = maybe {layout : (Layout layout), result: false} (\l -> {layout: l.layout, result:true}) (tryOpenRouteFor (Layout layout) nodeid jointid routeid (-1))

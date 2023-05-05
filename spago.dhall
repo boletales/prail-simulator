@@ -30,6 +30,7 @@ to generate this file without the comments in this block.
   , "psci-support"
   , "record"
   , "strings"
+  , "stringutils"
   , "transformers"
   , "typelevel-prelude"
   ]

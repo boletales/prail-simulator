@@ -32,7 +32,8 @@
         <span id="trainid"></span><br>
         <span>ノッチ操作：</span> <input type="button" id="notchplus" value="+(j)"><input type="button" id="notchminus" value="-(k)"> <input type="button" value="反転(l)" id="reverse"> <span id="speedinfo"></span><br>
         <label>列車番号：<input id="trainnote"   ></label><br>
-        <label>列車タグ：<textarea id="traintags"></textarea></label><br>
+        <label>列車タグ：<textarea id="traintags"></textarea></label>
+        <input id="applyrule" type="button" value="信号ルール再適用"><br>
       </div>
     </div>
   </div>
@@ -99,7 +100,7 @@
         if(key.skip) return;
         folder.add({
           "onkey": (()=>{
-            L.onkey(key.key[0]);
+            L.onkey({key:key.key[0]});
           })
         }, "onkey").name(key.softkey + " : " + key.text_ja);
         folder.close();

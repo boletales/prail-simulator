@@ -42,6 +42,7 @@ module Internal.Layout
   , layoutTick
   , layoutUpdate
   , layoutUpdate_NoManualStop
+  , recalcInstanceDrawInfo
   , removeRail
   , removeSignal
   , saEmpty
@@ -74,6 +75,7 @@ import Data.Function (on)
 import Data.String.Regex as Re
 import Data.String.Regex.Flags as Re
 import Data.String.Regex.Unsafe as Re
+import Internal.Types.Rail (brokenDrawInfo)
 
 newtype SectionArray a = SectionArray {
     arraydata :: Array a,
@@ -132,7 +134,8 @@ newtype RailNode_ x = RailNode {
     connections :: Array ({from :: IntJoint, nodeid :: IntNode, jointid :: IntJoint}),
     reserves :: Array ({reserveid :: IntReserve, jointid :: IntJoint}),
     pos  :: Pos,
-    note :: String
+    note :: String,
+    drawinfos :: Array (DrawInfo Pos)
   }
 derive instance Newtype (RailNode_ x) _
 
@@ -179,9 +182,16 @@ newtype Layout = Layout {
 derive instance Newtype Layout _
 
 instanceDrawInfo :: RailNode -> DrawInfo Pos
-instanceDrawInfo (RailNode ri) =
-  absDrawInfo ri.pos $ (unwrap ri.rail).getDrawInfo ri.state
+instanceDrawInfo (RailNode node) =
+  fromMaybe brokenDrawInfo $ node.drawinfos !! (unwrap node.state)
 
+instanceDrawInfos :: RailNode -> Array (DrawInfo Pos)
+instanceDrawInfos (RailNode node) =
+  absDrawInfo node.pos <$> (unwrap node.rail).getDrawInfo <$> (unwrap node.rail).getStates
+
+recalcInstanceDrawInfo :: RailNode -> RailNode
+recalcInstanceDrawInfo (RailNode node) =
+  RailNode $ node {drawinfos = instanceDrawInfos (RailNode node)}
 
 
 carLength = 10.0 / 21.4
@@ -193,6 +203,7 @@ wheelMargin = 2.0 / 21.4
 
 newtype TrainsetDrawInfo = TrainsetDrawInfo ({
       trainid :: Int
+    , tags :: Array TrainTag
     , cars :: Array {head :: {r :: Pos, l :: Pos}, tail :: {r :: Pos, l :: Pos}, type :: CarType}
     , flipped :: Boolean
     , note :: String
@@ -221,7 +232,7 @@ trainsetDrawInfo (Trainset t) =
       getpos d w = getpos' w d 0
 
       -- headpos = (fromMaybe 0.0 (((flip bind) (unwrap >>> _.shapes) >>> head >>> map (unwrap >>> _.length)) t.route)) - 
-  in  TrainsetDrawInfo $ {note : t.note, flipped : t.flipped, trainid : t.trainid, cars: mapWithIndex (\i ct -> 
+  in  TrainsetDrawInfo $ {tags: t.tags, note : t.note, flipped : t.flipped, trainid : t.trainid, cars: mapWithIndex (\i ct -> 
           let d = ((toNumber i) * (carLength + carMargin)) + t.distanceToNext
               dh = d + wheelMargin
               dt = d + carLength - wheelMargin
@@ -400,7 +411,7 @@ addRailWithPos (Layout layout) (RailNode node) pos =
             fromMaybe true $ (\(RailNode n) -> all (\c -> c.from /= jointid) n.connections) <$> getRailNode (Layout layout) nodeid
           ) connections
   in if cond then
-        let newnode = RailNode $ node {
+        let newnode = recalcInstanceDrawInfo $ RailNode $ node {
                 connections =
                   node.connections
                   <> ((\{jointData:(JointData {pos: _, nodeid: nodeid, jointid: jointid}), jointid:j} 
@@ -449,6 +460,7 @@ autoAdd (Layout layout) selectednode selectedjoint rail from =
               invalidRoutes : [],
               reserves : [],
               pos : poszero,
+              drawinfos : [],
               note : ""
             }
       addRail (Layout layout) node
@@ -592,29 +604,31 @@ trainTick (Layout layout) (Trainset t0) dt =
                           RuleComplex              _ -> {l, t}
                           RuleSpeed      _ _       _ -> {l, t}
                           RuleOpen       _ route   _ -> {l:addRouteQueue l signal.nodeid signal.jointid route t0.trainid, t}
-                          RuleUpdate     _ from to _ -> {l:l, t:Trainset $ (unwrap t) {tags = (\told -> wrap $ replace from (unwrap told) to) <$> (unwrap t).tags}}
+                          RuleUpdate     _ from to _ -> {l:l, t:Trainset $ (unwrap t) {tags = (\told -> wrap $ replace from to (unwrap told)) <$> (unwrap t).tags}}
                           RuleStop       _         _ -> {l:setManualStop l signal.nodeid signal.jointid true, t}
                           RuleStopOpen   _ _       _ -> {l:setManualStop l signal.nodeid signal.jointid true, t}
                           RuleStopUpdate _ _ _     _ -> {l:setManualStop l signal.nodeid signal.jointid true, t}
                           RuleReverse    _         _ -> {l:setManualStop l signal.nodeid signal.jointid true, t}
+                          RuleReverseUpdate _ _ _  _ -> {l:setManualStop l signal.nodeid signal.jointid true, t}
                     else {l, t}
             ) {l:Layout layout, t:Trainset t0} signal.rules
             else if t0.signalRulePhase == signalRulePhase_fired && t0.speed == 0.0 then
-              (\{l, t} -> {firedlayout:l, firedtrain: if (unwrap t).signalRulePhase == signalRulePhase_fired then Trainset $ (unwrap t) {signalRulePhase = signalRulePhase_stoppedFired} else t}) $ foldl (\{l, t} r -> 
+              (\{f, l, t} -> {firedlayout:l, firedtrain: (if f then flipTrain else identity) $ if (unwrap t).signalRulePhase == signalRulePhase_fired then Trainset $ (unwrap t) {signalRulePhase = signalRulePhase_stoppedFired} else t}) $ foldl (\{f, l, t} r -> 
                 let tag = getTag r
                 in  if any (Re.test tag) (map unwrap t0.tags)
                     then case r of
-                          RuleComment              _ -> {l, t}
-                          RuleComplex              _ -> {l, t}
-                          RuleSpeed      _ _       _ -> {l, t}
-                          RuleOpen       _ _       _ -> {l, t}
-                          RuleUpdate     _ _ _     _ -> {l, t}
-                          RuleStop       _         _ -> {l, t}
-                          RuleStopOpen   _ route   _ -> {l:addRouteQueue l signal.nodeid signal.jointid route t0.trainid, t}
-                          RuleStopUpdate _ from to _ -> {l:l, t:Trainset $ (unwrap t) {tags = (\told -> wrap $ replace from (unwrap told) to) <$> (unwrap t).tags}}
-                          RuleReverse    _         _ -> {l:l, t:flipTrain (Trainset $ (unwrap t) {signalRulePhase = signalRulePhase_unfired})}
-                    else {l, t}
-              ) {l:Layout layout, t:Trainset t0} signal.rules
+                          RuleComment                 _ -> {f, l, t}
+                          RuleComplex                 _ -> {f, l, t}
+                          RuleSpeed      _ _          _ -> {f, l, t}
+                          RuleOpen       _ _          _ -> {f, l, t}
+                          RuleUpdate     _ _ _        _ -> {f, l, t}
+                          RuleStop       _            _ -> {f, l, t}
+                          RuleStopOpen   _ route      _ -> {f, l:addRouteQueue l signal.nodeid signal.jointid route t0.trainid, t}
+                          RuleStopUpdate _ from to    _ -> {f, l:l, t:Trainset $ (unwrap t) {tags = (\told -> wrap $ replace from to (unwrap told)) <$> (unwrap t).tags}}
+                          RuleReverse    _            _ -> {f: true, l:l, t:(Trainset $ (unwrap t) {signalRulePhase = signalRulePhase_unfired})}
+                          RuleReverseUpdate _ from to _ -> {f: true, l:l, t:Trainset $ (unwrap t) {tags = (\told -> wrap $ replace from to (unwrap told)) <$> (unwrap t).tags, signalRulePhase = signalRulePhase_unfired}}
+                    else {f, l, t}
+              ) {f: false, l:Layout layout, t:Trainset t0} signal.rules
             else {firedlayout:Layout layout, firedtrain:Trainset t0}
                 
       (Trainset t2) = Trainset $ t1 {signalRestriction = max t1.signalRestriction (maybe (speedScale * 25.0) signalToSpeed nextsignal.signal)}
@@ -707,7 +721,7 @@ getRestriction tags signal =
   foldl (\s r -> 
             case r of
               RuleSpeed tag s' _ -> if any (Re.test tag) (map unwrap tags)
-                                    then min s s'
+                                    then min s (toNumber s' * speedScale)
                                     else s
               _                  -> s
             ) (if (unwrap signal).manualStop || (unwrap signal).restraint then 0.0 else signalToSpeed signal) (unwrap signal).rules
@@ -794,7 +808,7 @@ getNextSignal (Layout layout) (Trainset trainset) =
 layoutTick :: Layout -> Layout
 layoutTick (Layout l) =
   (
-    moveTrains (l.speed / 60.0) >>> (\(Layout l')->
+    moveTrains (l.speed / 60.0) >>> layoutUpdate >>> (\(Layout l')->
         (\{layout, queuenew} -> Layout $ (unwrap layout) {routequeue = queuenew}) $ foldl (\{layout: l'', queuenew} (RouteQueueElement x) ->
           if l'.time < x.retryafter
           then {layout: l'', queuenew: queuenew <> [RouteQueueElement x]}
@@ -822,15 +836,16 @@ layoutUpdate_NoManualStop = updateTraffic >>> updateReserves >>> updateSignalInd
 type TrainTagPattern = Regex
 
 data SignalRule = 
-    RuleComment                                           String
-  | RuleComplex                                           String
-  | RuleSpeed      TrainTagPattern Number                 String
-  | RuleOpen       TrainTagPattern Int                    String
-  | RuleUpdate     TrainTagPattern TrainTagPattern String String
-  | RuleStop       TrainTagPattern                        String
-  | RuleStopOpen   TrainTagPattern Int                    String
-  | RuleStopUpdate TrainTagPattern TrainTagPattern String String
-  | RuleReverse    TrainTagPattern                        String
+    RuleComment                                              String
+  | RuleComplex                                              String
+  | RuleSpeed         TrainTagPattern Int                    String
+  | RuleOpen          TrainTagPattern Int                    String
+  | RuleUpdate        TrainTagPattern TrainTagPattern String String
+  | RuleStop          TrainTagPattern                        String
+  | RuleStopOpen      TrainTagPattern Int                    String
+  | RuleStopUpdate    TrainTagPattern TrainTagPattern String String
+  | RuleReverse       TrainTagPattern                        String
+  | RuleReverseUpdate TrainTagPattern TrainTagPattern String String
 
 isComplex :: SignalRule -> Boolean
 isComplex (RuleComplex _) = true
@@ -839,15 +854,16 @@ isComplex _               = false
 getTag ∷ SignalRule → TrainTagPattern
 getTag rule = 
   case rule of
-    RuleComment            _ -> Re.unsafeRegex "(?!.*)" Re.noFlags
-    RuleComplex            _ -> Re.unsafeRegex "(?!.*)" Re.noFlags
-    RuleSpeed      tag _   _ -> tag
-    RuleOpen       tag _   _ -> tag
-    RuleUpdate     tag _ _ _ -> tag
-    RuleStop       tag     _ -> tag
-    RuleStopOpen   tag _   _ -> tag
-    RuleStopUpdate tag _ _ _ -> tag
-    RuleReverse    tag     _ -> tag
+    RuleComment               _ -> Re.unsafeRegex "(?!.*)" Re.noFlags
+    RuleComplex               _ -> Re.unsafeRegex "(?!.*)" Re.noFlags
+    RuleSpeed         tag _   _ -> tag
+    RuleOpen          tag _   _ -> tag
+    RuleUpdate        tag _ _ _ -> tag
+    RuleStop          tag     _ -> tag
+    RuleStopOpen      tag _   _ -> tag
+    RuleStopUpdate    tag _ _ _ -> tag
+    RuleReverse       tag     _ -> tag
+    RuleReverseUpdate tag _ _ _ -> tag
 
 {-
 matchSignalRuleStop :: forall x. Trainset_ x -> SignalRule -> Boolean

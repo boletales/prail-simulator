@@ -193,10 +193,10 @@ let time = [];
 function tick(){
   tickcount++;
   time.push(new Date().getTime());
-  if(time.length > 120){
+  if(time.length > 30){
     time.shift();
   }
-  let speed = tick.length >= 2 ? Math.min((time[time.length-1]-time[time.length-2])*60, 5) : 1;
+  let speed = time.length >= 2 ? Math.min((time[time.length-1]-time[time.length-2])*60/1000, 5) : 1;
   L.tick(speed);
   if(tickcount % tickrate == 0){
     draw(L.layout);
@@ -296,12 +296,13 @@ function draw(layout){
   });
   ldi.trains.forEach((di) => {
     scenememo.trains[di.trainid] = meshsTrain(di);
-    if(railnotestrmemo[di.trainid] !== di.note){
-      updateTrainNote(di);
-      railnotestrmemo[di.trainid] = di.note;
+    let note = di.note + ((di.tags.length > 0) ? (" : " + di.tags[0].split("→").slice(0, 1).join("")) : "");
+    if(railnotestrmemo[di.trainid] !== note){
+      updateTrainNote(di, note);
+      railnotestrmemo[di.trainid] = note;
     }
     if(trainflipmemo[di.trainid] != di.flipped){
-      updateTrainNote(di);
+      updateTrainNote(di, note);
       trainflipmemo[di.trainid] = di.flipped;
     }
   });
@@ -339,18 +340,21 @@ function draw(layout){
     document.getElementById("reverse").onclick    = ()=> L.onkey({key: L.keycontrols.signal.keys.notchMinus.key[0]    }, {trainid: L.selectedTrain});
     document.getElementById("trainnote").oninput  = ()=> L.onkey({key: L.keycontrols.signal.keys.editTrainNoteS.key[0]}, {trainid: L.selectedTrain, note: document.getElementById("trainnote").value});
     document.getElementById("traintags").oninput  = ()=> L.onkey({key: L.keycontrols.signal.keys.setTrainTagsS.key[0] }, {trainid: L.selectedTrain, tags: document.getElementById("traintags").value});
+    document.getElementById("applyrule").onclick  = ()=> L.onkey({key: L.keycontrols.signal.keys.resetSignalRulePhaseS.key[0] }, {trainid: L.selectedTrain});
 
     document.getElementById("notchplus").disabled = false;
     document.getElementById("notchminus").disabled = false;
     document.getElementById("reverse").disabled    = train.speed > 0;
     document.getElementById("trainnote").disabled = false;
     document.getElementById("traintags").disabled = false;
+    document.getElementById("applyrule").disabled = false;
   }else{
     document.getElementById("notchplus").disabled = true;
     document.getElementById("notchminus").disabled = true;
     document.getElementById("reverse").disabled    = true;
     document.getElementById("trainnote").disabled = true;
     document.getElementById("traintags").disabled = true;
+    document.getElementById("applyrule").disabled = true;
   }
 
   if(L.layout.rails[L.selectedJoint.nodeid] !== undefined){
@@ -405,14 +409,14 @@ function updateRailNote(drawinfo){
   }
 }
 
-function updateTrainNote(drawinfo){
+function updateTrainNote(drawinfo, note){
   let mesh = meshtrainmemo[drawinfo.trainid][drawinfo.flipped ? drawinfo.cars.length-1 : 0];
   if(mesh !== undefined){
     if(trainnotespritememo[drawinfo.trainid] !== undefined){
       meshtrainmemo[drawinfo.trainid].forEach(m => m.remove(trainnotespritememo[drawinfo.trainid]));
     }
-    if(drawinfo.note != ""){
-      let sprite = new SpriteText(drawinfo.note, 5, "#fff");
+    if(note != ""){
+      let sprite = new SpriteText(note, 5, "#fff");
       sprite.strokeWidth = 1;
       sprite.strokeColor = "#000";
       sprite.material.opacity = 0.3;

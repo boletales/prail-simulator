@@ -43,10 +43,6 @@ var $$Proxy = /* @__PURE__ */ $$$Proxy();
 var showIntImpl = function(n) {
   return n.toString();
 };
-var showNumberImpl = function(n) {
-  var str = n.toString();
-  return isNaN(str + ".0") ? str : str + ".0";
-};
 
 // output-es/Data.Generic.Rep/index.js
 var $NoArguments = () => ({ tag: "NoArguments" });
@@ -727,14 +723,6 @@ var mapMaybe = (f) => concatMap((x) => {
 
 // output-es/Data.Number/foreign.js
 var isFiniteImpl = isFinite;
-function fromStringImpl(str, isFinite2, just, nothing) {
-  var num = parseFloat(str);
-  if (isFinite2(num)) {
-    return just(num);
-  } else {
-    return nothing;
-  }
-}
 var abs = Math.abs;
 var asin = Math.asin;
 var cos = Math.cos;
@@ -815,9 +803,6 @@ var split = function(sep) {
   return function(s) {
     return s.split(sep);
   };
-};
-var trim = function(s) {
-  return s.trim();
 };
 
 // output-es/Data.String.Regex/foreign.js
@@ -1448,6 +1433,7 @@ var RuleStop = (value0) => (value1) => $SignalRule("RuleStop", value0, value1);
 var RuleStopOpen = (value0) => (value1) => (value2) => $SignalRule("RuleStopOpen", value0, value1, value2);
 var RuleStopUpdate = (value0) => (value1) => (value2) => (value3) => $SignalRule("RuleStopUpdate", value0, value1, value2, value3);
 var RuleReverse = (value0) => (value1) => $SignalRule("RuleReverse", value0, value1);
+var RuleReverseUpdate = (value0) => (value1) => (value2) => (value3) => $SignalRule("RuleReverseUpdate", value0, value1, value2, value3);
 var functorSectionArray = { map: (f) => (v) => ({ arraydata: arrayMap(f)(v.arraydata), head: v.head, end: v.end }) };
 var eqIntNode = { eq: (x) => (y) => x === y };
 var ordIntNode = { compare: (x) => (y) => ordInt.compare(x)(y), Eq0: () => eqIntNode };
@@ -1543,7 +1529,8 @@ var updateRailNode = (v) => (j) => {
       connections: v.connections,
       reserves: filter((x) => x.jointid !== j)(v.reserves),
       pos: v.pos,
-      note: v.note
+      note: v.note,
+      drawinfos: v.drawinfos
     },
     newjoint: v1.newjoint,
     shapes: arrayMap(absShape(v.pos))(v1.shape)
@@ -1570,7 +1557,8 @@ var shiftRailIndex_Node = (deleted) => (v) => ({
   connections: arrayMap((c) => ({ nodeid: c.nodeid < deleted ? c.nodeid : c.nodeid - 1 | 0, from: c.from, jointid: c.jointid }))(v.connections),
   reserves: v.reserves,
   pos: v.pos,
-  note: v.note
+  note: v.note,
+  drawinfos: v.drawinfos
 });
 var shiftRailIndex_Train = (deleted) => (v) => ({
   types: v.types,
@@ -1635,6 +1623,30 @@ var newreserve = (reserver) => (reserveid) => (v) => ({
   speed: v.speed,
   activeReserves: concatArray([{ reserveid, reserver }])(v.activeReserves)
 });
+var instanceDrawInfos = (v) => arrayMap((x) => absDrawInfo(v.pos)(v.rail.getDrawInfo(x)))(v.rail.getStates);
+var recalcInstanceDrawInfo = (v) => ({
+  nodeid: v.nodeid,
+  instanceid: v.instanceid,
+  rail: v.rail,
+  state: v.state,
+  signals: v.signals,
+  invalidRoutes: v.invalidRoutes,
+  connections: v.connections,
+  reserves: v.reserves,
+  pos: v.pos,
+  note: v.note,
+  drawinfos: instanceDrawInfos(v)
+});
+var instanceDrawInfo = (v) => {
+  const $0 = index(v.drawinfos)(v.state);
+  if ($0.tag === "Nothing") {
+    return brokenDrawInfo;
+  }
+  if ($0.tag === "Just") {
+    return $0._1;
+  }
+  fail();
+};
 var getTag = (rule) => {
   if (rule.tag === "RuleComment") {
     return unsafeRegex("(?!.*)")(noFlags);
@@ -1661,6 +1673,9 @@ var getTag = (rule) => {
     return rule._1;
   }
   if (rule.tag === "RuleReverse") {
+    return rule._1;
+  }
+  if (rule.tag === "RuleReverseUpdate") {
     return rule._1;
   }
   fail();
@@ -1773,7 +1788,8 @@ var setManualStop = (v) => (nodeid) => (jointid) => (stop) => {
           connections: $0._1.connections,
           reserves: $0._1.reserves,
           pos: $0._1.pos,
-          note: $0._1.note
+          note: $0._1.note,
+          drawinfos: $0._1.drawinfos
         })(v.rails);
         if ($3.tag === "Just") {
           return {
@@ -1888,7 +1904,8 @@ var updateSignalRoutes = (v) => ({
     connections: v2.connections,
     reserves: v2.reserves,
     pos: v2.pos,
-    note: v2.note
+    note: v2.note,
+    drawinfos: v2.drawinfos
   }))(v.rails),
   trains: v.trains,
   signalcolors: v.signalcolors,
@@ -1916,7 +1933,8 @@ var removeSignal = (v) => (nodeid) => (jointid) => updateSignalRoutes({
       connections: v2.connections,
       reserves: v2.reserves,
       pos: v2.pos,
-      note: v2.note
+      note: v2.note,
+      drawinfos: v2.drawinfos
     }))(v.rails);
     if ($0.tag === "Nothing") {
       return v.rails;
@@ -1962,7 +1980,8 @@ var removeRail = (v) => (nodeid) => {
       connections: filter((v4) => v4.nodeid !== nodeid)(v2.connections),
       reserves: v2.reserves,
       pos: v2.pos,
-      note: v2.note
+      note: v2.note,
+      drawinfos: v2.drawinfos
     }))((() => {
       const $0 = deleteAt(nodeid)(layout$p.rails);
       if ($0.tag === "Nothing") {
@@ -2224,7 +2243,7 @@ var signalToSpeed = (x) => {
 var getRestriction = (tags) => (signal) => foldlArray((s) => (r) => {
   if (r.tag === "RuleSpeed") {
     if (any(test(r._1))(arrayMap(unsafeCoerce)(tags))) {
-      return min2(s)(r._2);
+      return min2(s)(toNumber(r._2) * 0.025);
     }
     return s;
   }
@@ -2303,7 +2322,8 @@ var movefoward = (movefoward$a0$copy) => (movefoward$a1$copy) => (movefoward$a2$
             connections: updatedroute.instance.connections,
             reserves: filter((r1) => r1.jointid !== $3._1.jointid)(updatedroute.instance.reserves),
             pos: updatedroute.instance.pos,
-            note: updatedroute.instance.note
+            note: updatedroute.instance.note,
+            drawinfos: updatedroute.instance.drawinfos
           };
           const slength = sum(arrayMap(shapeLength)(updatedroute.shapes));
           movefoward$c = false;
@@ -2457,6 +2477,7 @@ var trainsetDrawInfo = (v) => {
     return getpos$p$r;
   };
   return {
+    tags: v.tags,
     note: v.note,
     flipped: v.flipped,
     trainid: v.trainid,
@@ -2474,7 +2495,7 @@ var trainsetDrawInfo = (v) => {
 };
 var layoutDrawInfo = (v) => ({
   rails: arrayMap((r) => {
-    const $0 = absDrawInfo(r.pos)(r.rail.getDrawInfo(r.state));
+    const $0 = instanceDrawInfo(r);
     return { rails: $0.rails, additionals: $0.additionals, joints: arrayMap(getRailJointAbsPos(r))(r.rail.getJoints), instance: r };
   })(v.rails),
   signals: arrayMap((v1) => arrayMap((v2) => ({
@@ -2820,7 +2841,8 @@ var updateSignalIndication = (changeManualStop) => (v) => {
       connections: rbd.rail.connections,
       reserves: rbd.rail.reserves,
       pos: rbd.rail.pos,
-      note: rbd.rail.note
+      note: rbd.rail.note,
+      drawinfos: rbd.rail.drawinfos
     }))(blockingData),
     trains: v.trains,
     signalcolors: v.signalcolors,
@@ -2905,7 +2927,8 @@ var tryOpenRouteFor = (v) => (nodeid) => (jointid) => (routeid) => (reserver) =>
                   connections: $6._1.connections,
                   reserves: concatArray($6._1.reserves)([{ jointid: v5.jointenter, reserveid }]),
                   pos: $6._1.pos,
-                  note: $6._1.note
+                  note: $6._1.note,
+                  drawinfos: $6._1.drawinfos
                 })($42);
                 if ($8.tag === "Just") {
                   if ($7._1 !== $6._1.state && traffic$p || programmedroute && ($2._1.restraint || any((v7) => {
@@ -2961,7 +2984,8 @@ var tryOpenRouteFor = (v) => (nodeid) => (jointid) => (routeid) => (reserver) =>
                 connections: v4.connections,
                 reserves: v4.reserves,
                 pos: v4.pos,
-                note: v4.note
+                note: v4.note,
+                drawinfos: v4.drawinfos
               };
             }
             return v4;
@@ -3153,7 +3177,8 @@ var addSignal = (v) => (nodeid) => (jointid) => {
       connections: v2.connections,
       reserves: v2.reserves,
       pos: v2.pos,
-      note: v2.note
+      note: v2.note,
+      drawinfos: v2.drawinfos
     }))(v.rails);
     if ($1.tag === "Just") {
       return updateSignalRoutes({
@@ -3283,7 +3308,8 @@ var addRailWithPos = (v) => (v1) => (pos) => {
             connections: concatArray(v3.connections)([{ from: $1, nodeid: v1.nodeid, jointid: $0 }]),
             reserves: v3.reserves,
             pos: v3.pos,
-            note: v3.note
+            note: v3.note,
+            drawinfos: v3.drawinfos
           }))(rs);
           if ($2.tag === "Nothing") {
             return rs;
@@ -3293,7 +3319,7 @@ var addRailWithPos = (v) => (v1) => (pos) => {
           }
           fail();
         })(v.rails)(connections))([
-          {
+          recalcInstanceDrawInfo({
             nodeid: v1.nodeid,
             instanceid: v.instancecount,
             rail: v1.rail,
@@ -3303,8 +3329,9 @@ var addRailWithPos = (v) => (v1) => (pos) => {
             connections: concatArray(v1.connections)(arrayMap((v3) => ({ from: v3.jointid, nodeid: v3.jointData.nodeid, jointid: v3.jointData.jointid }))(newconnections)),
             reserves: v1.reserves,
             pos,
-            note: v1.note
-          }
+            note: v1.note,
+            drawinfos: v1.drawinfos
+          })
         ]),
         trains: v.trains,
         signalcolors: v.signalcolors,
@@ -3348,6 +3375,7 @@ var autoAdd = (v) => (selectednode) => (selectedjoint) => (rail) => (from) => {
         invalidRoutes: [],
         reserves: [],
         pos: poszero,
+        drawinfos: [],
         note: ""
       });
     }
@@ -3375,7 +3403,8 @@ var fixBrokenConnections = (v) => foldlArray((l) => (v1) => {
     connections: [],
     reserves: v1.reserves,
     pos: v1.pos,
-    note: v1.note
+    note: v1.note,
+    drawinfos: v1.drawinfos
   })(v1.pos);
   if ($0.tag === "Nothing") {
     return l;
@@ -3416,7 +3445,8 @@ var addInvalidRoute = (v) => (nodeid) => (jointid) => {
       connections: v2.connections,
       reserves: v2.reserves,
       pos: v2.pos,
-      note: v2.note
+      note: v2.note,
+      drawinfos: v2.drawinfos
     }))(v.rails);
     if ($1.tag === "Just") {
       return updateSignalRoutes({
@@ -3505,7 +3535,7 @@ var trainTick = (v) => (v1) => (dt) => {
                     realAcceralation: $12.realAcceralation,
                     notch: $12.notch,
                     note: $12.note,
-                    tags: arrayMap((told) => replace2($22)(told)($3))($12.tags),
+                    tags: arrayMap((told) => replace2($22)($3)(told))($12.tags),
                     signalRulePhase: $12.signalRulePhase
                   }
                 };
@@ -3520,6 +3550,9 @@ var trainTick = (v) => (v1) => (dt) => {
                 return { l: setManualStop($03)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(true), t: $12 };
               }
               if (r.tag === "RuleReverse") {
+                return { l: setManualStop($03)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(true), t: $12 };
+              }
+              if (r.tag === "RuleReverseUpdate") {
                 return { l: setManualStop($03)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(true), t: $12 };
               }
               fail();
@@ -3549,83 +3582,110 @@ var trainTick = (v) => (v1) => (dt) => {
       }
       if (v1.signalRulePhase === 1 && v1.speed === 0) {
         const $02 = foldlArray((v3) => {
-          const $03 = v3.l;
-          const $12 = v3.t;
+          const $03 = v3.f;
+          const $12 = v3.l;
+          const $22 = v3.t;
           return (r) => {
             if (any(test(getTag(r)))(arrayMap(unsafeCoerce)(v1.tags))) {
               if (r.tag === "RuleComment") {
-                return { l: $03, t: $12 };
+                return { f: $03, l: $12, t: $22 };
               }
               if (r.tag === "RuleComplex") {
-                return { l: $03, t: $12 };
+                return { f: $03, l: $12, t: $22 };
               }
               if (r.tag === "RuleSpeed") {
-                return { l: $03, t: $12 };
+                return { f: $03, l: $12, t: $22 };
               }
               if (r.tag === "RuleOpen") {
-                return { l: $03, t: $12 };
+                return { f: $03, l: $12, t: $22 };
               }
               if (r.tag === "RuleUpdate") {
-                return { l: $03, t: $12 };
+                return { f: $03, l: $12, t: $22 };
               }
               if (r.tag === "RuleStop") {
-                return { l: $03, t: $12 };
+                return { f: $03, l: $12, t: $22 };
               }
               if (r.tag === "RuleStopOpen") {
-                return { l: addRouteQueue($03)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(r._2)(v1.trainid), t: $12 };
+                return { f: $03, l: addRouteQueue($12)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(r._2)(v1.trainid), t: $22 };
               }
               if (r.tag === "RuleStopUpdate") {
-                const $22 = r._2;
-                const $3 = r._3;
+                const $3 = r._2;
+                const $4 = r._3;
                 return {
-                  l: $03,
+                  f: $03,
+                  l: $12,
                   t: {
-                    types: $12.types,
-                    route: $12.route,
-                    distanceToNext: $12.distanceToNext,
-                    distanceFromOldest: $12.distanceFromOldest,
-                    speed: $12.speed,
-                    trainid: $12.trainid,
-                    flipped: $12.flipped,
-                    signalRestriction: $12.signalRestriction,
-                    respectSignals: $12.respectSignals,
-                    realAcceralation: $12.realAcceralation,
-                    notch: $12.notch,
-                    note: $12.note,
-                    tags: arrayMap((told) => replace2($22)(told)($3))($12.tags),
-                    signalRulePhase: $12.signalRulePhase
+                    types: $22.types,
+                    route: $22.route,
+                    distanceToNext: $22.distanceToNext,
+                    distanceFromOldest: $22.distanceFromOldest,
+                    speed: $22.speed,
+                    trainid: $22.trainid,
+                    flipped: $22.flipped,
+                    signalRestriction: $22.signalRestriction,
+                    respectSignals: $22.respectSignals,
+                    realAcceralation: $22.realAcceralation,
+                    notch: $22.notch,
+                    note: $22.note,
+                    tags: arrayMap((told) => replace2($3)($4)(told))($22.tags),
+                    signalRulePhase: $22.signalRulePhase
                   }
                 };
               }
               if (r.tag === "RuleReverse") {
                 return {
-                  l: $03,
-                  t: flipTrain({
-                    types: $12.types,
-                    route: $12.route,
-                    distanceToNext: $12.distanceToNext,
-                    distanceFromOldest: $12.distanceFromOldest,
-                    speed: $12.speed,
-                    trainid: $12.trainid,
-                    flipped: $12.flipped,
-                    signalRestriction: $12.signalRestriction,
-                    respectSignals: $12.respectSignals,
-                    realAcceralation: $12.realAcceralation,
-                    notch: $12.notch,
-                    note: $12.note,
-                    tags: $12.tags,
+                  f: true,
+                  l: $12,
+                  t: {
+                    types: $22.types,
+                    route: $22.route,
+                    distanceToNext: $22.distanceToNext,
+                    distanceFromOldest: $22.distanceFromOldest,
+                    speed: $22.speed,
+                    trainid: $22.trainid,
+                    flipped: $22.flipped,
+                    signalRestriction: $22.signalRestriction,
+                    respectSignals: $22.respectSignals,
+                    realAcceralation: $22.realAcceralation,
+                    notch: $22.notch,
+                    note: $22.note,
+                    tags: $22.tags,
                     signalRulePhase: 0
-                  })
+                  }
+                };
+              }
+              if (r.tag === "RuleReverseUpdate") {
+                const $3 = r._2;
+                const $4 = r._3;
+                return {
+                  f: true,
+                  l: $12,
+                  t: {
+                    types: $22.types,
+                    route: $22.route,
+                    distanceToNext: $22.distanceToNext,
+                    distanceFromOldest: $22.distanceFromOldest,
+                    speed: $22.speed,
+                    trainid: $22.trainid,
+                    flipped: $22.flipped,
+                    signalRestriction: $22.signalRestriction,
+                    respectSignals: $22.respectSignals,
+                    realAcceralation: $22.realAcceralation,
+                    notch: $22.notch,
+                    note: $22.note,
+                    tags: arrayMap((told) => replace2($3)($4)(told))($22.tags),
+                    signalRulePhase: 0
+                  }
                 };
               }
               fail();
             }
-            return { l: $03, t: $12 };
+            return { f: $03, l: $12, t: $22 };
           };
-        })({ l: v, t: v1 })(nextsignal.signal._1.rules);
+        })({ f: false, l: v, t: v1 })(nextsignal.signal._1.rules);
         return {
           firedlayout: $02.l,
-          firedtrain: $02.t.signalRulePhase === 1 ? {
+          firedtrain: ($02.f ? flipTrain : identity5)($02.t.signalRulePhase === 1 ? {
             types: $02.t.types,
             route: $02.t.route,
             distanceToNext: $02.t.distanceToNext,
@@ -3640,7 +3700,7 @@ var trainTick = (v) => (v1) => (dt) => {
             note: $02.t.note,
             tags: $02.t.tags,
             signalRulePhase: 3
-          } : $02.t
+          } : $02.t)
         };
       }
       return { firedlayout: v, firedtrain: v1 };
@@ -3732,7 +3792,7 @@ var moveTrains = (dt) => (v) => foldlArray((l) => (t) => {
   activeReserves: v.activeReserves
 })(v.trains);
 var layoutTick = (v) => {
-  const $0 = moveTrains(v.speed / 60)(v);
+  const $0 = updateSignalIndication(true)(updateReserves(updateTraffic(moveTrains(v.speed / 60)(v))));
   const $1 = foldlArray((v2) => {
     const $12 = v2.layout;
     const $2 = v2.queuenew;
@@ -6413,7 +6473,7 @@ var encodeSignalRule = (rule) => {
     return "c " + rule._1;
   }
   if (rule.tag === "RuleSpeed") {
-    return "m " + source(rule._1) + " " + showNumberImpl(rule._2) + (rule._3 === "" ? "" : " " + rule._3);
+    return "m " + source(rule._1) + " " + showIntImpl(rule._2) + (rule._3 === "" ? "" : " " + rule._3);
   }
   if (rule.tag === "RuleOpen") {
     return "o " + source(rule._1) + " " + showIntImpl(rule._2) + (rule._3 === "" ? "" : " " + rule._3);
@@ -6432,6 +6492,9 @@ var encodeSignalRule = (rule) => {
   }
   if (rule.tag === "RuleReverse") {
     return "r " + source(rule._1) + (rule._2 === "" ? "" : " " + rule._2);
+  }
+  if (rule.tag === "RuleReverseUpdate") {
+    return "R " + source(rule._1) + " " + source(rule._2) + (rule._4 === "" ? " " + rule._3 : " " + rule._3 + " " + rule._4);
   }
   fail();
 };
@@ -6467,6 +6530,7 @@ var defaultnode = /* @__PURE__ */ (() => ({
   signals: [],
   invalidRoutes: [],
   reserves: [],
+  drawinfos: [],
   pos: { coord: poszero.coord, angle: 3.141592653589793, isPlus: false },
   note: ""
 }))();
@@ -6519,7 +6583,7 @@ var decodeTrainset = (rs) => (v) => ({
   signalRulePhase: isUndefined(v.signalRulePhase) || isNull(v.signalRulePhase) ? 0 : v.signalRulePhase
 });
 var decodeSignalRule = (rule) => {
-  const spl = split(" ")(replace2(unsafeRegex("\\s+")(global))(" ")(trim(rule)));
+  const spl = split(" ")(replace2(unsafeRegex("\\s+")(global))(" ")(rule.trimStart()));
   const v = index(spl)(0);
   const $0 = (() => {
     if (v.tag === "Just") {
@@ -6549,7 +6613,7 @@ var decodeSignalRule = (rule) => {
         })())((() => {
           const $02 = index(spl)(2);
           if ($02.tag === "Just") {
-            return fromStringImpl($02._1, isFiniteImpl, Just, Nothing);
+            return fromString($02._1);
           }
           if ($02.tag === "Nothing") {
             return Nothing;
@@ -6736,6 +6800,44 @@ var decodeSignalRule = (rule) => {
           fail();
         })())($Maybe("Just", replace2(unsafeRegex("^\\s*.\\s+\\S*")(noFlags))("")(rule)));
       }
+      if (v._1 === "R") {
+        return applyMaybe.apply(applyMaybe.apply(applyMaybe.apply((() => {
+          const $02 = index(spl)(1);
+          if ($02.tag === "Just") {
+            const $1 = regex($02._1)(noFlags);
+            if ($1.tag === "Left") {
+              return Nothing;
+            }
+            if ($1.tag === "Right") {
+              return $Maybe("Just", RuleReverseUpdate($1._1));
+            }
+            fail();
+          }
+          if ($02.tag === "Nothing") {
+            return Nothing;
+          }
+          fail();
+        })())((() => {
+          const $02 = index(spl)(2);
+          if ($02.tag === "Just") {
+            const $1 = regex($02._1)(noFlags);
+            if ($1.tag === "Left") {
+              return Nothing;
+            }
+            if ($1.tag === "Right") {
+              return $Maybe("Just", $1._1);
+            }
+            fail();
+          }
+          if ($02.tag === "Nothing") {
+            return Nothing;
+          }
+          fail();
+        })()))(index(spl)(3)))($Maybe(
+          "Just",
+          replace2(unsafeRegex("^\\s*.\\s+\\S*\\s+\\S*\\s+\\S*")(noFlags))("")(rule)
+        ));
+      }
       return Nothing;
     }
     return Nothing;
@@ -6776,7 +6878,7 @@ var decodeRailNode = (v) => {
   if ($0.tag === "Just") {
     return $Maybe(
       "Just",
-      {
+      recalcInstanceDrawInfo({
         nodeid: v.nodeid,
         instanceid: v.instanceid,
         rail: $0._1,
@@ -6786,8 +6888,9 @@ var decodeRailNode = (v) => {
         invalidRoutes: isUndefined(v.invalidRoutes) || isNull(v.invalidRoutes) ? [] : v.invalidRoutes,
         reserves: isUndefined(v.reserves) || isNull(v.reserves) ? [] : v.reserves,
         pos: v.pos,
-        note: isUndefined(v.note) || isNull(v.note) ? "" : v.note
-      }
+        note: isUndefined(v.note) || isNull(v.note) ? "" : v.note,
+        drawinfos: []
+      })
     );
   }
   return Nothing;
@@ -6797,7 +6900,7 @@ var decodeRailNode_v1 = (v) => {
   if ($0.tag === "Just") {
     return $Maybe(
       "Just",
-      {
+      recalcInstanceDrawInfo({
         nodeid: v.nodeid,
         instanceid: v.instanceid,
         rail: $0._1,
@@ -6807,8 +6910,9 @@ var decodeRailNode_v1 = (v) => {
         invalidRoutes: isUndefined(v.invalidRoutes) || isNull(v.invalidRoutes) ? [] : v.invalidRoutes,
         reserves: isUndefined(v.reserves) || isNull(v.reserves) ? [] : v.reserves,
         pos: poszero,
+        drawinfos: [],
         note: isUndefined(v.note) || isNull(v.note) ? "" : v.note
-      }
+      })
     );
   }
   return Nothing;
@@ -6828,7 +6932,8 @@ var decodeRailInstance = (v) => {
         connections: $0._1.connections,
         reserves: $0._1.reserves,
         pos: v.pos,
-        note: $0._1.note
+        note: $0._1.note,
+        drawinfos: $0._1.drawinfos
       }
     );
   }

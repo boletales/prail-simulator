@@ -212,6 +212,13 @@ class Layout {
             , key    : ["extra_settraintag"]
             , skip   : true
           },
+          resetSignalRulePhaseS: {
+              onkey: (data)=>{ this.layout.trains.forEach(c => {if(c.trainid == data.trainid){c.signalRulePhase = 0}});; return data;}
+            , text_ja: "信号ルール再適用"
+            , softkey: "extra_resetsignalrulephase"
+            , key    : ["extra_resetsignalrulephase"]
+            , skip   : true
+          },
           setSignalRules: {
               onkey: (data)=>{ this.setSignalRules(data.rules); return data;}
             , text_ja: "信号タグ設定"
@@ -453,8 +460,11 @@ class Layout {
   tick(speed = 1.0){
     let oldspeed = this.layout.speed;
     this.layout.speed = oldspeed * speed;
-    if(!this.stopped ) this.layout = P.layoutTick(this.layout);
-    this.layout = P.layoutUpdate(this.layout);
+    if(this.stopped){
+      this.layout = P.layoutUpdate(this.layout);
+    }else{
+      this.layout = P.layoutTick(this.layout);
+    }
     if(this.layout.rails[this.selectedJoint.nodeid] === undefined){
       selectNewestRail(this.layout);
     }

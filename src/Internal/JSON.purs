@@ -11,8 +11,7 @@ module Internal.JSON
   )
   where
 
-import Internal.Layout (IntNode(..), IntReserve, InvalidRoute, Layout(..), RailNode, RailNode_(..), RouteQueueElement, Signal(..), SignalRule(..), TrainRoute, TrainRoute_(..), Trainset, Trainset_(..), addJoint, getJointAbsPos, removeRail, saEmpty, signalRulePhase_unfired, updateSignalRoutes)
-import Internal.Types (Coord(..), IntJoint, IntState(..), Pos(..), Rail, RailGen(..), RailShape(..), flipRail, fromRadian, opposeRail, poszero, reverseAngle, reversePos, toRadian)
+import Internal.Rails
 import Prelude
 
 import Control.Monad.Except (runExceptT, ExceptT)
@@ -21,21 +20,19 @@ import Data.Either (fromRight, hush)
 import Data.Function (on)
 import Data.Identity (Identity)
 import Data.Int as Int
-import Data.Number as Number
 import Data.List.Types (NonEmptyList)
 import Data.Maybe (Maybe(..), fromMaybe, isNothing, maybe)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Number (abs, cos, pi, round, sign, sin)
+import Data.Number as Number
 import Data.String as St
 import Data.String.Regex (regex, replace, source) as Re
 import Data.String.Regex.Flags (global, noFlags) as Re
 import Data.String.Regex.Unsafe (unsafeRegex) as Re
+import Data.String.Utils as St
 import Foreign (Foreign, ForeignError, isArray, isNull, isUndefined, readNumber, unsafeFromForeign, unsafeToForeign)
-
-import Internal.Types
-import Internal.Layout
-import Internal.Rails
-
+import Internal.Layout (IntNode(..), IntReserve, InvalidRoute, Layout(..), RailNode, RailNode_(..), RouteQueueElement, Signal(..), SignalRule(..), TrainRoute, TrainRoute_(..), Trainset, Trainset_(..), addJoint, getJointAbsPos, removeRail, saEmpty, signalRulePhase_unfired, updateSignalRoutes, recalcInstanceDrawInfo)
+import Internal.Types (Coord(..), IntJoint, IntState(..), Pos(..), Rail, RailGen(..), RailShape(..), flipRail, fromRadian, opposeRail, poszero, reverseAngle, reversePos, toRadian)
 import Prelude as Prelude
 
 
@@ -56,6 +53,7 @@ defaultnode = RailNode {
             signals : [],
             invalidRoutes : [],
             reserves : [],
+            drawinfos : [],
             pos : reversePos poszero,
             note: ""
           }
@@ -223,15 +221,16 @@ encodeSignal (Signal {
 encodeSignalRule :: SignalRule -> EncodedSignalRule
 encodeSignalRule rule =
   case rule of
-    RuleComment                comment ->                                                                comment
-    RuleComplex                comment -> "c "                                                        <> comment
-    RuleSpeed      tag route   comment -> "m " <> Re.source tag <> " " <> show route                  <> if comment == "" then "" else (" " <> comment)
-    RuleOpen       tag route   comment -> "o " <> Re.source tag <> " " <> show route                  <> if comment == "" then "" else (" " <> comment)
-    RuleUpdate     tag from to comment -> "u " <> Re.source tag <> " " <> Re.source from <> " " <> to <> if comment == "" then "" else (" " <> comment)
-    RuleStop       tag         comment -> "s " <> Re.source tag                                       <> if comment == "" then "" else (" " <> comment)
-    RuleStopOpen   tag route   comment -> "O " <> Re.source tag <> " " <> show route                  <> if comment == "" then "" else (" " <> comment)
-    RuleStopUpdate tag from to comment -> "U " <> Re.source tag <> " " <> Re.source from <> " " <> to <> if comment == "" then "" else (" " <> comment)
-    RuleReverse    tag         comment -> "r " <> Re.source tag                                       <> if comment == "" then "" else (" " <> comment)
+    RuleComment                   comment ->                                                                comment
+    RuleComplex                   comment -> "c "                                                        <> comment
+    RuleSpeed         tag route   comment -> "m " <> Re.source tag <> " " <> show route                  <> if comment == "" then "" else (" " <> comment)
+    RuleOpen          tag route   comment -> "o " <> Re.source tag <> " " <> show route                  <> if comment == "" then "" else (" " <> comment)
+    RuleUpdate        tag from to comment -> "u " <> Re.source tag <> " " <> Re.source from <> " " <> to <> if comment == "" then "" else (" " <> comment)
+    RuleStop          tag         comment -> "s " <> Re.source tag                                       <> if comment == "" then "" else (" " <> comment)
+    RuleStopOpen      tag route   comment -> "O " <> Re.source tag <> " " <> show route                  <> if comment == "" then "" else (" " <> comment)
+    RuleStopUpdate    tag from to comment -> "U " <> Re.source tag <> " " <> Re.source from <> " " <> to <> if comment == "" then "" else (" " <> comment)
+    RuleReverse       tag         comment -> "r " <> Re.source tag                                       <> if comment == "" then "" else (" " <> comment)
+    RuleReverseUpdate tag from to comment -> "R " <> Re.source tag <> " " <> Re.source from <> " " <> to <> if comment == "" then "" else (" " <> comment)
 
 encodeSignalRules :: Array SignalRule -> Array EncodedSignalRule
 encodeSignalRules = map encodeSignalRule
@@ -268,7 +267,7 @@ decodeRailNode ({
     , reserves
     , pos
     , note
-  }) = RailNode <$> {
+  }) = recalcInstanceDrawInfo <$> RailNode <$> {
       nodeid
     , instanceid
     , rail:_
@@ -279,6 +278,7 @@ decodeRailNode ({
     , reserves: ifUndefinedDefault [] reserves
     , pos: pos
     , note: ifUndefinedDefault "" note
+    , drawinfos: []
   } <$> decodeRail rail
 
 decodeRailNode_v1 :: RailNode_ EncodedRail -> Maybe RailNode
@@ -292,7 +292,7 @@ decodeRailNode_v1 (RailNode {
     , invalidRoutes
     , reserves
     , note
-  }) = RailNode <$> {
+  }) = recalcInstanceDrawInfo <$> RailNode <$> {
       nodeid
     , instanceid
     , rail:_
@@ -302,6 +302,7 @@ decodeRailNode_v1 (RailNode {
     , invalidRoutes: ifUndefinedDefault [] invalidRoutes
     , reserves: ifUndefinedDefault [] reserves
     , pos: poszero
+    , drawinfos: []
     , note: ifUndefinedDefault "" note
   } <$> decodeRail rail
 
@@ -391,17 +392,18 @@ decodeSignalRules rules = (\r -> decodeSignalRule (ifUndefinedDefault "" r)) <$>
 
 decodeSignalRule :: EncodedSignalRule -> SignalRule
 decodeSignalRule rule =
-  let rule_ = Re.replace (Re.unsafeRegex  "\\s+" Re.global) " " $ St.trim rule
+  let rule_ = Re.replace (Re.unsafeRegex  "\\s+" Re.global) " " $ St.trimStart rule
       spl   = St.split (St.Pattern " ") rule_
   in fromMaybe (RuleComment rule) $ case spl !! 0 of
-      Just "c" ->RuleComplex    <$>                                                                                                                              Just (Re.replace (Re.unsafeRegex  "^\\s*."                         Re.noFlags) "" rule)
-      Just "m" ->RuleSpeed      <$> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 1) <*> (Number.fromString =<< spl !! 2)                                 <*> Just (Re.replace (Re.unsafeRegex  "^\\s*.\\s+\\S*\\s+\\S*"         Re.noFlags) "" rule)
-      Just "o" ->RuleOpen       <$> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 1) <*> (Int.fromString =<< spl !! 2)                                    <*> Just (Re.replace (Re.unsafeRegex  "^\\s*.\\s+\\S*\\s+\\S*"         Re.noFlags) "" rule)
-      Just "u" ->RuleUpdate     <$> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 1) <*> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 2) <*> spl !! 3 <*> Just (Re.replace (Re.unsafeRegex  "^\\s*.\\s+\\S*\\s+\\S*\\s+\\S*" Re.noFlags) "" rule)
-      Just "s" ->RuleStop       <$> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 1)                                                                      <*> Just (Re.replace (Re.unsafeRegex  "^\\s*.\\s+\\S*"                 Re.noFlags) "" rule)
-      Just "O" ->RuleStopOpen   <$> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 1) <*> (Int.fromString =<< spl !! 2)                                    <*> Just (Re.replace (Re.unsafeRegex  "^\\s*.\\s+\\S*\\s+\\S*"         Re.noFlags) "" rule)
-      Just "U" ->RuleStopUpdate <$> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 1) <*> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 2) <*> spl !! 3 <*> Just (Re.replace (Re.unsafeRegex  "^\\s*.\\s+\\S*\\s+\\S*\\s+\\S*" Re.noFlags) "" rule)
-      Just "r" ->RuleReverse    <$> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 1)                                                                      <*> Just (Re.replace (Re.unsafeRegex  "^\\s*.\\s+\\S*"                 Re.noFlags) "" rule)
+      Just "c" ->RuleComplex       <$>                                                                                                                              Just (Re.replace (Re.unsafeRegex  "^\\s*."                         Re.noFlags) "" rule)
+      Just "m" ->RuleSpeed         <$> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 1) <*> (Int.fromString =<< spl !! 2)                                    <*> Just (Re.replace (Re.unsafeRegex  "^\\s*.\\s+\\S*\\s+\\S*"         Re.noFlags) "" rule)
+      Just "o" ->RuleOpen          <$> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 1) <*> (Int.fromString =<< spl !! 2)                                    <*> Just (Re.replace (Re.unsafeRegex  "^\\s*.\\s+\\S*\\s+\\S*"         Re.noFlags) "" rule)
+      Just "u" ->RuleUpdate        <$> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 1) <*> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 2) <*> spl !! 3 <*> Just (Re.replace (Re.unsafeRegex  "^\\s*.\\s+\\S*\\s+\\S*\\s+\\S*" Re.noFlags) "" rule)
+      Just "s" ->RuleStop          <$> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 1)                                                                      <*> Just (Re.replace (Re.unsafeRegex  "^\\s*.\\s+\\S*"                 Re.noFlags) "" rule)
+      Just "O" ->RuleStopOpen      <$> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 1) <*> (Int.fromString =<< spl !! 2)                                    <*> Just (Re.replace (Re.unsafeRegex  "^\\s*.\\s+\\S*\\s+\\S*"         Re.noFlags) "" rule)
+      Just "U" ->RuleStopUpdate    <$> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 1) <*> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 2) <*> spl !! 3 <*> Just (Re.replace (Re.unsafeRegex  "^\\s*.\\s+\\S*\\s+\\S*\\s+\\S*" Re.noFlags) "" rule)
+      Just "r" ->RuleReverse       <$> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 1)                                                                      <*> Just (Re.replace (Re.unsafeRegex  "^\\s*.\\s+\\S*"                 Re.noFlags) "" rule)
+      Just "R" ->RuleReverseUpdate <$> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 1) <*> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 2) <*> spl !! 3 <*> Just (Re.replace (Re.unsafeRegex  "^\\s*.\\s+\\S*\\s+\\S*\\s+\\S*" Re.noFlags) "" rule)
       _        -> Nothing
 
 decodeLayout :: {rails :: Array(Foreign), trains :: Foreign, signals :: Foreign, time :: Foreign, speed :: Foreign, version:: Int, routequeue :: Foreign, activeReserves :: Foreign} -> Layout

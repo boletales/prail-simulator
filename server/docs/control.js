@@ -466,7 +466,7 @@ class Layout {
       this.layout = P.layoutTick(this.layout);
     }
     if(this.layout.rails[this.selectedJoint.nodeid] === undefined){
-      selectNewestRail(this.layout);
+      this.selectNewestRail(this.layout);
     }
     if(this.layout.trains.find(t=>t.trainid == this.selectedTrain) === undefined && this.layout.trains.length > 0){
       this.selectedTrain = this.layout.trains[this.layout.trains.length-1].trainid;

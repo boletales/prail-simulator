@@ -4,11 +4,18 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Document</title>
-  <!--style>
-    .lil-gui {
-      --font-size: 0.625rem;
+  <style>
+    #minicontrols {
+      display:flex
     }
-  </style-->
+
+    #minicontrols div{
+      margin: 10px;
+      border-style: dashed;
+      border-width: 1px;
+      padding: 10px;
+    }
+  </style>
 </head>
 <body>
   <div id="main"></div>
@@ -20,16 +27,14 @@
     <label><input type="checkbox" id="respectSignals" name="respectSignals" checked>信号に従って走行</label><br>
     <input id="fakeinput" placeholder="fake input for smartphone">
     <div id="minicontrols">
-      <hr>
       <div id="railcontrol">
         <span>レール操作：</span><br>
         <label>レール注釈：<input id="railnote"     ></label><br>
         <label>信号制御：<textarea id="signalrules" ></textarea></label><br>
       </div>
-      <hr>
       <div id="traincontrol">
         <span>列車操作：</span><br>
-        <span id="trainid"></span><br>
+        <select id="trainid"></select> <label><input type="checkbox" id="lockon" name="lockon">追従</label><br>
         <span>ノッチ操作：</span> <input type="button" id="notchplus" value="+(j)"><input type="button" id="notchminus" value="-(k)"> <input type="button" value="反転(l)" id="reverse"> <span id="speedinfo"></span><br>
         <label>列車番号：<input id="trainnote"   ></label><br>
         <label>列車タグ：<textarea id="traintags"></textarea></label>
@@ -96,78 +101,7 @@
   <script src="https://cdn.jsdelivr.net/npm/lil-gui@0.17"></script>
   <script src="https://cdn.jsdelivr.net/npm/fflate@0.7.4/umd/index.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/socket.io@4.6.1/client-dist/socket.io.min.js"></script>
-  <script type="module">
-    import {download, L, clearCache, forceUpdateModel} from "../3d.js";
-    import * as P from "../main.js";
-    window.P = P;
-
-    window.upload = upload;
-    window.download = download;
-    window.L = L;
-    window.save = ()=>{L.save()};
-
-    document.getElementById("minicontrols").onkeydown = (e)=>{e.stopPropagation(); true;};
-
-    let socket = io.connect();
-
-    L.setSyncMethod((key, data, selectedJoint, selectedTrain)=>{
-      socket.emit("key", {"key" : key, "data":data, "selectedJoint":selectedJoint, "selectedTrain":L.selectedTrain});
-    });
-    
-    socket.on("sync",data=>{
-      let selectedJoint = L.selectedJoint;
-      let selectedTrain = L.selectedTrain;
-      L.stopped = data.stopped;
-      L.respectSignals = data.respectSignals;
-      document.getElementById("respectSignals").checked = data.respectSignals;
-      L.loadfrom(()=>(data.clearCache ? clearCache() : forceUpdateModel()), fflate.strFromU8(fflate.decompressSync(Uint8Array.from(Array.prototype.map.call(atob(data.compressed), (x) => x.charCodeAt(0))))))
-      L.selectedJoint = selectedJoint;
-      L.selectedTrain = selectedTrain;
-      console.log("sync");
-    });
-    socket.on("selectedJoint",data=>{
-      L.selectedJoint = data.selectedJoint;
-      L.selectedTrain = data.selectedTrain;
-    });
-    document.onkeydown = ((e)=>{
-      L.onkey(e, {trainid: L.selectedTrain});
-    });
-    L.refreshKeybinds();
-
-    clearCache();
-
-    function upload(){
-      let files = document.getElementById("upload").files;
-      if(files.length > 0){
-        files[0].text().then(t => socket.emit("upload", {payload: t}));
-      }
-    }
-
-    const GUI = new lil.GUI({ title : 'コントロールパネル', touchStyles: false });
-    window.GUI = GUI;
-
-    Object.values(L.keycontrols).forEach(category => {
-      let folder = new lil.GUI( { parent: GUI, title: category.name, touchStyles: false } );
-      Object.values(category.keys).forEach(key => {
-        if(key.skip) return;
-        folder.add({
-          "onkey": (()=>{
-            L.onkey({key:key.key[0]});
-          })
-        }, "onkey").name(key.softkey + " : " + key.text_ja);
-        folder.close();
-      });
-    });
-    GUI.folders[0].open();
-    GUI.folders[2].open();
-
-    GUI.domElement.style.opacity = 0.7;
-
-    document.getElementById("respectSignals").oninput = ()=>{
-      L.onkey({key: "extra_respectSignals"});
-    }
-
-    socket.emit("join", {room: location.pathname.replace(/\/$/,"").replace(/.*\//g,"")});
+  <script type="module" src="load.js">
   </script>
 </body>
 </html>

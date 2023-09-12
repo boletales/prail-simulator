@@ -27,7 +27,15 @@ let tickcount = 0;
 
 function main(){
   L.layout = P.defaultLayout;
-  document.onkeydown = (e)=>(L.onkey(e));
+  document.onkeydown = (e)=>{
+      if(e.altKey && (e.key == ";" || e.key == "+")){
+        L.camera2d.zoom *= 1.2;
+      }else if(e.altKey && (e.key == "-")){
+        L.camera2d.zoom /= 1.2;
+      }else{
+        L.onkey(e)
+      }
+    };
   document.getElementById("fakeinput").onkeydown = ()=>{return true;};
   document.getElementById("fakeinput").onchange = ()=>{document.getElementById("fakeinput").value=""};
   canvas.onclick = onclick;

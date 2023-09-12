@@ -24,6 +24,7 @@ module Main (
   , getMaxNotch
   , getNewRailPos
   , getNextSignal
+  , getMarginFromBrakePattern
   , layoutDrawInfo
   , layoutTick
   , layoutUpdate
@@ -75,11 +76,11 @@ module Main (
   
   , fromJust) where
 
-import Internal.Types  as Ex
-import Internal.Layout as Ex
-import Internal.Rails  as Ex
-import Internal.JSON   as Ex
 import Data.Maybe as Ex
+import Internal.JSON as Ex
+import Internal.Layout as Ex
+import Internal.Rails as Ex
+import Internal.Types as Ex
 
 fromJust = Ex.fromJust
 
@@ -108,6 +109,7 @@ getJoints                 = Ex.getJoints
 getMaxNotch               = Ex.getMaxNotch               
 getNewRailPos             = Ex.getNewRailPos             
 getNextSignal             = Ex.getNextSignal             
+getMarginFromBrakePattern = Ex.getMarginFromBrakePattern
 layoutDrawInfo            = Ex.layoutDrawInfo            
 layoutTick                = Ex.layoutTick                
 layoutUpdate              = Ex.layoutUpdate              

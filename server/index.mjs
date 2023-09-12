@@ -135,6 +135,9 @@ app.get('/',function(req,res){
 app.get('/online/models/:file',function(req,res){
     res.sendFile(__dirname+'/docs/models/'+req.params.file);
 });
+app.get('/online/load.js',function(req,res){
+    res.sendFile(__dirname+'/docs/online/load.js');
+});
 app.get('/online/:roomid',function(req,res){
     res.sendFile(__dirname+'/docs/online/index.html');
 });

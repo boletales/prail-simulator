@@ -722,6 +722,7 @@ var mapMaybe = (f) => concatMap((x) => {
 });
 
 // output-es/Data.Number/foreign.js
+var infinity = Infinity;
 var isFiniteImpl = isFinite;
 var abs = Math.abs;
 var asin = Math.asin;
@@ -2487,8 +2488,8 @@ var trainsetDrawInfo = (v) => {
       const dt = d + 0.4672897196261683 - 0.09345794392523366;
       return {
         type: ct,
-        head: { r: getpos$p(-0.07943925233644861)(dh)(0), l: getpos$p(0.07943925233644861)(dh)(0) },
-        tail: { r: getpos$p(-0.07943925233644861)(dt)(0), l: getpos$p(0.07943925233644861)(dt)(0) }
+        head: { r: getpos$p(-0.07943925233644861)(dh)(0), l: getpos$p(0.07943925233644861)(dh)(0), m: getpos$p(0)(dh)(0) },
+        tail: { r: getpos$p(-0.07943925233644861)(dt)(0), l: getpos$p(0.07943925233644861)(dt)(0), m: getpos$p(0)(dt)(0) }
       };
     })(range(0)(v.types.length - 1 | 0))(v.types)
   };
@@ -2532,7 +2533,7 @@ var brakePattern = (speed) => (finalspeed) => {
   const t = (speed - finalspeed) / 0.4;
   return 0.3 + max2(0)(finalspeed * t + 0.2 * t * t);
 };
-var brakePatternCheck = (speed) => (signaldata) => (tags) => {
+var brakePatternDist = (speed) => (signaldata) => (tags) => {
   const restriction = (() => {
     if (signaldata.signal.tag === "Nothing") {
       return 15;
@@ -2543,13 +2544,13 @@ var brakePatternCheck = (speed) => (signaldata) => (tags) => {
     fail();
   })();
   if (speed < restriction) {
-    return false;
+    return -infinity;
   }
-  return signaldata.distance < brakePattern(speed)(restriction);
+  return brakePattern(speed)(restriction);
 };
 var getMaxNotch_ = (nextsignal) => (v) => {
   if (v.respectSignals) {
-    if (v.signalRestriction < v.speed || brakePatternCheck(v.speed)(nextsignal)(v.tags)) {
+    if (v.signalRestriction < v.speed || nextsignal.distance < brakePatternDist(v.speed)(nextsignal)(v.tags)) {
       return -8;
     }
     if (v.signalRestriction < v.speed + 0.125) {
@@ -2560,6 +2561,10 @@ var getMaxNotch_ = (nextsignal) => (v) => {
   return 5;
 };
 var getMaxNotch = (v) => (v1) => getMaxNotch_(getNextSignal(v)(v1))(v1);
+var getMarginFromBrakePattern = (v) => (v1) => {
+  const nextsignal = getNextSignal(v)(v1);
+  return nextsignal.distance - brakePatternDist(v1.speed)(nextsignal)(v1.tags);
+};
 var updateSignalIndication = (changeManualStop) => (v) => {
   const blockingData = arrayMap((v1) => ({
     rail: v1,
@@ -7044,6 +7049,7 @@ var halfRail2 = halfRail;
 var getNextSignal2 = getNextSignal;
 var getNewRailPos2 = getNewRailPos;
 var getMaxNotch2 = getMaxNotch;
+var getMarginFromBrakePattern2 = getMarginFromBrakePattern;
 var getJoints2 = getJoints;
 var getJointAbsPos2 = getJointAbsPos;
 var getDividingPoint_rel2 = getDividingPoint_rel;
@@ -7115,6 +7121,7 @@ export {
   getDividingPoint_rel2 as getDividingPoint_rel,
   getJointAbsPos2 as getJointAbsPos,
   getJoints2 as getJoints,
+  getMarginFromBrakePattern2 as getMarginFromBrakePattern,
   getMaxNotch2 as getMaxNotch,
   getNewRailPos2 as getNewRailPos,
   getNextSignal2 as getNextSignal,

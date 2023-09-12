@@ -136,8 +136,8 @@ class Layout {
             , softkey: "*"
             , key    : ["*"]
           },
-          selectTrain: {
-              onkey: (data)=>this.selectTrain()
+          selectTrainOnRail: {
+              onkey: (data)=>this.selectTrainOnRail()
             , text_ja: "列車選択"
             , softkey: "u"
             , key    : ["u"]
@@ -457,6 +457,11 @@ class Layout {
     this.syncwithdata = f;
   }
 
+  onTrainSelect = (tid) => {};
+  setOnTrainSelect(f){
+    this.onTrainSelect = f;
+  }
+
   tick(speed = 1.0){
     let oldspeed = this.layout.speed;
     this.layout.speed = oldspeed * speed;
@@ -470,6 +475,7 @@ class Layout {
     }
     if(this.layout.trains.find(t=>t.trainid == this.selectedTrain) === undefined && this.layout.trains.length > 0){
       this.selectedTrain = this.layout.trains[this.layout.trains.length-1].trainid;
+      this.onTrainSelect(this.selectedTrain);
     }
     this.layout.speed = oldspeed;
   }
@@ -633,6 +639,7 @@ class Layout {
       this.layout.trains[this.layout.trains.length -1].respectSignals=this.respectSignals;
       this.layout.trains[this.layout.trains.length -1].notch=5;
       this.selectedTrain = this.layout.trains[this.layout.trains.length -1].trainid;
+      this.onTrainSelect(this.selectedTrain);
     }
   }
   
@@ -649,13 +656,20 @@ class Layout {
       this.layout.trains = this.layout.trains.filter(c => !tis.includes(c.trainid));
     }
   }
-  selectTrain(){
+  selectTrainOnRail(){
     if(this.layout.traffic[this.selectedJoint.nodeid] !== undefined){
       let tis = this.layout.traffic[this.selectedJoint.nodeid].flat();
       let trains = this.layout.trains.filter(c => tis.includes(c.trainid));
       if(trains.length > 0){
         this.selectedTrain = trains[0].trainid;
+        this.onTrainSelect(this.selectedTrain);
       }
+    }
+  }
+  selectTrainById(id){
+    let trains = this.layout.trains.filter(c => c.trainid == id);
+    if(trains.length > 0){
+      this.selectedTrain = trains[0].trainid;
     }
   }
   

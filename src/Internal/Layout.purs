@@ -35,6 +35,7 @@ module Internal.Layout
   , forceUpdate
   , getJointAbsPos
   , getJoints
+  , getMarginFromBrakePattern
   , getMaxNotch
   , getNewRailPos
   , getNextSignal
@@ -72,6 +73,7 @@ import Prelude
 import Data.Foldable (foldM, maximum, sum)
 import Data.FoldableWithIndex (allWithIndex, findWithIndex)
 import Data.Function (on)
+import Data.Number (infinity)
 import Data.String.Regex as Re
 import Data.String.Regex.Flags as Re
 import Data.String.Regex.Unsafe as Re
@@ -204,7 +206,7 @@ wheelMargin = 2.0 / 21.4
 newtype TrainsetDrawInfo = TrainsetDrawInfo ({
       trainid :: Int
     , tags :: Array TrainTag
-    , cars :: Array {head :: {r :: Pos, l :: Pos}, tail :: {r :: Pos, l :: Pos}, type :: CarType}
+    , cars :: Array {head :: {r :: Pos, l :: Pos, m :: Pos}, tail :: {r :: Pos, l :: Pos, m :: Pos}, type :: CarType}
     , flipped :: Boolean
     , note :: String
   })
@@ -236,7 +238,7 @@ trainsetDrawInfo (Trainset t) =
           let d = ((toNumber i) * (carLength + carMargin)) + t.distanceToNext
               dh = d + wheelMargin
               dt = d + carLength - wheelMargin
-          in {type : ct, head : {r : getpos dh (-wheelWidth/2.0), l : getpos dh ( wheelWidth/2.0)}, tail : {r : getpos dt (-wheelWidth/2.0), l : getpos dt ( wheelWidth/2.0)}}
+          in {type : ct, head : {r : getpos dh (-wheelWidth/2.0), l : getpos dh ( wheelWidth/2.0), m : getpos dh 0.0}, tail : {r : getpos dt (-wheelWidth/2.0), l : getpos dt ( wheelWidth/2.0), m : getpos dt 0.0}}
         ) t.types}
 
 addTrainset :: Layout -> Int -> IntJoint -> Array CarType -> Layout
@@ -658,6 +660,11 @@ getMaxNotch (Layout layout) (Trainset t0) =
   let nextsignal = getNextSignal (Layout layout) (Trainset t0)
   in  getMaxNotch_ nextsignal (Trainset t0)
 
+getMarginFromBrakePattern :: Layout -> Trainset -> Number
+getMarginFromBrakePattern (Layout layout) (Trainset t0) =
+  let nextsignal = getNextSignal (Layout layout) (Trainset t0)
+  in  nextsignal.distance - brakePatternDist t0.speed nextsignal t0.tags
+
 addRouteQueue :: Layout -> IntNode -> IntJoint -> Int -> Int -> Layout
 addRouteQueue l n j r t = Layout $ (unwrap l) {routequeue = (unwrap l).routequeue <> [RouteQueueElement {jointid: j, nodeid: n, routeid: r, time: (unwrap l).time, retryafter: (unwrap l).time, trainid: t}]}
 
@@ -679,10 +686,13 @@ digestIndication signal = if (unwrap signal).manualStop || (unwrap signal).restr
 
 brakePatternCheck :: Number -> {signal :: Maybe Signal, sections :: Int, distance :: Number} -> Array TrainTag -> Boolean
 brakePatternCheck speed signaldata tags =
-  let restriction = maybe 15.0 (getRestriction tags) signaldata.signal
-  in  if speed < restriction then false
-      else signaldata.distance < brakePattern speed restriction
+  signaldata.distance < brakePatternDist speed signaldata tags
 
+brakePatternDist :: Number -> {signal :: Maybe Signal, sections :: Int, distance :: Number} -> Array TrainTag -> Number
+brakePatternDist speed signaldata tags =
+  let restriction = maybe 15.0 (getRestriction tags) signaldata.signal
+  in  if speed < restriction then -infinity
+      else brakePattern speed restriction
 brakePattern ∷ Number → Number → Number
 brakePattern speed finalspeed = 
   let a = basedccr

@@ -68,6 +68,10 @@ controls.dampingFactor = 0.2;
 const tickrate = 1;
 let tickcount = 0;
 
+L.setOnTrainSelect((tid) => {
+  document.getElementById("trainid").selectedIndex = Array.from(document.getElementById("trainid").childNodes).findIndex(e => e.value == tid);
+});
+document.getElementById("trainid").onchange = (e => L.selectTrainById(document.getElementById("trainid").value));
 
 let meshrailmemo = [];
 let geometryrailmemo = [];
@@ -148,6 +152,14 @@ function focusJoint () {
     //camera.position.y = y+ 100;
     //camera.position.z = z+  60*Math.cos(pos.angle);
     camera.position.set(x+  60*Math.sin(Math.PI), y + 100, z+  60*Math.cos(Math.PI));
+    camera.lookAt(v3(pos.coord));
+  }
+}
+
+function focusToPos(pos){
+  if(pos !== undefined){
+    let {x, y, z} = v3(pos.coord);
+    camera.position.set(x+  60*Math.sin(pos.angle), y + 60, z+  60*Math.cos(pos.angle));
     camera.lookAt(v3(pos.coord));
   }
 }
@@ -297,6 +309,12 @@ function draw(layout){
   ldi.trains.forEach((di) => {
     scenememo.trains[di.trainid] = meshsTrain(di);
     let note = di.note + ((di.tags.length > 0) ? (" : " + di.tags[0].split("→").slice(0, 1).join("")) : "");
+    
+    if(document.getElementById("lockon").checked && di.trainid == L.selectedTrain){
+      let n = v3(di.cars[0].head.m.coord).clone().sub(v3(di.cars[di.cars.length-1].tail.m.coord)).normalize();
+      focusToPos({coord: di.cars[0].head.m.coord, angle: Math.atan2(-n.x, -n.z)});
+    }
+    
     if(railnotestrmemo[di.trainid] !== note){
       updateTrainNote(di, note);
       railnotestrmemo[di.trainid] = note;
@@ -325,13 +343,31 @@ function draw(layout){
   }else{
     document.getElementById("coord").innerText = C.coordStr(p.coord) + "   selected: " + L.selectedJoint.nodeid + "-" + L.selectedJoint.jointid + "    " + getfps().toFixed(0) + "fps" ;
   }
+  
 
+  let oldtrainopts = Array.from(document.getElementById("trainid").childNodes);
+  oldtrainopts.forEach(e => {if(L.layout.trains.every(t => t.trainid != e.value)){document.getElementById("trainid").removeChild(e)}});
+  L.layout.trains.forEach(t => {
+    let elem = oldtrainopts.find(e=>e.value == t.trainid);
+    if(elem == undefined){
+      elem = document.createElement("option");
+      elem.textContent = "編成 #" + (t.trainid + 1) + " " + t.note;
+      elem.value = t.trainid;
+      document.getElementById("trainid").appendChild(elem);
+    }else{
+      if(elem.textContent != "編成 #" + (t.trainid + 1) + " " + t.note){
+        elem.textContent = "編成 #" + (t.trainid + 1) + " " + t.note;
+      }
+    }
+  });
+  if(document.getElementById("trainid").value != L.selectedTrain){
+    document.getElementById("trainid").selectedIndex = Array.from(document.getElementById("trainid").childNodes).findIndex(e => e.value == L.selectedTrain);
+  }
   let train = L.layout.trains.find(t => t.trainid == L.selectedTrain);
   if(train !== undefined){
-    let notchToStr = (n) => (train.notch == 0 ? "N" : (n>0 ? "P"+n : "B"+(-n)));
-    let maxnotch = P.getMaxNotch(L.layout)(train);
-    document.getElementById("trainid").innerText = "編成 #" + (L.selectedTrain+1);
-    document.getElementById("speedinfo").innerText = notchToStr(train.notch) + (train.notch < maxnotch ? "" : (" -> " + notchToStr(maxnotch))) + "  " + (train.speed / P.speedScale).toFixed(1) + "km/h";
+    if(document.getElementById("lockon").checked) document.getElementById("coord").innerText += "  " + speedStr(train);
+    //document.getElementById("trainid").innerText = "編成 #" + (L.selectedTrain+1);
+    document.getElementById("speedinfo").innerText = speedStr(train);
     document.getElementById("trainnote").value = train.note;
     document.getElementById("traintags").value = train.tags.join("\n");
 
@@ -386,6 +422,12 @@ function draw(layout){
 </div>*/
 }
 
+function speedStr(train){
+  let maxnotch = P.getMaxNotch(L.layout)(train);
+  let margin   = P.getMarginFromBrakePattern(L.layout)(train);
+  let notchToStr = (n) => (train.notch == 0 ? "N" : (n>0 ? "P"+n : "B"+(-n)));
+  return notchToStr(train.notch) + (train.notch < maxnotch ? "" : (" -> " + notchToStr(maxnotch))) + "  " + (train.speed / P.speedScale).toFixed(1) + "km/h  " + "("+margin.toFixed(2)+")";
+}
 
 function updateRailNote(drawinfo){
   if(railnotespritememo[drawinfo.instance.instanceid] !== undefined){
@@ -817,8 +859,8 @@ function updateMeshSelectionMark(layout, selectedJoint){
 
 function meshsTrain({cars, trainid, flipped}){
   let setpos = (c,i)=>{
-    let chead = v3(c.head.r.coord).add(v3(c.head.l.coord)).divideScalar(2);
-    let ctail = v3(c.tail.r.coord).add(v3(c.tail.l.coord)).divideScalar(2);
+    let chead = v3(c.head.m.coord);
+    let ctail = v3(c.tail.m.coord);
     let n = chead.clone().sub(ctail).normalize();
 
     if(flipped){

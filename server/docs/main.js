@@ -2237,9 +2237,9 @@ var signalToSpeed = (x) => {
     return 1.625;
   }
   if ($0 === 4) {
-    return 3;
+    return 2.5;
   }
-  return 3;
+  return 2.5;
 };
 var getRestriction = (tags) => (signal) => foldlArray((s) => (r) => {
   if (r.tag === "RuleSpeed") {
@@ -2530,8 +2530,8 @@ var layoutDrawInfo = (v) => ({
 });
 var trainsetLength = (v) => toNumber(v.types.length) * 0.5140186915887851 - 0.04672897196261683;
 var brakePattern = (speed) => (finalspeed) => {
-  const t = (speed - finalspeed) / 0.4;
-  return 0.3 + max2(0)(finalspeed * t + 0.2 * t * t);
+  const t = (speed - finalspeed) / 0.6;
+  return 0.3 + max2(0)(finalspeed * t + 0.3 * t * t);
 };
 var brakePatternDist = (speed) => (signaldata) => (tags) => {
   const restriction = (() => {
@@ -2732,7 +2732,7 @@ var updateSignalIndication = (changeManualStop) => (v) => {
               let go$a0 = go$a0$copy, go$a1 = go$a1$copy, go$c = true, go$r;
               while (go$c) {
                 const len = go$a0, v3 = go$a1;
-                if (len >= brakePattern(3)(0)) {
+                if (len >= brakePattern(2.5)(0)) {
                   go$c = false;
                   go$r = $Maybe("Just", 4);
                   continue;
@@ -2771,9 +2771,9 @@ var updateSignalIndication = (changeManualStop) => (v) => {
                         return 1.625;
                       }
                       if (color === 4) {
-                        return 3;
+                        return 2.5;
                       }
-                      return 3;
+                      return 2.5;
                     })())(0))([0, 1, 2, 3]));
                     continue;
                   }
@@ -2793,9 +2793,9 @@ var updateSignalIndication = (changeManualStop) => (v) => {
                         return 1.625;
                       }
                       if (color === 4) {
-                        return 3;
+                        return 2.5;
                       }
-                      return 3;
+                      return 2.5;
                     })())(0))([0, 1, 2, 3]));
                     continue;
                   }
@@ -2817,9 +2817,9 @@ var updateSignalIndication = (changeManualStop) => (v) => {
                       return 1.625;
                     }
                     if (color === 4) {
-                      return 3;
+                      return 2.5;
                     }
-                    return 3;
+                    return 2.5;
                   })())(0))([0, 1, 2, 3]));
                   continue;
                 }
@@ -3056,15 +3056,15 @@ var calcAcceralation = (notch) => (speed) => -speed * speed * 1e-3 + (() => {
     return 0;
   }
   if (notch > 0) {
-    if (speed / 0.025 / 20 < toNumber(notch) - 0.5) {
+    if (speed / 0.025 / 21 < toNumber(notch) - 0.5) {
       if (speed / 0.025 < 40) {
         return 0.4;
       }
       return 0.4 / (speed / 0.025 / 40);
     }
-    return 0.4 / (speed / 0.025 / 40) * max2(0)((toNumber(notch) - 0.5 - speed / 0.025 / 20) * 2 + 1);
+    return 0.4 / (speed / 0.025 / 40) * max2(0)((toNumber(notch) - 0.5 - speed / 0.025 / 21) * 2 + 1);
   }
-  return 0.4 * toNumber(notch) / 8;
+  return 0.6 * toNumber(notch) / 8;
 })();
 var addTrainset = (v) => (nodeid) => (jointid) => (types) => {
   const go = (go$a0$copy) => (go$a1$copy) => (go$a2$copy) => (go$a3$copy) => {

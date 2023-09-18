@@ -675,8 +675,8 @@ indicationToSpeed i =
     1 ->  25.0 * speedScale
     2 ->  45.0 * speedScale
     3 ->  65.0 * speedScale
-    4 -> 120.0 * speedScale
-    _ -> 120.0 * speedScale
+    4 -> 100.0 * speedScale
+    _ -> 100.0 * speedScale
 
 signalToSpeed :: Signal -> Number 
 signalToSpeed = digestIndication >>> indicationToSpeed
@@ -697,7 +697,7 @@ brakePattern ∷ Number → Number → Number
 brakePattern speed finalspeed = 
   let a = basedccr
       t = (speed - finalspeed) / a
-  in 0.3 + max 0.0 (finalspeed * t + 0.5 * a * t * t)
+  in 0.2 + max 0.0 (finalspeed * t + 0.5 * a * t * t)
 
 acceralate :: Trainset -> Int -> Number -> Trainset
 acceralate (Trainset t0) notch dt = Trainset $ t0 {
@@ -705,12 +705,12 @@ acceralate (Trainset t0) notch dt = Trainset $ t0 {
   }
 
 baseaccr = 0.4
-basedccr = 0.4
+basedccr = 0.6
 
 calcAcceralation :: Int -> Number -> Number
 calcAcceralation notch speed =
   let dccr = - speed * speed * 0.001
-      magic1 = 20.0
+      magic1 = 21.0
       magic2 = 40.0
   in  dccr +
     (if notch == 0 

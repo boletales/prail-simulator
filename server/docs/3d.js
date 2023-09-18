@@ -159,8 +159,8 @@ function focusJoint () {
 function focusToPos(pos){
   if(pos !== undefined){
     let {x, y, z} = v3(pos.coord);
-    camera.position.set(x+  60*Math.sin(pos.angle), y + 60, z+  60*Math.cos(pos.angle));
-    camera.lookAt(v3(pos.coord));
+    camera.position.set(x- 3*Math.sin(pos.angle), y + 3, z- 3*Math.cos(pos.angle));
+    camera.lookAt(new THREE.Vector3(x- 30*Math.sin(pos.angle),y+ 3, z- 30*Math.cos(pos.angle)));
   }
 }
 
@@ -311,7 +311,7 @@ function draw(layout){
     let note = di.note + ((di.tags.length > 0) ? (" : " + di.tags[0].split("→").slice(0, 1).join("")) : "");
     
     if(document.getElementById("lockon").checked && di.trainid == L.selectedTrain){
-      let n = v3(di.cars[0].head.m.coord).clone().sub(v3(di.cars[di.cars.length-1].tail.m.coord)).normalize();
+      let n = v3(di.cars[0].head.m.coord).clone().sub(v3(di.cars[0].tail.m.coord)).normalize();
       focusToPos({coord: di.cars[0].head.m.coord, angle: Math.atan2(-n.x, -n.z)});
     }
     
@@ -589,7 +589,7 @@ function meshJointButton(p, instanceid, jointid){
     return data;
 }
 
-const signalColors = ["#800", "#f80", "#ff0", "#0f4", "#0ee"];
+const signalColors = ["#800", "#f80", "#ff0", "#0f4", "#0ff"];
 const signalMaterials = 
   signalColors.map (c => new THREE.MeshBasicMaterial({color: c, side: THREE.DoubleSide}));
 const signalPlateMaterial = new THREE.MeshBasicMaterial({color: "#222", side: THREE.DoubleSide});

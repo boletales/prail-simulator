@@ -54,7 +54,7 @@ class Layout {
             , key    : ["ArrowRight"]
           },
           selectLeft: {
-              onkey: ()=>{this.selectJoint(-1);}
+              onkey: ()=>{this.selectJoint(1);}
             , text_ja: "左の接合点を選択"
             , softkey: "←"
             , key    : ["ArrowLeft"]

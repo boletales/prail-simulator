@@ -373,7 +373,7 @@ function draw(layout){
 
     document.getElementById("notchplus").onclick  = ()=> L.onkey({key: L.keycontrols.signal.keys.notchPlus.key[0]     }, {trainid: L.selectedTrain});
     document.getElementById("notchminus").onclick = ()=> L.onkey({key: L.keycontrols.signal.keys.notchMinus.key[0]    }, {trainid: L.selectedTrain});
-    document.getElementById("reverse").onclick    = ()=> L.onkey({key: L.keycontrols.signal.keys.notchMinus.key[0]    }, {trainid: L.selectedTrain});
+    document.getElementById("reverse").onclick    = ()=> L.onkey({key: L.keycontrols.signal.keys.flipTrainS.key[0]    }, {trainid: L.selectedTrain});
     document.getElementById("trainnote").oninput  = ()=> L.onkey({key: L.keycontrols.signal.keys.editTrainNoteS.key[0]}, {trainid: L.selectedTrain, note: document.getElementById("trainnote").value});
     document.getElementById("traintags").oninput  = ()=> L.onkey({key: L.keycontrols.signal.keys.setTrainTagsS.key[0] }, {trainid: L.selectedTrain, tags: document.getElementById("traintags").value});
     document.getElementById("applyrule").onclick  = ()=> L.onkey({key: L.keycontrols.signal.keys.resetSignalRulePhaseS.key[0] }, {trainid: L.selectedTrain});

@@ -2531,7 +2531,7 @@ var layoutDrawInfo = (v) => ({
 var trainsetLength = (v) => toNumber(v.types.length) * 0.5140186915887851 - 0.04672897196261683;
 var brakePattern = (speed) => (finalspeed) => {
   const t = (speed - finalspeed) / 0.6;
-  return 0.3 + max2(0)(finalspeed * t + 0.3 * t * t);
+  return 0.2 + max2(0)(finalspeed * t + 0.3 * t * t);
 };
 var brakePatternDist = (speed) => (signaldata) => (tags) => {
   const restriction = (() => {

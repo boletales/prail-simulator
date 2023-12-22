@@ -71,6 +71,20 @@ class Layout {
             , softkey: "[SPACE]"
             , key    : [" "]
           },
+          speedUp: {
+              onkey: ()=>{ this.layout.speed = this.layout.speed * 1.2}
+            , text_ja: "speed +20%"
+            , softkey: "extra_speedup"
+            , key    : ["extra_speedup", "["]
+            , skip   : true
+          },
+          speedDown: {
+              onkey: ()=>{ this.layout.speed = this.layout.speed / 1.2}
+            , text_ja: "speed -20%"
+            , softkey: "extra_speeddown"
+            , key    : ["extra_speeddown", "]"]
+            , skip   : true
+          },
         }
       },
       signal: {

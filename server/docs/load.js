@@ -8,6 +8,10 @@ window.L = L;
 window.save = ()=>{L.save()};
 
 function upload(){
+  let files = document.getElementById("upload").files;
+  if(files.length > 0){
+    files[0].text().then(t => L.loadfrom(()=>(clearCache()), t));
+  }
 }
 
 document.getElementById("minicontrols").onkeydown = (e)=>{e.stopPropagation(); true;};

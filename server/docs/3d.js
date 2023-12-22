@@ -339,9 +339,9 @@ function draw(layout){
 
   let p = P.fromJust()(P.getJointAbsPos(layout)(L.selectedJoint.nodeid)(L.selectedJoint.jointid));
   if(p === undefined){
-    document.getElementById("coord").innerText = C.coordStr(P.poszero.coord) + "   selected: none    " + getfps().toFixed(0) + "fps" ;
+    document.getElementById("coord").innerText = C.coordStr(P.poszero.coord) + "   selected: none" + "    simulation: " + L.layout.speed.toFixed(2) + "x" + "   " + getfps().toFixed(0) + "fps" ;
   }else{
-    document.getElementById("coord").innerText = C.coordStr(p.coord) + "   selected: " + L.selectedJoint.nodeid + "-" + L.selectedJoint.jointid + "    " + getfps().toFixed(0) + "fps" ;
+    document.getElementById("coord").innerText = C.coordStr(p.coord) + "   selected: " + L.selectedJoint.nodeid + "-" + L.selectedJoint.jointid + "    simulation: " + L.layout.speed.toFixed(2) + "x"+ "    " + getfps().toFixed(0) + "fps" ;
   }
   
 

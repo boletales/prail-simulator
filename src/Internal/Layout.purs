@@ -4,6 +4,7 @@ module Internal.Layout
   , IntReserve(..)
   , InvalidRoute(..)
   , JointData(..)
+  , FloorData(..)
   , Layout(..)
   , RailNode
   , RailNode_(..)
@@ -165,8 +166,11 @@ getNextJoint (RailNode ri) j =
 
 newtype JointData = JointData {pos :: Pos, nodeid :: IntNode, jointid :: IntJoint}
 
+newtype FloorData = FloorData {height :: Number, width :: Number}
+
 newtype Layout = Layout {
     version :: Int,
+    floor :: FloorData,
     rails :: Array RailNode,
     trains :: Array Trainset,
     signalcolors :: Array (Array (Array SignalColor)),
@@ -295,26 +299,32 @@ layoutDrawInfo :: Layout -> {
     , signals :: Array (Array {indication :: Array Int, pos :: Pos, signal :: Signal})
     , invalidRoutes :: Array (Array {pos :: Pos, signal :: InvalidRoute})
     , trains ::  Array TrainsetDrawInfo
+    , floor  :: FloorData
   }
 layoutDrawInfo (Layout layout) =
   {
       rails : (\r -> let (DrawInfo ide) = instanceDrawInfo r 
-         in  {
-                rails: ide.rails
-              , additionals: ide.additionals
-              , joints: getRailJointAbsPos r <$> (unwrap (unwrap r).rail).getJoints
-              , instance : r
-             }) <$> layout.rails
+                      in  {
+                              rails: ide.rails
+                            , additionals: ide.additionals
+                            , joints: getRailJointAbsPos r <$> (unwrap (unwrap r).rail).getJoints
+                            , instance : r
+                          }) <$> layout.rails
+
       , signals : (\(RailNode ri) -> map (\(Signal s) -> {
           indication : s.indication,
           pos    : fromMaybe poszero $ getJointAbsPos (Layout layout) s.nodeid s.jointid,
           signal : (Signal s)
         }) ri.signals) <$> layout.rails
+
       , invalidRoutes : (\(RailNode ri) -> map (\(InvalidRoute s) -> {
           pos    : fromMaybe poszero $ getJointAbsPos (Layout layout) s.nodeid s.jointid,
           signal : (InvalidRoute s)
         }) ri.invalidRoutes) <$> layout.rails
+
       , trains : trainsetDrawInfo <$> layout.trains
+      
+      , floor  : layout.floor
   }
 
 indexMaybe ∷ ∀ (t192 ∷ Type). Array (Maybe t192) → Int → Maybe t192

@@ -40,16 +40,7 @@ scene.add(light);
 const light2 = new THREE.AmbientLight( 0xffffff, 2.8);
 scene.add(light2);
 
-{
-  const geometry = new THREE.PlaneGeometry( 500, 500);
-  const material = new THREE.MeshStandardMaterial( { color: "#ac8", side:THREE.DoubleSide} );
-  const plane = new THREE.Mesh( geometry, material );
-  plane.receiveShadow = true;
-  plane.position.z = 0;
-  plane.position.y = -0.1
-  plane.rotation.x = Math.PI/2;
-  scene.add( plane );
-}
+
 const renderer = new THREE.WebGLRenderer({antialias: true});
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -87,6 +78,9 @@ let railnotestrmemo = [];
 let trainflipmemo = [];
 let trainnotespritememo = [];
 let railnotespritememo = [];
+let floormemo = [];
+let floormeshmemo = [];
+
 function mergeMeshData(mds){
   return mds.reduce((d, e)=>{
     Object.keys(e.geometry).forEach(c=>{
@@ -127,6 +121,7 @@ export function clearCache() {
   meshtrainmemo.forEach(t => t.forEach(c => {scene.remove(c);}));
   railnotespritememo.forEach(x=>x.forEach(o=>scene.remove(o)));
   trainnotespritememo.forEach(o=>scene.remove(o));
+  floormeshmemo.forEach(o=>scene.remove(o));
   meshrailmemo = [];
   geometryrailmemo = [];
   meshtrainmemo = [];
@@ -140,6 +135,8 @@ export function clearCache() {
   trainnotespritememo = [];
   railnotespritememo = [];
   trainflipmemo = [];
+  floormeshmemo = [];
+  floormemo = [];
   scenememo = {rails:[], trains: []};
   lastupdate = -1;
 }
@@ -251,6 +248,12 @@ function draw(layout){
 
   if(lastupdate != layout.updatecount){
     lastupdate = layout.updatecount;
+
+    floormeshmemo.forEach(m => {scene.remove(m); });
+    let floormesh = meshFloor(ldi.floor);
+    scene.add(floormesh);
+    floormeshmemo.push(floormesh);
+
     staticgeometrymemo.forEach(g => {g.dispose(); });
     staticgeometrymemo = [];
     let railexists = Array(layout.instancecount).fill(false);
@@ -905,6 +908,17 @@ function meshsTrain({cars, trainid, flipped}){
       trainid
     , objects: meshtrainmemo[trainid]
   };
+}
+
+function meshFloor({height, width}){
+  const geometry = new THREE.PlaneGeometry(width, height);
+  const material = new THREE.MeshStandardMaterial( { color: "#ac8", side:THREE.DoubleSide} );
+  const plane = new THREE.Mesh( geometry, material );
+  plane.receiveShadow = true;
+  plane.position.z = 0;
+  plane.position.y = -0.1
+  plane.rotation.x = Math.PI/2;
+  return plane;
 }
 
 export function download(){

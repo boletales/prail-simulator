@@ -19,6 +19,7 @@ import Data.Array (catMaybes, filter, find, foldl, length, mapWithIndex, reverse
 import Data.Either (fromRight, hush)
 import Data.Function (on)
 import Data.Identity (Identity)
+import Data.Int (floor)
 import Data.Int as Int
 import Data.List.Types (NonEmptyList)
 import Data.Maybe (Maybe(..), fromMaybe, isNothing, maybe)
@@ -31,7 +32,7 @@ import Data.String.Regex.Flags (global, noFlags) as Re
 import Data.String.Regex.Unsafe (unsafeRegex) as Re
 import Data.String.Utils as St
 import Foreign (Foreign, ForeignError, isArray, isNull, isUndefined, readNumber, unsafeFromForeign, unsafeToForeign)
-import Internal.Layout (IntNode(..), IntReserve, InvalidRoute, Layout(..), RailNode, RailNode_(..), RouteQueueElement, Signal(..), SignalRule(..), TrainRoute, TrainRoute_(..), Trainset, Trainset_(..), addJoint, getJointAbsPos, removeRail, saEmpty, signalRulePhase_unfired, updateSignalRoutes, recalcInstanceDrawInfo)
+import Internal.Layout (FloorData(..), IntNode(..), IntReserve, InvalidRoute, Layout(..), RailNode, RailNode_(..), RouteQueueElement, Signal(..), SignalRule(..), TrainRoute, TrainRoute_(..), Trainset, Trainset_(..), addJoint, getJointAbsPos, recalcInstanceDrawInfo, removeRail, saEmpty, signalRulePhase_unfired, updateSignalRoutes)
 import Internal.Types (Coord(..), IntJoint, IntState(..), Pos(..), Rail, RailGen(..), RailShape(..), flipRail, fromRadian, opposeRail, poszero, reverseAngle, reversePos, toRadian)
 import Prelude as Prelude
 
@@ -65,6 +66,7 @@ defaultLayout =
           instancecount: 1,
           traincount: 0,
           updatecount: 0,
+          floor: FloorData {height: 500.0, width: 500.0},
           time : 0.0,
           speed : 1.0,
           rails : [defaultnode],
@@ -79,7 +81,11 @@ defaultLayout =
         }
     )
 
-
+defaultFloorData = 
+  FloorData {
+    height: 500.0,
+    width:  500.0
+  }
 
 rails :: Array Rail
 rails = [
@@ -107,7 +113,7 @@ type EncodedSignalRule = String
 type EncodedSignal = { signalname :: String, nodeid :: IntNode, jointid :: IntJoint, manualStop :: Boolean, restraint :: Boolean, rules :: Array EncodedSignalRule}
 type EncodedRail = {name :: String, flipped :: Boolean, opposed :: Boolean}
 type EncodedRailNode = {nodeid :: IntNode, instanceid :: Int, rail :: EncodedRail, state :: IntState, signals :: Array EncodedSignal, invalidRoutes :: Array (InvalidRoute), connections :: Array ({from :: IntJoint, nodeid :: IntNode, jointid :: IntJoint}), reserves :: Array ({reserveid :: IntReserve, jointid :: IntJoint}), pos  :: Pos, note :: String}
-type EncodedLayout = {rails :: Array EncodedRailNode, trains :: Array EncodedTrainset, time :: Number, speed :: Number, version :: Int, routequeue :: Array RouteQueueElement, activeReserves :: Array {reserveid :: IntReserve, reserver :: Int}}
+type EncodedLayout = {floor :: FloorData , rails :: Array EncodedRailNode, trains :: Array EncodedTrainset, time :: Number, speed :: Number, version :: Int, routequeue :: Array RouteQueueElement, activeReserves :: Array {reserveid :: IntReserve, reserver :: Int}}
 type EncodedTrainset = Trainset_ Int
 type EncodedRoute = TrainRoute_ Int
 
@@ -239,6 +245,7 @@ encodeLayout :: Layout -> EncodedLayout
 encodeLayout (Layout layout) = {
     rails: encodeRailNode <$> layout.rails,
     trains: encodeTrainset <$> layout.trains,
+    floor: layout.floor,
     time: layout.time,
     speed: layout.speed,
     version: layout.version,
@@ -406,10 +413,11 @@ decodeSignalRule rule =
       Just "R" ->RuleReverseUpdate <$> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 1) <*> ((\x -> hush (Re.regex x Re.noFlags)) =<< spl !! 2) <*> spl !! 3 <*> Just (Re.replace (Re.unsafeRegex  "^\\s*.\\s+\\S*\\s+\\S*\\s+\\S*" Re.noFlags) "" rule)
       _        -> Nothing
 
-decodeLayout :: {rails :: Array(Foreign), trains :: Foreign, signals :: Foreign, time :: Foreign, speed :: Foreign, version:: Int, routequeue :: Foreign, activeReserves :: Foreign} -> Layout
-decodeLayout {rails: r, trains: t, time: time, speed: speed, version: v, routequeue:routequeue, activeReserves:activeReserves} =
+decodeLayout :: {floor :: Foreign, rails :: Foreign, trains :: Foreign, signals :: Foreign, time :: Foreign, speed :: Foreign, version:: Int, routequeue :: Foreign, activeReserves :: Foreign} -> Layout
+decodeLayout {floor: f, rails: r, trains: t, time: time, speed: speed, version: v, routequeue:routequeue, activeReserves:activeReserves} =
   decodeLayout' {
-      rails: unsafeFromForeign <$> r
+      floor : unsafeFromForeign f
+    , rails: unsafeFromForeign <$> (if isArray r then unsafeFromForeign r else [])
     , trains: if isArray t then unsafeFromForeign t else []
     , time : fromRight 0.0 $ unwrap $ runExceptT $ (readNumber time  :: ExceptT (NonEmptyList ForeignError) Identity Number)
     , speed: fromRight 1.0 $ unwrap $ runExceptT $ (readNumber speed :: ExceptT (NonEmptyList ForeignError) Identity Number)
@@ -419,7 +427,7 @@ decodeLayout {rails: r, trains: t, time: time, speed: speed, version: v, routequ
   }
 
 decodeLayout' :: EncodedLayout -> Layout
-decodeLayout' {rails: rarr, trains: tarr, time: traw, speed: sraw, routequeue: routequeue, version: ver, activeReserves:activeReserves} =
+decodeLayout' {floor: floor, rails: rarr, trains: tarr, time: traw, speed: sraw, routequeue: routequeue, version: ver, activeReserves:activeReserves} =
   let rawrails = 
         if ver <= 1
           then (decodeRailInstance <<< unsafeFromForeign <<< unsafeToForeign) <$> rarr
@@ -428,6 +436,7 @@ decodeLayout' {rails: rarr, trains: tarr, time: traw, speed: sraw, routequeue: r
       rs = catMaybes rawrails
       ts = decodeTrainset rs <$> tarr
       l0 = Layout {
+          floor: ifUndefinedDefault defaultFloorData floor,
           jointData : saEmpty, 
           rails : rs,
           trains : ts,

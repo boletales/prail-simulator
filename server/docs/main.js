@@ -2,6 +2,11 @@
 function fail() {
   throw new Error("Failed pattern match");
 }
+function intDiv(x, y) {
+  if (y > 0) return Math.floor(x / y);
+  if (y < 0) return -Math.floor(x / -y);
+  return 0;
+}
 
 // output-es/Record.Unsafe/foreign.js
 var unsafeGet = function(label) {
@@ -50,7 +55,7 @@ var $Sum = (tag, _1) => ({ tag, _1 });
 var NoArguments = /* @__PURE__ */ $NoArguments();
 
 // output-es/Data.Ordering/index.js
-var $Ordering = (tag) => ({ tag });
+var $Ordering = (tag) => tag;
 var LT = /* @__PURE__ */ $Ordering("LT");
 var GT = /* @__PURE__ */ $Ordering("GT");
 var EQ = /* @__PURE__ */ $Ordering("EQ");
@@ -136,17 +141,6 @@ var identity = (x) => x;
 var $Either = (tag, _1) => ({ tag, _1 });
 var Left = (value0) => $Either("Left", value0);
 var Right = (value0) => $Either("Right", value0);
-var functorEither = {
-  map: (f) => (m) => {
-    if (m.tag === "Left") {
-      return $Either("Left", m._1);
-    }
-    if (m.tag === "Right") {
-      return $Either("Right", f(m._1));
-    }
-    fail();
-  }
-};
 
 // output-es/Data.Identity/index.js
 var Identity = (x) => x;
@@ -156,62 +150,11 @@ var bindIdentity = { bind: (v) => (f) => f(v), Apply0: () => applyIdentity };
 var applicativeIdentity = { pure: Identity, Apply0: () => applyIdentity };
 var monadIdentity = { Applicative0: () => applicativeIdentity, Bind1: () => bindIdentity };
 
-// output-es/Data.Array.ST/foreign.js
-var sortByImpl = function() {
-  function mergeFromTo(compare, fromOrdering, xs1, xs2, from, to) {
-    var mid;
-    var i;
-    var j;
-    var k;
-    var x;
-    var y;
-    var c;
-    mid = from + (to - from >> 1);
-    if (mid - from > 1)
-      mergeFromTo(compare, fromOrdering, xs2, xs1, from, mid);
-    if (to - mid > 1)
-      mergeFromTo(compare, fromOrdering, xs2, xs1, mid, to);
-    i = from;
-    j = mid;
-    k = from;
-    while (i < mid && j < to) {
-      x = xs2[i];
-      y = xs2[j];
-      c = fromOrdering(compare(x)(y));
-      if (c > 0) {
-        xs1[k++] = y;
-        ++j;
-      } else {
-        xs1[k++] = x;
-        ++i;
-      }
-    }
-    while (i < mid) {
-      xs1[k++] = xs2[i++];
-    }
-    while (j < to) {
-      xs1[k++] = xs2[j++];
-    }
-  }
-  return function(compare) {
-    return function(fromOrdering) {
-      return function(xs) {
-        return function() {
-          if (xs.length < 2)
-            return xs;
-          mergeFromTo(compare, fromOrdering, xs, xs.slice(0), 0, xs.length);
-          return xs;
-        };
-      };
-    };
-  };
-}();
-
 // output-es/Data.Foldable/foreign.js
 var foldrArray = function(f) {
-  return function(init2) {
+  return function(init) {
     return function(xs) {
-      var acc = init2;
+      var acc = init;
       var len = xs.length;
       for (var i = len - 1; i >= 0; i--) {
         acc = f(xs[i])(acc);
@@ -221,9 +164,9 @@ var foldrArray = function(f) {
   };
 };
 var foldlArray = function(f) {
-  return function(init2) {
+  return function(init) {
     return function(xs) {
-      var acc = init2;
+      var acc = init;
       var len = xs.length;
       for (var i = 0; i < len; i++) {
         acc = f(acc)(xs[i]);
@@ -239,7 +182,7 @@ var maximumBy = (dictFoldable) => (cmp) => dictFoldable.foldl((v) => (v1) => {
     return $Maybe("Just", v1);
   }
   if (v.tag === "Just") {
-    return $Maybe("Just", cmp(v._1)(v1).tag === "GT" ? v._1 : v1);
+    return $Maybe("Just", cmp(v._1)(v1) === "GT" ? v._1 : v1);
   }
   fail();
 })(Nothing);
@@ -247,10 +190,27 @@ var foldableArray = {
   foldr: foldrArray,
   foldl: foldlArray,
   foldMap: (dictMonoid) => {
-    const append = dictMonoid.Semigroup0().append;
     const mempty = dictMonoid.mempty;
-    return (f) => foldableArray.foldr((x) => (acc) => append(f(x))(acc))(mempty);
+    return (f) => foldableArray.foldr((x) => (acc) => dictMonoid.Semigroup0().append(f(x))(acc))(mempty);
   }
+};
+
+// output-es/Data.Tuple/index.js
+var $Tuple = (_1, _2) => ({ tag: "Tuple", _1, _2 });
+var Tuple = (value0) => (value1) => $Tuple(value0, value1);
+var snd = (v) => v._2;
+var fst = (v) => v._1;
+
+// output-es/Data.FunctorWithIndex/foreign.js
+var mapWithIndexArray = function(f) {
+  return function(xs) {
+    var l = xs.length;
+    var result = Array(l);
+    for (var i = 0; i < l; i++) {
+      result[i] = f(i)(xs[i]);
+    }
+    return result;
+  };
 };
 
 // output-es/Data.Eq/foreign.js
@@ -285,233 +245,79 @@ var ordNumberImpl = unsafeCompareImpl;
 var ordNumber = { compare: /* @__PURE__ */ ordNumberImpl(LT)(EQ)(GT), Eq0: () => eqNumber };
 var ordInt = { compare: /* @__PURE__ */ ordIntImpl(LT)(EQ)(GT), Eq0: () => eqInt };
 
-// output-es/Data.Semigroup/foreign.js
-var concatArray = function(xs) {
-  return function(ys) {
-    if (xs.length === 0)
-      return ys;
-    if (ys.length === 0)
-      return xs;
-    return xs.concat(ys);
-  };
-};
-
 // output-es/Unsafe.Coerce/foreign.js
 var unsafeCoerce = function(x) {
   return x;
 };
 
-// output-es/Data.Tuple/index.js
-var $Tuple = (_1, _2) => ({ tag: "Tuple", _1, _2 });
-var Tuple = (value0) => (value1) => $Tuple(value0, value1);
-var snd = (v) => v._2;
-var fst = (v) => v._1;
-
-// output-es/Data.Traversable/foreign.js
-var traverseArrayImpl = function() {
-  function array1(a) {
-    return [a];
-  }
-  function array2(a) {
-    return function(b) {
-      return [a, b];
-    };
-  }
-  function array3(a) {
-    return function(b) {
-      return function(c) {
-        return [a, b, c];
-      };
-    };
-  }
-  function concat2(xs) {
-    return function(ys) {
-      return xs.concat(ys);
-    };
-  }
-  return function(apply) {
-    return function(map) {
-      return function(pure) {
-        return function(f) {
-          return function(array) {
-            function go(bot, top) {
-              switch (top - bot) {
-                case 0:
-                  return pure([]);
-                case 1:
-                  return map(array1)(f(array[bot]));
-                case 2:
-                  return apply(map(array2)(f(array[bot])))(f(array[bot + 1]));
-                case 3:
-                  return apply(apply(map(array3)(f(array[bot])))(f(array[bot + 1])))(f(array[bot + 2]));
-                default:
-                  var pivot = bot + Math.floor((top - bot) / 4) * 2;
-                  return apply(map(concat2)(go(bot, pivot)))(go(pivot, top));
-              }
-            }
-            return go(0, array.length);
-          };
-        };
-      };
-    };
-  };
-}();
-
 // output-es/Data.Array/foreign.js
-var range = function(start) {
-  return function(end) {
-    var step = start > end ? -1 : 1;
-    var result = new Array(step * (end - start) + 1);
-    var i = start, n = 0;
-    while (i !== end) {
-      result[n++] = i;
-      i += step;
-    }
-    result[n] = i;
-    return result;
-  };
-};
-var replicateFill = function(count) {
-  return function(value) {
-    if (count < 1) {
-      return [];
-    }
-    var result = new Array(count);
-    return result.fill(value);
-  };
-};
-var replicatePolyfill = function(count) {
-  return function(value) {
-    var result = [];
-    var n = 0;
-    for (var i = 0; i < count; i++) {
-      result[n++] = value;
-    }
-    return result;
-  };
-};
-var replicate = typeof Array.prototype.fill === "function" ? replicateFill : replicatePolyfill;
-var fromFoldableImpl = function() {
-  function Cons(head, tail) {
-    this.head = head;
-    this.tail = tail;
+var rangeImpl = function(start, end) {
+  var step = start > end ? -1 : 1;
+  var result = new Array(step * (end - start) + 1);
+  var i = start, n = 0;
+  while (i !== end) {
+    result[n++] = i;
+    i += step;
   }
-  var emptyList = {};
-  function curryCons(head) {
-    return function(tail) {
-      return new Cons(head, tail);
-    };
+  result[n] = i;
+  return result;
+};
+var replicateFill = function(count, value) {
+  if (count < 1) {
+    return [];
   }
-  function listToArray(list) {
-    var result = [];
-    var count = 0;
-    var xs = list;
-    while (xs !== emptyList) {
-      result[count++] = xs.head;
-      xs = xs.tail;
-    }
-    return result;
+  var result = new Array(count);
+  return result.fill(value);
+};
+var replicatePolyfill = function(count, value) {
+  var result = [];
+  var n = 0;
+  for (var i = 0; i < count; i++) {
+    result[n++] = value;
   }
-  return function(foldr) {
-    return function(xs) {
-      return listToArray(foldr(curryCons)(emptyList)(xs));
-    };
-  };
-}();
-var unconsImpl = function(empty) {
-  return function(next) {
-    return function(xs) {
-      return xs.length === 0 ? empty({}) : next(xs[0])(xs.slice(1));
-    };
-  };
+  return result;
 };
-var indexImpl = function(just) {
-  return function(nothing) {
-    return function(xs) {
-      return function(i) {
-        return i < 0 || i >= xs.length ? nothing : just(xs[i]);
-      };
-    };
-  };
+var replicateImpl = typeof Array.prototype.fill === "function" ? replicateFill : replicatePolyfill;
+var unconsImpl = function(empty, next, xs) {
+  return xs.length === 0 ? empty({}) : next(xs[0])(xs.slice(1));
 };
-var findIndexImpl = function(just) {
-  return function(nothing) {
-    return function(f) {
-      return function(xs) {
-        for (var i = 0, l = xs.length; i < l; i++) {
-          if (f(xs[i]))
-            return just(i);
-        }
-        return nothing;
-      };
-    };
-  };
+var findIndexImpl = function(just, nothing, f, xs) {
+  for (var i = 0, l = xs.length; i < l; i++) {
+    if (f(xs[i])) return just(i);
+  }
+  return nothing;
 };
-var findLastIndexImpl = function(just) {
-  return function(nothing) {
-    return function(f) {
-      return function(xs) {
-        for (var i = xs.length - 1; i >= 0; i--) {
-          if (f(xs[i]))
-            return just(i);
-        }
-        return nothing;
-      };
-    };
-  };
+var findLastIndexImpl = function(just, nothing, f, xs) {
+  for (var i = xs.length - 1; i >= 0; i--) {
+    if (f(xs[i])) return just(i);
+  }
+  return nothing;
 };
-var _insertAt = function(just) {
-  return function(nothing) {
-    return function(i) {
-      return function(a) {
-        return function(l) {
-          if (i < 0 || i > l.length)
-            return nothing;
-          var l1 = l.slice();
-          l1.splice(i, 0, a);
-          return just(l1);
-        };
-      };
-    };
-  };
+var _insertAt = function(just, nothing, i, a, l) {
+  if (i < 0 || i > l.length) return nothing;
+  var l1 = l.slice();
+  l1.splice(i, 0, a);
+  return just(l1);
 };
-var _deleteAt = function(just) {
-  return function(nothing) {
-    return function(i) {
-      return function(l) {
-        if (i < 0 || i >= l.length)
-          return nothing;
-        var l1 = l.slice();
-        l1.splice(i, 1);
-        return just(l1);
-      };
-    };
-  };
+var _deleteAt = function(just, nothing, i, l) {
+  if (i < 0 || i >= l.length) return nothing;
+  var l1 = l.slice();
+  l1.splice(i, 1);
+  return just(l1);
 };
-var _updateAt = function(just) {
-  return function(nothing) {
-    return function(i) {
-      return function(a) {
-        return function(l) {
-          if (i < 0 || i >= l.length)
-            return nothing;
-          var l1 = l.slice();
-          l1[i] = a;
-          return just(l1);
-        };
-      };
-    };
-  };
+var _updateAt = function(just, nothing, i, a, l) {
+  if (i < 0 || i >= l.length) return nothing;
+  var l1 = l.slice();
+  l1[i] = a;
+  return just(l1);
 };
 var reverse = function(l) {
   return l.slice().reverse();
 };
-var filter = function(f) {
-  return function(xs) {
-    return xs.filter(f);
-  };
+var filterImpl = function(f, xs) {
+  return xs.filter(f);
 };
-var sortByImpl2 = function() {
+var sortByImpl2 = /* @__PURE__ */ function() {
   function mergeFromTo(compare, fromOrdering, xs1, xs2, from, to) {
     var mid;
     var i;
@@ -521,10 +327,8 @@ var sortByImpl2 = function() {
     var y;
     var c;
     mid = from + (to - from >> 1);
-    if (mid - from > 1)
-      mergeFromTo(compare, fromOrdering, xs2, xs1, from, mid);
-    if (to - mid > 1)
-      mergeFromTo(compare, fromOrdering, xs2, xs1, mid, to);
+    if (mid - from > 1) mergeFromTo(compare, fromOrdering, xs2, xs1, from, mid);
+    if (to - mid > 1) mergeFromTo(compare, fromOrdering, xs2, xs1, mid, to);
     i = from;
     j = mid;
     k = from;
@@ -547,159 +351,132 @@ var sortByImpl2 = function() {
       xs1[k++] = xs2[j++];
     }
   }
-  return function(compare) {
-    return function(fromOrdering) {
-      return function(xs) {
-        var out;
-        if (xs.length < 2)
-          return xs;
-        out = xs.slice(0);
-        mergeFromTo(compare, fromOrdering, out, xs.slice(0), 0, xs.length);
-        return out;
-      };
-    };
+  return function(compare, fromOrdering, xs) {
+    var out;
+    if (xs.length < 2) return xs;
+    out = xs.slice(0);
+    mergeFromTo(compare, fromOrdering, out, xs.slice(0), 0, xs.length);
+    return out;
   };
 }();
-var slice = function(s) {
-  return function(e) {
-    return function(l) {
-      return l.slice(s, e);
-    };
-  };
+var sliceImpl = function(s, e, l) {
+  return l.slice(s, e);
 };
-var zipWith = function(f) {
-  return function(xs) {
-    return function(ys) {
-      var l = xs.length < ys.length ? xs.length : ys.length;
-      var result = new Array(l);
-      for (var i = 0; i < l; i++) {
-        result[i] = f(xs[i])(ys[i]);
-      }
-      return result;
-    };
-  };
+var zipWithImpl = function(f, xs, ys) {
+  var l = xs.length < ys.length ? xs.length : ys.length;
+  var result = new Array(l);
+  for (var i = 0; i < l; i++) {
+    result[i] = f(xs[i])(ys[i]);
+  }
+  return result;
 };
-var any = function(p) {
-  return function(xs) {
-    var len = xs.length;
-    for (var i = 0; i < len; i++) {
-      if (p(xs[i]))
-        return true;
-    }
-    return false;
-  };
+var anyImpl = function(p, xs) {
+  var len = xs.length;
+  for (var i = 0; i < len; i++) {
+    if (p(xs[i])) return true;
+  }
+  return false;
 };
-var all = function(p) {
-  return function(xs) {
-    var len = xs.length;
-    for (var i = 0; i < len; i++) {
-      if (!p(xs[i]))
-        return false;
-    }
-    return true;
-  };
+var allImpl = function(p, xs) {
+  var len = xs.length;
+  for (var i = 0; i < len; i++) {
+    if (!p(xs[i])) return false;
+  }
+  return true;
 };
 
 // output-es/Data.Array/index.js
-var updateAt = /* @__PURE__ */ _updateAt(Just)(Nothing);
-var uncons = /* @__PURE__ */ unconsImpl((v) => Nothing)((x) => (xs) => $Maybe("Just", { head: x, tail: xs }));
-var sortBy = (comp) => sortByImpl2(comp)((v) => {
-  if (v.tag === "GT") {
-    return 1;
-  }
-  if (v.tag === "EQ") {
-    return 0;
-  }
-  if (v.tag === "LT") {
-    return -1;
-  }
-  fail();
-});
+var sortBy = (comp) => ($0) => sortByImpl2(
+  comp,
+  (v) => {
+    if (v === "GT") {
+      return 1;
+    }
+    if (v === "EQ") {
+      return 0;
+    }
+    if (v === "LT") {
+      return -1;
+    }
+    fail();
+  },
+  $0
+);
 var sortWith = (dictOrd) => (f) => sortBy((x) => (y) => dictOrd.compare(f(x))(f(y)));
-var insertAt = /* @__PURE__ */ _insertAt(Just)(Nothing);
-var init = (xs) => {
-  if (xs.length === 0) {
-    return Nothing;
-  }
-  return $Maybe("Just", slice(0)(xs.length - 1 | 0)(xs));
-};
-var index = /* @__PURE__ */ indexImpl(Just)(Nothing);
-var unsnoc = (xs) => applyMaybe.apply((() => {
-  const $0 = init(xs);
-  if ($0.tag === "Just") {
-    return $Maybe(
-      "Just",
-      (() => {
-        const $1 = $0._1;
-        return (v1) => ({ init: $1, last: v1 });
-      })()
-    );
+var last = (xs) => {
+  const $0 = xs.length - 1 | 0;
+  if ($0 >= 0 && $0 < xs.length) {
+    return $Maybe("Just", xs[$0]);
   }
   return Nothing;
-})())(index(xs)(xs.length - 1 | 0));
+};
+var unsnoc = (xs) => applyMaybe.apply(xs.length === 0 ? Nothing : $Maybe(
+  "Just",
+  (() => {
+    const $0 = sliceImpl(0, xs.length - 1 | 0, xs);
+    return (v1) => ({ init: $0, last: v1 });
+  })()
+))(last(xs));
 var modifyAt = (i) => (f) => (xs) => {
-  const $0 = index(xs)(i);
-  if ($0.tag === "Nothing") {
-    return Nothing;
+  if (i >= 0 && i < xs.length) {
+    return _updateAt(Just, Nothing, i, f(xs[i]), xs);
   }
-  if ($0.tag === "Just") {
-    return updateAt(i)(f($0._1))(xs);
-  }
-  fail();
+  return Nothing;
 };
 var nubBy = (comp) => (xs) => {
-  const indexedAndSorted = sortBy((x) => (y) => comp(x._2)(y._2))(zipWith(Tuple)(range(0)(xs.length - 1 | 0))(xs));
-  const v = index(indexedAndSorted)(0);
-  if (v.tag === "Nothing") {
-    return [];
-  }
-  if (v.tag === "Just") {
+  const indexedAndSorted = sortBy((x) => (y) => comp(x._2)(y._2))(mapWithIndexArray(Tuple)(xs));
+  if (0 < indexedAndSorted.length) {
     return arrayMap(snd)(sortWith(ordInt)(fst)((() => {
-      const result = [v._1];
+      const result = [indexedAndSorted[0]];
       for (const v1 of indexedAndSorted) {
-        const $0 = index(result)(result.length - 1 | 0);
-        const $1 = comp((() => {
-          if ($0.tag === "Just") {
-            return $0._1._2;
+        const $0 = comp((() => {
+          const $02 = last(result);
+          if ($02.tag === "Just") {
+            return $02._1._2;
           }
           fail();
         })())(v1._2);
-        if ($1.tag === "LT" || $1.tag === "GT" || !($1.tag === "EQ")) {
+        if ($0 === "LT" || $0 === "GT" || $0 !== "EQ") {
           result.push(v1);
         }
       }
       return result;
     })()));
   }
-  fail();
+  return [];
 };
-var findLastIndex = /* @__PURE__ */ findLastIndexImpl(Just)(Nothing);
 var insertBy = (cmp) => (x) => (ys) => {
-  const $0 = insertAt((() => {
-    const $02 = findLastIndex((y) => cmp(x)(y).tag === "GT")(ys);
-    if ($02.tag === "Nothing") {
-      return 0;
-    }
-    if ($02.tag === "Just") {
-      return $02._1 + 1 | 0;
-    }
-    fail();
-  })())(x)(ys);
+  const $0 = _insertAt(
+    Just,
+    Nothing,
+    (() => {
+      const $02 = findLastIndexImpl(Just, Nothing, (y) => cmp(x)(y) === "GT", ys);
+      if ($02.tag === "Nothing") {
+        return 0;
+      }
+      if ($02.tag === "Just") {
+        return $02._1 + 1 | 0;
+      }
+      fail();
+    })(),
+    x,
+    ys
+  );
   if ($0.tag === "Just") {
     return $0._1;
   }
   fail();
 };
-var findIndex = /* @__PURE__ */ findIndexImpl(Just)(Nothing);
 var find = (f) => (xs) => {
-  const $0 = findIndex(f)(xs);
+  const $0 = findIndexImpl(Just, Nothing, f, xs);
   if ($0.tag === "Just") {
     return $Maybe("Just", xs[$0._1]);
   }
   return Nothing;
 };
+var filter = ($0) => ($1) => filterImpl($0, $1);
 var elem = (dictEq) => (a) => (arr) => {
-  const $0 = findIndex((v) => dictEq.eq(v)(a))(arr);
+  const $0 = findIndexImpl(Just, Nothing, (v) => dictEq.eq(v)(a), arr);
   if ($0.tag === "Nothing") {
     return false;
   }
@@ -708,7 +485,6 @@ var elem = (dictEq) => (a) => (arr) => {
   }
   fail();
 };
-var deleteAt = /* @__PURE__ */ _deleteAt(Just)(Nothing);
 var concatMap = (b) => (a) => arrayBind(a)(b);
 var mapMaybe = (f) => concatMap((x) => {
   const $0 = f(x);
@@ -720,6 +496,7 @@ var mapMaybe = (f) => concatMap((x) => {
   }
   fail();
 });
+var any = ($0) => ($1) => anyImpl($0, $1);
 
 // output-es/Data.Number/foreign.js
 var infinity = Infinity;
@@ -864,50 +641,43 @@ var unsafeRegex = (s) => (f) => {
 };
 
 // output-es/Control.Monad.Except.Trans/index.js
-var bindExceptT = (dictMonad) => {
-  const bind = dictMonad.Bind1().bind;
-  const pure = dictMonad.Applicative0().pure;
-  return {
-    bind: (v) => (k) => bind(v)((v2) => {
-      if (v2.tag === "Left") {
-        return pure($Either("Left", v2._1));
-      }
-      if (v2.tag === "Right") {
-        return k(v2._1);
-      }
-      fail();
-    }),
-    Apply0: () => applyExceptT(dictMonad)
-  };
-};
+var bindExceptT = (dictMonad) => ({
+  bind: (v) => (k) => dictMonad.Bind1().bind(v)((v2) => {
+    if (v2.tag === "Left") {
+      return dictMonad.Applicative0().pure($Either("Left", v2._1));
+    }
+    if (v2.tag === "Right") {
+      return k(v2._1);
+    }
+    fail();
+  }),
+  Apply0: () => applyExceptT(dictMonad)
+});
 var applyExceptT = (dictMonad) => {
   const $0 = dictMonad.Bind1().Apply0().Functor0();
-  const functorExceptT1 = { map: (f) => $0.map(functorEither.map(f)) };
+  const functorExceptT1 = {
+    map: (f) => $0.map((m) => {
+      if (m.tag === "Left") {
+        return $Either("Left", m._1);
+      }
+      if (m.tag === "Right") {
+        return $Either("Right", f(m._1));
+      }
+      fail();
+    })
+  };
   return {
     apply: (() => {
-      const bind = bindExceptT(dictMonad).bind;
-      const pure = applicativeExceptT(dictMonad).pure;
-      return (f) => (a) => bind(f)((f$p) => bind(a)((a$p) => pure(f$p(a$p))));
+      const $1 = bindExceptT(dictMonad);
+      return (f) => (a) => $1.bind(f)((f$p) => $1.bind(a)((a$p) => applicativeExceptT(dictMonad).pure(f$p(a$p))));
     })(),
     Functor0: () => functorExceptT1
   };
 };
-var applicativeExceptT = (dictMonad) => ({
-  pure: (() => {
-    const $0 = dictMonad.Applicative0().pure;
-    return (x) => $0($Either("Right", x));
-  })(),
-  Apply0: () => applyExceptT(dictMonad)
-});
+var applicativeExceptT = (dictMonad) => ({ pure: (x) => dictMonad.Applicative0().pure($Either("Right", x)), Apply0: () => applyExceptT(dictMonad) });
 var monadThrowExceptT = (dictMonad) => {
   const monadExceptT1 = { Applicative0: () => applicativeExceptT(dictMonad), Bind1: () => bindExceptT(dictMonad) };
-  return {
-    throwError: (() => {
-      const $0 = dictMonad.Applicative0().pure;
-      return (x) => $0($Either("Left", x));
-    })(),
-    Monad0: () => monadExceptT1
-  };
+  return { throwError: (x) => dictMonad.Applicative0().pure($Either("Left", x)), Monad0: () => monadExceptT1 };
 };
 
 // output-es/Data.NonEmpty/index.js
@@ -933,27 +703,11 @@ var isArray = Array.isArray || function(value) {
 
 // output-es/Foreign/index.js
 var $ForeignError = (tag, _1, _2) => ({ tag, _1, _2 });
-var unsafeReadTagged = (dictMonad) => {
-  const pure1 = applicativeExceptT(dictMonad).pure;
-  const $0 = monadThrowExceptT(dictMonad).throwError;
-  return (tag) => (value) => {
-    if (tagOf(value) === tag) {
-      return pure1(value);
-    }
-    return $0($NonEmpty($ForeignError("TypeMismatch", tag, tagOf(value)), Nil));
-  };
-};
-
-// output-es/Data.FunctorWithIndex/foreign.js
-var mapWithIndexArray = function(f) {
-  return function(xs) {
-    var l = xs.length;
-    var result = Array(l);
-    for (var i = 0; i < l; i++) {
-      result[i] = f(i)(xs[i]);
-    }
-    return result;
-  };
+var unsafeReadTagged = (dictMonad) => (tag) => (value) => {
+  if (tagOf(value) === tag) {
+    return applicativeExceptT(dictMonad).pure(value);
+  }
+  return monadThrowExceptT(dictMonad).throwError($NonEmpty($ForeignError("TypeMismatch", tag, tagOf(value)), Nil));
 };
 
 // output-es/Data.FoldableWithIndex/index.js
@@ -973,18 +727,14 @@ var foldableWithIndexArray = {
     return (x) => $0($1(x));
   },
   foldMapWithIndex: (dictMonoid) => {
-    const append = dictMonoid.Semigroup0().append;
     const mempty = dictMonoid.mempty;
-    return (f) => foldableWithIndexArray.foldrWithIndex((i) => (x) => (acc) => append(f(i)(x))(acc))(mempty);
+    return (f) => foldableWithIndexArray.foldrWithIndex((i) => (x) => (acc) => dictMonoid.Semigroup0().append(f(i)(x))(acc))(mempty);
   },
   Foldable0: () => foldableArray
 };
 var findWithIndex = (dictFoldableWithIndex) => (p) => dictFoldableWithIndex.foldlWithIndex((v) => (v1) => (v2) => {
-  if (v1.tag === "Nothing") {
-    if (p(v)(v2)) {
-      return $Maybe("Just", { index: v, value: v2 });
-    }
-    return v1;
+  if (v1.tag === "Nothing" && p(v)(v2)) {
+    return $Maybe("Just", { index: v, value: v2 });
   }
   return v1;
 })(Nothing);
@@ -1082,37 +832,19 @@ var reverseShapes = /* @__PURE__ */ (() => {
   const $0 = arrayMap((v) => ({ start: v.end, end: v.start, length: v.length }));
   return (x) => $0(reverse(x));
 })();
-var opposeDrawRail = (v) => ({
-  color: v.color,
-  shape: {
-    start: { coord: v.shape.start.coord, angle: v.shape.start.angle, isPlus: !v.shape.start.isPlus },
-    end: { coord: v.shape.end.coord, angle: v.shape.end.angle, isPlus: !v.shape.end.isPlus },
-    length: v.shape.length
-  }
-});
-var opposeAdditional = (v) => ({ parttype: v.parttype, pos: { coord: v.pos.coord, angle: v.pos.angle, isPlus: !v.pos.isPlus } });
+var opposeDrawRail = (v) => ({ color: v.color, shape: { start: { ...v.shape.start, isPlus: !v.shape.start.isPlus }, end: { ...v.shape.end, isPlus: !v.shape.end.isPlus }, length: v.shape.length } });
+var opposeAdditional = (v) => ({ parttype: v.parttype, pos: { ...v.pos, isPlus: !v.pos.isPlus } });
 var opposeRail_ = (v) => ({
-  name: v.name,
-  flipped: v.flipped,
+  ...v,
   opposed: !v.opposed,
-  defaultState: v.defaultState,
-  getJoints: v.getJoints,
-  getStates: v.getStates,
-  getOrigin: v.getOrigin,
   getJointPos: (x) => {
     const $0 = v.getJointPos(x);
-    return { coord: $0.coord, angle: $0.angle, isPlus: !$0.isPlus };
+    return { ...$0, isPlus: !$0.isPlus };
   },
-  getNewState: v.getNewState,
   getDrawInfo: (x) => {
     const $0 = v.getDrawInfo(x);
     return { rails: arrayMap(opposeDrawRail)($0.rails), additionals: arrayMap(opposeAdditional)($0.additionals) };
-  },
-  getRoute: v.getRoute,
-  isLegal: v.isLegal,
-  lockedBy: v.lockedBy,
-  isBlocked: v.isBlocked,
-  isSimple: v.isSimple
+  }
 });
 var newtate_fallback = { newjoint: 0, newstate: 0, shape: [] };
 var grayRail = (s) => ({ color: "#668", shape: s });
@@ -1131,13 +863,8 @@ var flipDrawRail = (v) => ({
 });
 var flipAdditional = (v) => ({ parttype: v.parttype, pos: { coord: { x: v.pos.coord.x, y: -v.pos.coord.y, z: v.pos.coord.z }, angle: -v.pos.angle, isPlus: v.pos.isPlus } });
 var flipRail_ = (v) => ({
-  name: v.name,
+  ...v,
   flipped: !v.flipped,
-  opposed: v.opposed,
-  defaultState: v.defaultState,
-  getJoints: v.getJoints,
-  getStates: v.getStates,
-  getOrigin: v.getOrigin,
   getJointPos: (x) => {
     const $0 = v.getJointPos(x);
     return { coord: { x: $0.coord.x, y: -$0.coord.y, z: $0.coord.z }, angle: -$0.angle, isPlus: $0.isPlus };
@@ -1149,12 +876,7 @@ var flipRail_ = (v) => ({
   getDrawInfo: (x) => {
     const $0 = v.getDrawInfo(x);
     return { rails: arrayMap(flipDrawRail)($0.rails), additionals: arrayMap(flipAdditional)($0.additionals) };
-  },
-  getRoute: v.getRoute,
-  isLegal: v.isLegal,
-  lockedBy: v.lockedBy,
-  isBlocked: v.isBlocked,
-  isSimple: v.isSimple
+  }
 });
 var calcMidAngle = (x) => (y) => asin(x / ((pow(y)(2) + pow(x)(2)) / (2 * y)));
 var slipShapes = () => (v) => {
@@ -1169,7 +891,7 @@ var slipShapes = () => (v) => {
   return [
     { start: v.start, end: pp, length: partLength(v.start)(pp) },
     (() => {
-      const $0 = { coord: pp.coord, angle: pp.angle + 3.141592653589793, isPlus: pp.isPlus };
+      const $0 = { ...pp, angle: pp.angle + 3.141592653589793 };
       return { start: $0, end: v.end, length: partLength($0)(v.end) };
     })()
   ];
@@ -1201,11 +923,8 @@ var memorizeRail = (v) => {
       return poszero;
     },
     getNewState: (v1) => (v2) => {
-      if (v1 < getNewState_memo.length) {
-        if (v2 < getNewState_memo[v1].length) {
-          return getNewState_memo[v1][v2];
-        }
-        return newtate_fallback;
+      if (v1 < getNewState_memo.length && v2 < getNewState_memo[v1].length) {
+        return getNewState_memo[v1][v2];
       }
       return newtate_fallback;
     },
@@ -1216,47 +935,19 @@ var memorizeRail = (v) => {
       return brokenDrawInfo;
     },
     getRoute: (v1) => (v2) => (v3) => {
-      if (v1 < getRoute_memo.length) {
-        if (v2 < getRoute_memo[v1].length) {
-          if (v3 < getRoute_memo[v1][v2].length) {
-            return getRoute_memo[v1][v2][v3];
-          }
-          return Nothing;
-        }
-        return Nothing;
+      if (v1 < getRoute_memo.length && v2 < getRoute_memo[v1].length && v3 < getRoute_memo[v1][v2].length) {
+        return getRoute_memo[v1][v2][v3];
       }
       return Nothing;
     },
-    isLegal: (v1) => (v2) => {
-      if (v1 < isLegal_memo.length) {
-        if (v2 < isLegal_memo[v1].length) {
-          return isLegal_memo[v1][v2];
-        }
-        return false;
-      }
-      return false;
-    },
+    isLegal: (v1) => (v2) => v1 < isLegal_memo.length && v2 < isLegal_memo[v1].length && isLegal_memo[v1][v2],
     lockedBy: (v1) => (v2) => {
-      if (v1 < lockedBy_memo.length) {
-        if (v2 < lockedBy_memo[v1].length) {
-          return lockedBy_memo[v1][v2];
-        }
-        return [];
+      if (v1 < lockedBy_memo.length && v2 < lockedBy_memo[v1].length) {
+        return lockedBy_memo[v1][v2];
       }
       return [];
     },
-    isBlocked: (v1) => (v2) => (v3) => {
-      if (v1 < isBlocked_memo.length) {
-        if (v2 < isBlocked_memo[v1].length) {
-          if (v3 < isBlocked_memo[v1][v2].length) {
-            return isBlocked_memo[v1][v2][v3];
-          }
-          return false;
-        }
-        return false;
-      }
-      return false;
-    },
+    isBlocked: (v1) => (v2) => (v3) => v1 < isBlocked_memo.length && v2 < isBlocked_memo[v1].length && v3 < isBlocked_memo[v1][v2].length && isBlocked_memo[v1][v2][v3],
     isSimple: v.isSimple
   };
 };
@@ -1305,11 +996,8 @@ var toRail_ = (dictIntSerialize) => (dictIntSerialize1) => (v) => ({
       }
       return Nothing;
     })())(dictIntSerialize.fromSerial(v2)))(dictIntSerialize.fromSerial(v3));
-    if ($0.tag === "Just") {
-      if ($0._1.tag === "Just") {
-        return $Maybe("Just", dictIntSerialize1.toSerial($0._1._1));
-      }
-      return Nothing;
+    if ($0.tag === "Just" && $0._1.tag === "Just") {
+      return $Maybe("Just", dictIntSerialize1.toSerial($0._1._1));
     }
     return Nothing;
   },
@@ -1383,32 +1071,32 @@ var foldM = (f) => (b0) => foldlArray((b) => (a) => {
 var maximum = /* @__PURE__ */ (() => maximumBy(foldableArray)(ordInt.compare))();
 var min2 = (x) => (y) => {
   const v = ordNumber.compare(x)(y);
-  if (v.tag === "LT") {
+  if (v === "LT") {
     return x;
   }
-  if (v.tag === "EQ") {
+  if (v === "EQ") {
     return x;
   }
-  if (v.tag === "GT") {
+  if (v === "GT") {
     return y;
   }
   fail();
 };
 var max2 = (x) => (y) => {
   const v = ordNumber.compare(x)(y);
-  if (v.tag === "LT") {
+  if (v === "LT") {
     return y;
   }
-  if (v.tag === "EQ") {
+  if (v === "EQ") {
     return x;
   }
-  if (v.tag === "GT") {
+  if (v === "GT") {
     return x;
   }
   fail();
 };
 var allWithIndex = /* @__PURE__ */ (() => {
-  const foldMapWithIndex2 = foldableWithIndexArray.foldMapWithIndex((() => {
+  const foldMapWithIndex2 = foldableWithIndexArray.foldMapWithIndex(/* @__PURE__ */ (() => {
     const semigroupConj1 = { append: (v) => (v1) => v && v1 };
     return { mempty: true, Semigroup0: () => semigroupConj1 };
   })());
@@ -1416,13 +1104,13 @@ var allWithIndex = /* @__PURE__ */ (() => {
 })();
 var min1 = (x) => (y) => {
   const v = ordInt.compare(x)(y);
-  if (v.tag === "LT") {
+  if (v === "LT") {
     return x;
   }
-  if (v.tag === "EQ") {
+  if (v === "EQ") {
     return x;
   }
-  if (v.tag === "GT") {
+  if (v === "GT") {
     return y;
   }
   fail();
@@ -1448,7 +1136,7 @@ var updateTraffic = (v) => {
       return (v5) => ({
         traffic: (() => {
           const $4 = modifyAt(v5.nodeid)((d) => {
-            const $42 = modifyAt(v5.jointid)((v6) => concatArray(v6)([v3.trainid]))(d);
+            const $42 = modifyAt(v5.jointid)((v6) => [...v6, v3.trainid])(d);
             if ($42.tag === "Nothing") {
               return d;
             }
@@ -1477,120 +1165,35 @@ var updateTraffic = (v) => {
         })()
       });
     })({ traffic: $1, isclear: $0 })(v3.route);
-  })({ traffic: arrayMap((v2) => replicate(v2.rail.getJoints.length)([]))(v.rails), isclear: replicate(v.rails.length)(true) })(v.trains);
-  return {
-    version: v.version,
-    rails: v.rails,
-    trains: v.trains,
-    signalcolors: v.signalcolors,
-    traffic: v1.traffic,
-    isclear: v1.isclear,
-    instancecount: v.instancecount,
-    traincount: v.traincount,
-    updatecount: v.updatecount,
-    jointData: v.jointData,
-    routequeue: v.routequeue,
-    time: v.time,
-    speed: v.speed,
-    activeReserves: v.activeReserves
-  };
+  })({ traffic: arrayMap((v2) => replicateImpl(v2.rail.getJoints.length, []))(v.rails), isclear: replicateImpl(v.rails.length, true) })(v.trains);
+  return { ...v, traffic: v1.traffic, isclear: v1.isclear };
 };
 var updateReserves = (v) => ({
-  version: v.version,
-  rails: v.rails,
-  trains: v.trains,
-  signalcolors: v.signalcolors,
-  traffic: v.traffic,
-  isclear: v.isclear,
-  instancecount: v.instancecount,
-  traincount: v.traincount,
-  updatecount: v.updatecount,
-  jointData: v.jointData,
-  routequeue: v.routequeue,
-  time: v.time,
-  speed: v.speed,
-  activeReserves: mapMaybe((x) => x)(arrayMap((reserver) => {
-    const $0 = findIndex((reserve) => reserve.reserver === reserver)(v.activeReserves);
-    if ($0.tag === "Just") {
-      return $Maybe("Just", v.activeReserves[$0._1]);
-    }
-    return Nothing;
-  })(arrayMap((x) => x.trainid)(v.trains)))
+  ...v,
+  activeReserves: mapMaybe((x) => x)(arrayMap((reserver) => find((reserve) => reserve.reserver === reserver)(v.activeReserves))(arrayMap((x) => x.trainid)(v.trains)))
 });
 var updateRailNode = (v) => (j) => {
   const v1 = v.rail.getNewState(j)(v.state);
   return {
-    instance: {
-      nodeid: v.nodeid,
-      instanceid: v.instanceid,
-      rail: v.rail,
-      state: v1.newstate,
-      signals: v.signals,
-      invalidRoutes: v.invalidRoutes,
-      connections: v.connections,
-      reserves: filter((x) => x.jointid !== j)(v.reserves),
-      pos: v.pos,
-      note: v.note,
-      drawinfos: v.drawinfos
-    },
+    instance: { ...v, state: v1.newstate, reserves: filterImpl((x) => x.jointid !== j, v.reserves) },
     newjoint: v1.newjoint,
     shapes: arrayMap(absShape(v.pos))(v1.shape)
   };
 };
 var shiftRailIndex_Node = (deleted) => (v) => ({
+  ...v,
   nodeid: v.nodeid < deleted ? v.nodeid : v.nodeid - 1 | 0,
-  instanceid: v.instanceid,
-  rail: v.rail,
-  state: v.state,
-  signals: arrayMap((v2) => ({
-    signalname: v2.signalname,
-    nodeid: v2.nodeid < deleted ? v2.nodeid : v2.nodeid - 1 | 0,
-    jointid: v2.jointid,
-    routes: v2.routes,
-    routecond: v2.routecond,
-    colors: v2.colors,
-    indication: v2.indication,
-    manualStop: v2.manualStop,
-    restraint: v2.restraint,
-    rules: v2.rules
-  }))(v.signals),
-  invalidRoutes: arrayMap((v2) => ({ nodeid: v2.nodeid < deleted ? v2.nodeid : v2.nodeid - 1 | 0, jointid: v2.jointid }))(v.invalidRoutes),
-  connections: arrayMap((c) => ({ nodeid: c.nodeid < deleted ? c.nodeid : c.nodeid - 1 | 0, from: c.from, jointid: c.jointid }))(v.connections),
-  reserves: v.reserves,
-  pos: v.pos,
-  note: v.note,
-  drawinfos: v.drawinfos
+  connections: arrayMap((c) => ({ ...c, nodeid: c.nodeid < deleted ? c.nodeid : c.nodeid - 1 | 0 }))(v.connections),
+  signals: arrayMap((v2) => ({ ...v2, nodeid: v2.nodeid < deleted ? v2.nodeid : v2.nodeid - 1 | 0 }))(v.signals),
+  invalidRoutes: arrayMap((v2) => ({ ...v2, nodeid: v2.nodeid < deleted ? v2.nodeid : v2.nodeid - 1 | 0 }))(v.invalidRoutes)
 });
-var shiftRailIndex_Train = (deleted) => (v) => ({
-  types: v.types,
-  route: arrayMap((v2) => ({ nodeid: v2.nodeid < deleted ? v2.nodeid : v2.nodeid - 1 | 0, jointid: v2.jointid, railinstance: v2.railinstance, shapes: v2.shapes, length: v2.length }))(v.route),
-  distanceToNext: v.distanceToNext,
-  distanceFromOldest: v.distanceFromOldest,
-  speed: v.speed,
-  trainid: v.trainid,
-  flipped: v.flipped,
-  signalRestriction: v.signalRestriction,
-  respectSignals: v.respectSignals,
-  realAcceralation: v.realAcceralation,
-  notch: v.notch,
-  note: v.note,
-  tags: v.tags,
-  signalRulePhase: v.signalRulePhase
-});
+var shiftRailIndex_Train = (deleted) => (v) => ({ ...v, route: arrayMap((v2) => ({ ...v2, nodeid: v2.nodeid < deleted ? v2.nodeid : v2.nodeid - 1 | 0 }))(v.route) });
 var saModifyAt = (i) => (d) => (f) => (v) => {
   if (i < v.head) {
-    return {
-      arraydata: concatArray([f(Nothing)])(concatArray(replicate((v.head - i | 0) - 1 | 0)(d))(v.arraydata)),
-      head: i,
-      end: v.end
-    };
+    return { arraydata: [f(Nothing), ...replicateImpl((v.head - i | 0) - 1 | 0, d), ...v.arraydata], head: i, end: v.end };
   }
   if (v.end <= i) {
-    return {
-      arraydata: concatArray(v.arraydata)(concatArray(replicate(i - v.end | 0)(d))([f(Nothing)])),
-      head: v.head,
-      end: i + 1 | 0
-    };
+    return { arraydata: [...v.arraydata, ...replicateImpl(i - v.end | 0, d), f(Nothing)], head: v.head, end: i + 1 | 0 };
   }
   return {
     arraydata: (() => {
@@ -1607,46 +1210,26 @@ var saModifyAt = (i) => (d) => (f) => (v) => {
     end: v.end
   };
 };
+var saIndex = (i) => (v) => {
+  const $0 = i - v.head | 0;
+  if ($0 >= 0 && $0 < v.arraydata.length) {
+    return $Maybe("Just", v.arraydata[$0]);
+  }
+  return Nothing;
+};
 var saEmpty = { arraydata: [], head: 0, end: 0 };
-var newreserve = (reserver) => (reserveid) => (v) => ({
-  version: v.version,
-  rails: v.rails,
-  trains: v.trains,
-  signalcolors: v.signalcolors,
-  traffic: v.traffic,
-  isclear: v.isclear,
-  instancecount: v.instancecount,
-  traincount: v.traincount,
-  updatecount: v.updatecount,
-  jointData: v.jointData,
-  routequeue: v.routequeue,
-  time: v.time,
-  speed: v.speed,
-  activeReserves: concatArray([{ reserveid, reserver }])(v.activeReserves)
-});
+var isRailClear = (v) => (v1) => {
+  if (v1 >= 0 && v1 < v.isclear.length) {
+    return $Maybe("Just", v.isclear[v1]);
+  }
+  return Nothing;
+};
 var instanceDrawInfos = (v) => arrayMap((x) => absDrawInfo(v.pos)(v.rail.getDrawInfo(x)))(v.rail.getStates);
-var recalcInstanceDrawInfo = (v) => ({
-  nodeid: v.nodeid,
-  instanceid: v.instanceid,
-  rail: v.rail,
-  state: v.state,
-  signals: v.signals,
-  invalidRoutes: v.invalidRoutes,
-  connections: v.connections,
-  reserves: v.reserves,
-  pos: v.pos,
-  note: v.note,
-  drawinfos: instanceDrawInfos(v)
-});
 var instanceDrawInfo = (v) => {
-  const $0 = index(v.drawinfos)(v.state);
-  if ($0.tag === "Nothing") {
-    return brokenDrawInfo;
+  if (v.state >= 0 && v.state < v.drawinfos.length) {
+    return v.drawinfos[v.state];
   }
-  if ($0.tag === "Just") {
-    return $0._1;
-  }
-  fail();
+  return brokenDrawInfo;
 };
 var getTag = (rule) => {
   if (rule.tag === "RuleComment") {
@@ -1685,10 +1268,22 @@ var getRouteInfo = (v) => (j) => {
   const v1 = v.rail.getNewState(j)(v.state);
   return { newjoint: v1.newjoint, shapes: arrayMap(absShape(v.pos))(v1.shape) };
 };
+var getRailTraffic = (v) => (v1) => {
+  if (v1 >= 0 && v1 < v.traffic.length) {
+    return $Maybe("Just", v.traffic[v1]);
+  }
+  return Nothing;
+};
+var getRailNode = (v) => (v1) => {
+  if (v1 >= 0 && v1 < v.rails.length) {
+    return $Maybe("Just", v.rails[v1]);
+  }
+  return Nothing;
+};
 var hasTraffic = (v) => (v1) => {
   if ((() => {
     const $0 = any((t) => t.length > 0);
-    const $1 = index(v.traffic)(v1.nodeid);
+    const $1 = getRailTraffic(v)(v1.nodeid);
     if ($1.tag === "Nothing") {
       return false;
     }
@@ -1699,116 +1294,53 @@ var hasTraffic = (v) => (v1) => {
   })()) {
     return true;
   }
-  const go = (go$a0$copy) => (go$a1$copy) => (go$a2$copy) => {
-    let go$a0 = go$a0$copy, go$a1 = go$a1$copy, go$a2 = go$a2$copy, go$c = true, go$r;
-    while (go$c) {
-      const nid = go$a0, jid = go$a1, depth = go$a2;
-      if (depth > 30) {
-        go$c = false;
-        go$r = false;
-        continue;
+  const go = (nid) => (jid) => (depth) => {
+    if (depth > 30) {
+      return false;
+    }
+    const v2 = getRailNode(v)(nid);
+    if (v2.tag === "Nothing") {
+      return false;
+    }
+    if (v2.tag === "Just") {
+      if (anyImpl((x) => x.jointid === jid, v2._1.signals) || anyImpl((x) => x.jointid === jid, v2._1.invalidRoutes)) {
+        return false;
       }
-      const v2 = index(v.rails)(nid);
-      if (v2.tag === "Nothing") {
-        go$c = false;
-        go$r = false;
-        continue;
+      const jointexit = getRouteInfo(v2._1)(jid).newjoint;
+      const v3 = getRailTraffic(v)(nid);
+      if (v3.tag === "Nothing") {
+        return false;
       }
-      if (v2.tag === "Just") {
-        if (any((x) => x.jointid === jid)(v2._1.signals) || any((x) => x.jointid === jid)(v2._1.invalidRoutes)) {
-          go$c = false;
-          go$r = false;
-          continue;
-        }
-        const jointexit = getRouteInfo(v2._1)(jid).newjoint;
-        const v3 = index(v.traffic)(nid);
-        if (v3.tag === "Nothing") {
-          go$c = false;
-          go$r = false;
-          continue;
-        }
-        if (v3.tag === "Just") {
-          const v4 = index(v3._1)(jointexit);
-          if (v4.tag === "Nothing") {
-            go$c = false;
-            go$r = false;
-            continue;
+      if (v3.tag === "Just") {
+        return jointexit >= 0 && jointexit < v3._1.length && (() => {
+          if (v3._1[jointexit].length > 0) {
+            return true;
           }
-          if (v4.tag === "Just") {
-            if (v4._1.length > 0) {
-              go$c = false;
-              go$r = true;
-              continue;
-            }
-            const $0 = findIndex((c) => c.from === jointexit)(v2._1.connections);
-            if ($0.tag === "Just") {
-              go$a0 = v2._1.connections[$0._1].nodeid;
-              go$a1 = v2._1.connections[$0._1].jointid;
-              go$a2 = depth + 1 | 0;
-              continue;
-            }
-            go$c = false;
-            go$r = false;
-            continue;
+          const v5 = find((c) => c.from === jointexit)(v2._1.connections);
+          if (v5.tag === "Nothing") {
+            return false;
+          }
+          if (v5.tag === "Just") {
+            return go(v5._1.nodeid)(v5._1.jointid)(depth + 1 | 0);
           }
           fail();
-        }
-        fail();
+        })();
       }
-      fail();
     }
-    return go$r;
+    fail();
   };
-  return any(identity5)(arrayMap((cdata) => go(cdata.nodeid)(cdata.jointid)(0))(v1.connections));
+  return anyImpl(identity5, arrayMap((cdata) => go(cdata.nodeid)(cdata.jointid)(0))(v1.connections));
 };
 var setManualStop = (v) => (nodeid) => (jointid) => (stop) => {
-  const $0 = index(v.rails)(nodeid);
+  const $0 = getRailNode(v)(nodeid);
   if ($0.tag === "Just") {
     const $1 = findWithIndex(foldableWithIndexArray)((v2) => (v3) => v3.jointid === jointid)($0._1.signals);
     if ($1.tag === "Just") {
-      const $2 = updateAt($1._1.index)({
-        signalname: $1._1.value.signalname,
-        nodeid: $1._1.value.nodeid,
-        jointid: $1._1.value.jointid,
-        routes: $1._1.value.routes,
-        routecond: $1._1.value.routecond,
-        colors: $1._1.value.colors,
-        indication: $1._1.value.indication,
-        manualStop: stop,
-        restraint: $1._1.value.restraint,
-        rules: $1._1.value.rules
-      })($0._1.signals);
+      const $2 = _updateAt(Just, Nothing, $1._1.index, { ...$1._1.value, manualStop: stop }, $0._1.signals);
       if ($2.tag === "Just") {
-        const $3 = updateAt(nodeid)({
-          nodeid: $0._1.nodeid,
-          instanceid: $0._1.instanceid,
-          rail: $0._1.rail,
-          state: $0._1.state,
-          signals: $2._1,
-          invalidRoutes: $0._1.invalidRoutes,
-          connections: $0._1.connections,
-          reserves: $0._1.reserves,
-          pos: $0._1.pos,
-          note: $0._1.note,
-          drawinfos: $0._1.drawinfos
-        })(v.rails);
+        const $3 = _updateAt(Just, Nothing, nodeid, { ...$0._1, signals: $2._1 }, v.rails);
         if ($3.tag === "Just") {
-          return {
-            version: v.version,
-            rails: $3._1,
-            trains: v.trains,
-            signalcolors: v.signalcolors,
-            traffic: v.traffic,
-            isclear: v.isclear,
-            instancecount: v.instancecount,
-            traincount: v.traincount,
-            updatecount: v.updatecount,
-            jointData: v.jointData,
-            routequeue: v.routequeue,
-            time: v.time,
-            speed: v.speed,
-            activeReserves: v.activeReserves
-          };
+          return { ...v, rails: $3._1 };
         }
         if ($3.tag === "Nothing") {
           return v;
@@ -1831,22 +1363,17 @@ var setManualStop = (v) => (nodeid) => (jointid) => (stop) => {
   fail();
 };
 var updateSignalRoutes = (v) => ({
-  version: v.version,
+  ...v,
   rails: arrayMap((v2) => ({
-    nodeid: v2.nodeid,
-    instanceid: v2.instanceid,
-    rail: v2.rail,
-    state: v2.state,
+    ...v2,
     signals: arrayMap((v4) => ({
-      signalname: v4.signalname,
-      nodeid: v4.nodeid,
-      jointid: v4.jointid,
+      ...v4,
       routes: (() => {
         const go = (v62) => {
           if (v62.rails.length > 30) {
             return [];
           }
-          const v7 = index(v.rails)(v62.nid);
+          const v7 = getRailNode(v)(v62.nid);
           if (v7.tag === "Nothing") {
             return [];
           }
@@ -1854,89 +1381,67 @@ var updateSignalRoutes = (v) => ({
             const $0 = v7._1;
             return arrayBind(($0.rail.flipped ? reverse : identity5)(nubBy((x) => (y) => ordInt.compare(x.newjoint)(y.newjoint))(arrayMap($0.rail.getNewState(v62.jid))($0.rail.getStates))))((v8) => {
               const $1 = v8.newjoint;
-              if (findIndex((v10) => v10.jointid === $1)($0.invalidRoutes).tag === "Just") {
+              const v9 = find((v10) => v10.jointid === $1)($0.invalidRoutes);
+              if (v9.tag === "Nothing") {
+                const newrails = [...v62.rails, { nodeid: v62.nid, jointenter: v62.jid, jointexit: $1 }];
+                const newlen = v62.len + sum(arrayMap((x) => x.length)(v8.shape));
+                const v10 = find((v11) => v11.jointid === $1)($0.signals);
+                if (v10.tag === "Nothing") {
+                  const v11 = find((c) => c.from === $1)($0.connections);
+                  if (v11.tag === "Nothing") {
+                    return [];
+                  }
+                  if (v11.tag === "Just") {
+                    if (elem(eqIntNode)(v11._1.nodeid)(v62.rids)) {
+                      return [];
+                    }
+                    return go({
+                      nid: v11._1.nodeid,
+                      jid: v11._1.jointid,
+                      rails: newrails,
+                      rids: insertBy(ordIntNode.compare)(v11._1.nodeid)(v62.rids),
+                      isSimple: v62.isSimple && $0.rail.isSimple,
+                      len: newlen
+                    });
+                  }
+                  fail();
+                }
+                if (v10.tag === "Just") {
+                  return [{ nextsignal: { nodeid: v62.nid, jointid: $1 }, rails: newrails, isSimple: v62.isSimple, length: newlen }];
+                }
+                fail();
+              }
+              if (v9.tag === "Just") {
                 return [];
               }
-              const newrails = concatArray(v62.rails)([{ nodeid: v62.nid, jointenter: v62.jid, jointexit: $1 }]);
-              const newlen = v62.len + sum(arrayMap((x) => x.length)(v8.shape));
-              if (findIndex((v11) => v11.jointid === $1)($0.signals).tag === "Just") {
-                return [{ nextsignal: { nodeid: v62.nid, jointid: $1 }, rails: newrails, isSimple: v62.isSimple, length: newlen }];
-              }
-              const $2 = findIndex((c) => c.from === $1)($0.connections);
-              if ($2.tag === "Just") {
-                if (elem(eqIntNode)($0.connections[$2._1].nodeid)(v62.rids)) {
-                  return [];
-                }
-                return go({
-                  nid: $0.connections[$2._1].nodeid,
-                  jid: $0.connections[$2._1].jointid,
-                  rails: newrails,
-                  rids: insertBy(ordIntNode.compare)($0.connections[$2._1].nodeid)(v62.rids),
-                  isSimple: v62.isSimple && $0.rail.isSimple,
-                  len: newlen
-                });
-              }
-              return [];
+              fail();
             });
           }
           fail();
         };
-        const v6 = index(v.rails)(v4.nodeid);
+        const v6 = getRailNode(v)(v4.nodeid);
         if (v6.tag === "Nothing") {
           return [];
         }
         if (v6.tag === "Just") {
-          const $0 = findIndex((c) => c.from === v4.jointid)(v6._1.connections);
-          if ($0.tag === "Just") {
-            return go({ nid: v6._1.connections[$0._1].nodeid, jid: v6._1.connections[$0._1].jointid, rails: [], rids: [], isSimple: true, len: 0 });
+          const v7 = find((c) => c.from === v4.jointid)(v6._1.connections);
+          if (v7.tag === "Nothing") {
+            return [];
           }
-          return [];
+          if (v7.tag === "Just") {
+            return go({ nid: v7._1.nodeid, jid: v7._1.jointid, rails: [], rids: [], isSimple: true, len: 0 });
+          }
         }
         fail();
-      })(),
-      routecond: v4.routecond,
-      colors: v4.colors,
-      indication: v4.indication,
-      manualStop: v4.manualStop,
-      restraint: v4.restraint,
-      rules: v4.rules
-    }))(v2.signals),
-    invalidRoutes: v2.invalidRoutes,
-    connections: v2.connections,
-    reserves: v2.reserves,
-    pos: v2.pos,
-    note: v2.note,
-    drawinfos: v2.drawinfos
-  }))(v.rails),
-  trains: v.trains,
-  signalcolors: v.signalcolors,
-  traffic: v.traffic,
-  isclear: v.isclear,
-  instancecount: v.instancecount,
-  traincount: v.traincount,
-  updatecount: v.updatecount,
-  jointData: v.jointData,
-  routequeue: v.routequeue,
-  time: v.time,
-  speed: v.speed,
-  activeReserves: v.activeReserves
+      })()
+    }))(v2.signals)
+  }))(v.rails)
 });
 var removeSignal = (v) => (nodeid) => (jointid) => updateSignalRoutes({
-  version: v.version,
+  ...v,
+  updatecount: v.updatecount + 1 | 0,
   rails: (() => {
-    const $0 = modifyAt(nodeid)((v2) => ({
-      nodeid: v2.nodeid,
-      instanceid: v2.instanceid,
-      rail: v2.rail,
-      state: v2.state,
-      signals: filter((v4) => v4.jointid !== jointid)(v2.signals),
-      invalidRoutes: filter((v4) => v4.jointid !== jointid)(v2.invalidRoutes),
-      connections: v2.connections,
-      reserves: v2.reserves,
-      pos: v2.pos,
-      note: v2.note,
-      drawinfos: v2.drawinfos
-    }))(v.rails);
+    const $0 = modifyAt(nodeid)((v2) => ({ ...v2, signals: filterImpl((v4) => v4.jointid !== jointid, v2.signals), invalidRoutes: filterImpl((v4) => v4.jointid !== jointid, v2.invalidRoutes) }))(v.rails);
     if ($0.tag === "Nothing") {
       return v.rails;
     }
@@ -1944,22 +1449,10 @@ var removeSignal = (v) => (nodeid) => (jointid) => updateSignalRoutes({
       return $0._1;
     }
     fail();
-  })(),
-  trains: v.trains,
-  signalcolors: v.signalcolors,
-  traffic: v.traffic,
-  isclear: v.isclear,
-  instancecount: v.instancecount,
-  traincount: v.traincount,
-  updatecount: v.updatecount + 1 | 0,
-  jointData: v.jointData,
-  routequeue: v.routequeue,
-  time: v.time,
-  speed: v.speed,
-  activeReserves: v.activeReserves
+  })()
 });
 var removeRail = (v) => (nodeid) => {
-  const v1 = index(v.rails)(nodeid);
+  const v1 = getRailNode(v)(nodeid);
   const layout$p = (() => {
     if (v1.tag === "Just") {
       return foldlArray((l) => (j) => removeSignal(l)(nodeid)(j))(v)(v1._1.rail.getJoints);
@@ -1970,21 +1463,10 @@ var removeRail = (v) => (nodeid) => {
     fail();
   })();
   return updateSignalRoutes({
-    version: layout$p.version,
-    rails: arrayMap((v2) => shiftRailIndex_Node(nodeid)({
-      nodeid: v2.nodeid,
-      instanceid: v2.instanceid,
-      rail: v2.rail,
-      state: v2.state,
-      signals: v2.signals,
-      invalidRoutes: v2.invalidRoutes,
-      connections: filter((v4) => v4.nodeid !== nodeid)(v2.connections),
-      reserves: v2.reserves,
-      pos: v2.pos,
-      note: v2.note,
-      drawinfos: v2.drawinfos
-    }))((() => {
-      const $0 = deleteAt(nodeid)(layout$p.rails);
+    ...layout$p,
+    updatecount: layout$p.updatecount + 1 | 0,
+    rails: arrayMap((v2) => shiftRailIndex_Node(nodeid)({ ...v2, connections: filterImpl((v4) => v4.nodeid !== nodeid, v2.connections) }))((() => {
+      const $0 = _deleteAt(Just, Nothing, nodeid, layout$p.rails);
       if ($0.tag === "Nothing") {
         return layout$p.rails;
       }
@@ -1993,31 +1475,21 @@ var removeRail = (v) => (nodeid) => {
       }
       fail();
     })()),
-    trains: arrayMap(shiftRailIndex_Train(nodeid))(layout$p.trains),
-    signalcolors: layout$p.signalcolors,
-    traffic: layout$p.traffic,
-    isclear: layout$p.isclear,
-    instancecount: layout$p.instancecount,
-    traincount: layout$p.traincount,
-    updatecount: layout$p.updatecount + 1 | 0,
     jointData: {
       arraydata: arrayMap(functorSectionArray.map(functorSectionArray.map((() => {
         const $0 = filter((v2) => v2.nodeid !== nodeid);
-        const $1 = arrayMap((v2) => ({ pos: v2.pos, nodeid: v2.nodeid < nodeid ? v2.nodeid : v2.nodeid - 1 | 0, jointid: v2.jointid }));
+        const $1 = arrayMap((v2) => ({ ...v2, nodeid: v2.nodeid < nodeid ? v2.nodeid : v2.nodeid - 1 | 0 }));
         return (x) => $1($0(x));
       })())))(layout$p.jointData.arraydata),
       head: layout$p.jointData.head,
       end: layout$p.jointData.end
     },
-    routequeue: layout$p.routequeue,
-    time: layout$p.time,
-    speed: layout$p.speed,
-    activeReserves: layout$p.activeReserves
+    trains: arrayMap(shiftRailIndex_Train(nodeid))(layout$p.trains)
   });
 };
 var getRailJointAbsPos = (v) => (jointid) => toAbsPos(v.pos)(v.rail.getJointPos(jointid));
 var getNextSignal = (v) => (v1) => {
-  const v2 = index(v1.route)(0);
+  const v2 = 0 < v1.route.length ? $Maybe("Just", v1.route[0]) : Nothing;
   if (v2.tag === "Nothing") {
     return { signal: Nothing, sections: 0, distance: 0 };
   }
@@ -2031,7 +1503,7 @@ var getNextSignal = (v) => (v1) => {
           go$r = { signal: Nothing, sections: sectionsold, distance: distanceold };
           continue;
         }
-        const v3 = index(v.rails)(nid);
+        const v3 = getRailNode(v)(nid);
         if (v3.tag === "Nothing") {
           go$c = false;
           go$r = { signal: Nothing, sections: sectionsold, distance: distanceold };
@@ -2041,29 +1513,38 @@ var getNextSignal = (v) => (v1) => {
           const sections = sectionsold + 1 | 0;
           const next = getRouteInfo(v3._1)(jid);
           const distance = isfirst ? distanceold : distanceold + sum(arrayMap(shapeLength)(next.shapes));
-          if (findIndex((v5) => v5.jointid === next.newjoint)(v3._1.invalidRoutes).tag === "Just") {
+          const v4 = find((v5) => v5.jointid === next.newjoint)(v3._1.invalidRoutes);
+          if (v4.tag === "Nothing") {
+            const v5 = find((v6) => v6.jointid === next.newjoint)(v3._1.signals);
+            if (v5.tag === "Nothing") {
+              const v6 = find((c) => c.from === next.newjoint)(v3._1.connections);
+              if (v6.tag === "Nothing") {
+                go$c = false;
+                go$r = { signal: Nothing, sections, distance };
+                continue;
+              }
+              if (v6.tag === "Just") {
+                go$a0 = v6._1.nodeid;
+                go$a1 = v6._1.jointid;
+                go$a2 = sections;
+                go$a3 = distance;
+                go$a4 = false;
+                continue;
+              }
+              fail();
+            }
+            if (v5.tag === "Just") {
+              go$c = false;
+              go$r = { signal: $Maybe("Just", v5._1), sections, distance };
+              continue;
+            }
+            fail();
+          }
+          if (v4.tag === "Just") {
             go$c = false;
             go$r = { signal: Nothing, sections, distance };
             continue;
           }
-          const $0 = findIndex((v6) => v6.jointid === next.newjoint)(v3._1.signals);
-          if ($0.tag === "Just") {
-            go$c = false;
-            go$r = { signal: $Maybe("Just", v3._1.signals[$0._1]), sections, distance };
-            continue;
-          }
-          const $1 = findIndex((c) => c.from === next.newjoint)(v3._1.connections);
-          if ($1.tag === "Just") {
-            go$a0 = v3._1.connections[$1._1].nodeid;
-            go$a1 = v3._1.connections[$1._1].jointid;
-            go$a2 = sections;
-            go$a3 = distance;
-            go$a4 = false;
-            continue;
-          }
-          go$c = false;
-          go$r = { signal: Nothing, sections, distance };
-          continue;
         }
         fail();
       }
@@ -2074,12 +1555,12 @@ var getNextSignal = (v) => (v1) => {
   fail();
 };
 var getJoints = (v) => (joint) => arrayBind(arrayApply(arrayApply(arrayMap((x) => (y) => (z) => {
-  const $0 = index(v.jointData.arraydata)(z - v.jointData.head | 0);
+  const $0 = saIndex(z)(v.jointData);
   const $1 = (() => {
     if ($0.tag === "Just") {
-      const $12 = index($0._1.arraydata)(x - $0._1.head | 0);
+      const $12 = saIndex(x)($0._1);
       if ($12.tag === "Just") {
-        return index($12._1.arraydata)(y - $12._1.head | 0);
+        return saIndex(y)($12._1);
       }
       if ($12.tag === "Nothing") {
         return Nothing;
@@ -2127,7 +1608,7 @@ var getJoints = (v) => (joint) => arrayBind(arrayApply(arrayApply(arrayMap((x) =
   return [i];
 })()))(identity);
 var getJointAbsPos = (v) => (nodeid) => (jointid) => {
-  const $0 = index(v.rails)(nodeid);
+  const $0 = getRailNode(v)(nodeid);
   if ($0.tag === "Just") {
     return $Maybe("Just", toAbsPos($0._1.pos)($0._1.rail.getJointPos(jointid)));
   }
@@ -2142,7 +1623,7 @@ var getNewRailPos = (v) => (v1) => {
         applyMaybe.apply((() => {
           const $02 = getJointAbsPos(v)(v2.nodeid)(v2.jointid);
           if ($02.tag === "Just") {
-            return $Maybe("Just", toAbsPos({ coord: $02._1.coord, angle: $02._1.angle + 3.141592653589793, isPlus: $02._1.isPlus }));
+            return $Maybe("Just", toAbsPos({ ...$02._1, angle: $02._1.angle + 3.141592653589793 }));
           }
           return Nothing;
         })())($Maybe("Just", convertRelPos(v1.rail.getJointPos(v2.from))(origin)))
@@ -2151,11 +1632,20 @@ var getNewRailPos = (v) => (v1) => {
     if (mposofzero.tag === "Just") {
       if ((() => {
         const $02 = canJoin(toAbsPos(mposofzero._1)(v1.rail.getJointPos(v2.from)));
-        const $1 = getJointAbsPos(v)(v2.nodeid)(v2.jointid);
-        if ($1.tag === "Just") {
-          return $02($1._1);
+        const $1 = (() => {
+          const $12 = getJointAbsPos(v)(v2.nodeid)(v2.jointid);
+          if ($12.tag === "Just") {
+            return $Maybe("Just", $02($12._1));
+          }
+          return Nothing;
+        })();
+        if ($1.tag === "Nothing") {
+          return false;
         }
-        return false;
+        if ($1.tag === "Just") {
+          return $1._1;
+        }
+        fail();
       })()) {
         return $Maybe("Just", mposofzero);
       }
@@ -2171,43 +1661,13 @@ var getNewRailPos = (v) => (v1) => {
   }
   fail();
 };
-var forceUpdate = (v) => ({
-  version: v.version,
-  rails: v.rails,
-  trains: v.trains,
-  signalcolors: v.signalcolors,
-  traffic: v.traffic,
-  isclear: v.isclear,
-  instancecount: v.instancecount,
-  traincount: v.traincount,
-  updatecount: v.updatecount + 1 | 0,
-  jointData: v.jointData,
-  routequeue: v.routequeue,
-  time: v.time,
-  speed: v.speed,
-  activeReserves: v.activeReserves
-});
+var forceUpdate = (v) => ({ ...v, updatecount: v.updatecount + 1 | 0 });
 var flipTrain = (v) => ({
-  types: v.types,
-  route: reverse(arrayMap((v2) => ({
-    nodeid: v2.nodeid,
-    jointid: v2.railinstance.rail.getNewState(v2.jointid)(v2.railinstance.state).newjoint,
-    railinstance: v2.railinstance,
-    shapes: reverseShapes(v2.shapes),
-    length: v2.length
-  }))(v.route)),
+  ...v,
+  route: reverse(arrayMap((v2) => ({ ...v2, jointid: v2.railinstance.rail.getNewState(v2.jointid)(v2.railinstance.state).newjoint, shapes: reverseShapes(v2.shapes) }))(v.route)),
   distanceToNext: v.distanceFromOldest,
   distanceFromOldest: v.distanceToNext,
-  speed: v.speed,
-  trainid: v.trainid,
-  flipped: !v.flipped,
-  signalRestriction: v.signalRestriction,
-  respectSignals: v.respectSignals,
-  realAcceralation: v.realAcceralation,
-  notch: v.notch,
-  note: v.note,
-  tags: v.tags,
-  signalRulePhase: v.signalRulePhase
+  flipped: !v.flipped
 });
 var digestIndication = (signal) => {
   if (signal.manualStop || signal.restraint) {
@@ -2236,17 +1696,11 @@ var signalToSpeed = (x) => {
   if ($0 === 3) {
     return 1.625;
   }
-  if ($0 === 4) {
-    return 2.5;
-  }
   return 2.5;
 };
 var getRestriction = (tags) => (signal) => foldlArray((s) => (r) => {
-  if (r.tag === "RuleSpeed") {
-    if (any(test(r._1))(arrayMap(unsafeCoerce)(tags))) {
-      return min2(s)(toNumber(r._2) * 0.025);
-    }
-    return s;
+  if (r.tag === "RuleSpeed" && anyImpl(test(r._1), arrayMap(unsafeCoerce)(tags))) {
+    return min2(s)(toNumber(r._2) * 0.025);
   }
   return s;
 })(signal.manualStop || signal.restraint ? 0 : signalToSpeed(signal))(signal.rules);
@@ -2255,24 +1709,9 @@ var movefoward = (movefoward$a0$copy) => (movefoward$a1$copy) => (movefoward$a2$
   while (movefoward$c) {
     const v = movefoward$a0, v1 = movefoward$a1, dt = movefoward$a2;
     const dx = dt * v1.speed;
-    const $0 = {
-      types: v1.types,
-      route: v1.route,
-      distanceToNext: v1.distanceToNext - dx,
-      distanceFromOldest: v1.distanceFromOldest + dx,
-      speed: v1.speed,
-      trainid: v1.trainid,
-      flipped: v1.flipped,
-      signalRestriction: v1.signalRestriction,
-      respectSignals: v1.respectSignals,
-      realAcceralation: v1.realAcceralation,
-      notch: v1.notch,
-      note: v1.note,
-      tags: v1.tags,
-      signalRulePhase: v1.signalRulePhase
-    };
+    const $0 = { ...v1, distanceToNext: v1.distanceToNext - dx, distanceFromOldest: v1.distanceFromOldest + dx };
     const v4 = unsnoc($0.route);
-    const v3 = (() => {
+    const $1 = (() => {
       if (v4.tag === "Nothing") {
         return $0;
       }
@@ -2280,65 +1719,34 @@ var movefoward = (movefoward$a0$copy) => (movefoward$a1$copy) => (movefoward$a2$
         if ($0.distanceFromOldest <= v4._1.last.length) {
           return $0;
         }
-        return {
-          types: $0.types,
-          route: v4._1.init,
-          distanceToNext: $0.distanceToNext,
-          distanceFromOldest: $0.distanceFromOldest - v4._1.last.length,
-          speed: $0.speed,
-          trainid: $0.trainid,
-          flipped: $0.flipped,
-          signalRestriction: $0.signalRestriction,
-          respectSignals: $0.respectSignals,
-          realAcceralation: $0.realAcceralation,
-          notch: $0.notch,
-          note: $0.note,
-          tags: $0.tags,
-          signalRulePhase: $0.signalRulePhase
-        };
+        return { ...$0, route: v4._1.init, distanceFromOldest: $0.distanceFromOldest - v4._1.last.length };
       }
       fail();
     })();
-    if (0 <= v3.distanceToNext) {
+    if (0 <= $1.distanceToNext) {
       movefoward$c = false;
-      movefoward$r = { newlayout: v, newtrainset: v3 };
+      movefoward$r = { newlayout: v, newtrainset: $1 };
       continue;
     }
-    const $1 = index(v3.route)(0);
-    if ($1.tag === "Just") {
-      const jointexit = $1._1.railinstance.rail.getNewState($1._1.jointid)($1._1.railinstance.state).newjoint;
-      const $2 = findIndex((c) => c.from === jointexit)($1._1.railinstance.connections);
-      const $3 = $2.tag === "Just" ? $Maybe("Just", $1._1.railinstance.connections[$2._1]) : Nothing;
+    const $2 = 0 < $1.route.length ? $Maybe("Just", $1.route[0]) : Nothing;
+    if ($2.tag === "Just") {
+      const jointexit = $2._1.railinstance.rail.getNewState($2._1.jointid)($2._1.railinstance.state).newjoint;
+      const $3 = find((c) => c.from === jointexit)($2._1.railinstance.connections);
       if ($3.tag === "Just") {
-        const $4 = index(v.rails)($3._1.nodeid);
+        const $4 = getRailNode(v)($3._1.nodeid);
         if ($4.tag === "Just") {
           const updatedroute = updateRailNode($4._1)($3._1.jointid);
-          const newinstance = {
-            nodeid: updatedroute.instance.nodeid,
-            instanceid: updatedroute.instance.instanceid,
-            rail: updatedroute.instance.rail,
-            state: updatedroute.instance.state,
-            signals: updatedroute.instance.signals,
-            invalidRoutes: updatedroute.instance.invalidRoutes,
-            connections: updatedroute.instance.connections,
-            reserves: filter((r1) => r1.jointid !== $3._1.jointid)(updatedroute.instance.reserves),
-            pos: updatedroute.instance.pos,
-            note: updatedroute.instance.note,
-            drawinfos: updatedroute.instance.drawinfos
-          };
+          const newinstance = { ...updatedroute.instance, reserves: filterImpl((r1) => r1.jointid !== $3._1.jointid, updatedroute.instance.reserves) };
           const slength = sum(arrayMap(shapeLength)(updatedroute.shapes));
           movefoward$c = false;
           movefoward$r = {
             newlayout: (() => {
-              const $5 = index(v.rails)($3._1.nodeid);
-              if ($5.tag === "Just") {
-                return $5._1.state === updatedroute.instance.state;
-              }
-              return false;
+              const $5 = getRailNode(v)($3._1.nodeid);
+              return $5.tag === "Just" && $5._1.state === updatedroute.instance.state;
             })() ? {
-              version: v.version,
+              ...v,
               rails: (() => {
-                const $5 = updateAt($3._1.nodeid)(newinstance)(v.rails);
+                const $5 = _updateAt(Just, Nothing, $3._1.nodeid, newinstance, v.rails);
                 if ($5.tag === "Nothing") {
                   return v.rails;
                 }
@@ -2346,23 +1754,12 @@ var movefoward = (movefoward$a0$copy) => (movefoward$a1$copy) => (movefoward$a2$
                   return $5._1;
                 }
                 fail();
-              })(),
-              trains: v.trains,
-              signalcolors: v.signalcolors,
-              traffic: v.traffic,
-              isclear: v.isclear,
-              instancecount: v.instancecount,
-              traincount: v.traincount,
-              updatecount: v.updatecount,
-              jointData: v.jointData,
-              routequeue: v.routequeue,
-              time: v.time,
-              speed: v.speed,
-              activeReserves: v.activeReserves
+              })()
             } : {
-              version: v.version,
+              ...v,
+              updatecount: v.updatecount + 1 | 0,
               rails: (() => {
-                const $5 = updateAt($3._1.nodeid)(newinstance)(v.rails);
+                const $5 = _updateAt(Just, Nothing, $3._1.nodeid, newinstance, v.rails);
                 if ($5.tag === "Nothing") {
                   return v.rails;
                 }
@@ -2370,47 +1767,29 @@ var movefoward = (movefoward$a0$copy) => (movefoward$a1$copy) => (movefoward$a2$
                   return $5._1;
                 }
                 fail();
-              })(),
-              trains: v.trains,
-              signalcolors: v.signalcolors,
-              traffic: v.traffic,
-              isclear: v.isclear,
-              instancecount: v.instancecount,
-              traincount: v.traincount,
-              updatecount: v.updatecount + 1 | 0,
-              jointData: v.jointData,
-              routequeue: v.routequeue,
-              time: v.time,
-              speed: v.speed,
-              activeReserves: v.activeReserves
+              })()
             },
             newtrainset: {
-              types: v3.types,
-              route: concatArray([{ nodeid: $3._1.nodeid, jointid: $3._1.jointid, railinstance: $4._1, shapes: updatedroute.shapes, length: slength }])(v3.route),
-              distanceToNext: v3.distanceToNext + slength,
-              distanceFromOldest: v3.distanceFromOldest,
-              speed: v3.speed,
-              trainid: v3.trainid,
-              flipped: v3.flipped,
+              ...$1,
+              route: [{ nodeid: $3._1.nodeid, jointid: $3._1.jointid, railinstance: $4._1, shapes: updatedroute.shapes, length: slength }, ...$1.route],
+              distanceToNext: $1.distanceToNext + slength,
               signalRestriction: max2(0.375)((() => {
-                const $5 = findIndex((v7) => v7.jointid === jointexit)($1._1.railinstance.signals);
-                if ($5.tag === "Just") {
-                  return getRestriction(v3.tags)($1._1.railinstance.signals[$5._1]);
+                const $5 = find((v7) => v7.jointid === jointexit)($2._1.railinstance.signals);
+                if ($5.tag === "Nothing") {
+                  return $1.signalRestriction;
                 }
-                return v3.signalRestriction;
+                if ($5.tag === "Just") {
+                  return getRestriction($1.tags)($5._1);
+                }
+                fail();
               })()),
-              respectSignals: v3.respectSignals,
-              realAcceralation: v3.realAcceralation,
-              notch: v3.notch,
-              note: v3.note,
-              tags: v3.tags,
-              signalRulePhase: any((v7) => v7.jointid === jointexit)($1._1.railinstance.signals) ? 0 : v3.signalRulePhase
+              signalRulePhase: anyImpl((v7) => v7.jointid === jointexit, $2._1.railinstance.signals) ? 0 : $1.signalRulePhase
             }
           };
           continue;
         }
         if ($4.tag === "Nothing") {
-          if (v3.distanceToNext === 0) {
+          if ($1.distanceToNext === 0) {
             movefoward$c = false;
             movefoward$r = { newlayout: v, newtrainset: v1 };
             continue;
@@ -2423,7 +1802,7 @@ var movefoward = (movefoward$a0$copy) => (movefoward$a1$copy) => (movefoward$a2$
         fail();
       }
       if ($3.tag === "Nothing") {
-        if (v3.distanceToNext === 0) {
+        if ($1.distanceToNext === 0) {
           movefoward$c = false;
           movefoward$r = { newlayout: v, newtrainset: v1 };
           continue;
@@ -2435,8 +1814,8 @@ var movefoward = (movefoward$a0$copy) => (movefoward$a1$copy) => (movefoward$a2$
       }
       fail();
     }
-    if ($1.tag === "Nothing") {
-      if (v3.distanceToNext === 0) {
+    if ($2.tag === "Nothing") {
+      if ($1.distanceToNext === 0) {
         movefoward$c = false;
         movefoward$r = { newlayout: v, newtrainset: v1 };
         continue;
@@ -2456,24 +1835,19 @@ var trainsetDrawInfo = (v) => {
     let getpos$p$a0 = getpos$p$a0$copy, getpos$p$a1 = getpos$p$a1$copy, getpos$p$a2 = getpos$p$a2$copy, getpos$p$c = true, getpos$p$r;
     while (getpos$p$c) {
       const w = getpos$p$a0, d$p = getpos$p$a1, i = getpos$p$a2;
-      const v1 = index(shapes)(i);
-      if (v1.tag === "Just") {
-        if (v1._1.length < d$p) {
+      if (i >= 0 && i < shapes.length) {
+        if (shapes[i].length < d$p) {
           getpos$p$a0 = w;
-          getpos$p$a1 = d$p - v1._1.length;
+          getpos$p$a1 = d$p - shapes[i].length;
           getpos$p$a2 = i + 1 | 0;
           continue;
         }
         getpos$p$c = false;
-        getpos$p$r = getDividingPoint_rel(v1._1.start)(v1._1.end)(w)(1 - d$p / v1._1.length);
+        getpos$p$r = getDividingPoint_rel(shapes[i].start)(shapes[i].end)(w)(1 - d$p / shapes[i].length);
         continue;
       }
-      if (v1.tag === "Nothing") {
-        getpos$p$c = false;
-        getpos$p$r = poszero;
-        continue;
-      }
-      fail();
+      getpos$p$c = false;
+      getpos$p$r = poszero;
     }
     return getpos$p$r;
   };
@@ -2482,7 +1856,7 @@ var trainsetDrawInfo = (v) => {
     note: v.note,
     flipped: v.flipped,
     trainid: v.trainid,
-    cars: zipWith((i) => (ct) => {
+    cars: mapWithIndexArray((i) => (ct) => {
       const d = toNumber(i) * 0.5140186915887851 + v.distanceToNext;
       const dh = d + 0.09345794392523366;
       const dt = d + 0.4672897196261683 - 0.09345794392523366;
@@ -2491,7 +1865,7 @@ var trainsetDrawInfo = (v) => {
         head: { r: getpos$p(-0.07943925233644861)(dh)(0), l: getpos$p(0.07943925233644861)(dh)(0), m: getpos$p(0)(dh)(0) },
         tail: { r: getpos$p(-0.07943925233644861)(dt)(0), l: getpos$p(0.07943925233644861)(dt)(0), m: getpos$p(0)(dt)(0) }
       };
-    })(range(0)(v.types.length - 1 | 0))(v.types)
+    })(v.types)
   };
 };
 var layoutDrawInfo = (v) => ({
@@ -2526,7 +1900,8 @@ var layoutDrawInfo = (v) => ({
     })(),
     signal: v2
   }))(v1.invalidRoutes))(v.rails),
-  trains: arrayMap(trainsetDrawInfo)(v.trains)
+  trains: arrayMap(trainsetDrawInfo)(v.trains),
+  floor: v.floor
 });
 var trainsetLength = (v) => toNumber(v.types.length) * 0.5140186915887851 - 0.04672897196261683;
 var brakePattern = (speed) => (finalspeed) => {
@@ -2556,7 +1931,6 @@ var getMaxNotch_ = (nextsignal) => (v) => {
     if (v.signalRestriction < v.speed + 0.125) {
       return 0;
     }
-    return 5;
   }
   return 5;
 };
@@ -2571,38 +1945,38 @@ var updateSignalIndication = (changeManualStop) => (v) => {
     signals: arrayMap((v2) => ({
       signal: v2,
       routes: arrayMap((v3) => {
-        const routecond = all((v4) => {
-          const v5 = index(v.rails)(v4.nodeid);
-          if (v5.tag === "Just") {
-            return v5._1.rail.getNewState(v4.jointenter)(v5._1.state).newjoint === v4.jointexit && v5._1.rail.isLegal(v4.jointenter)(v5._1.state);
-          }
-          if (v5.tag === "Nothing") {
-            return false;
-          }
-          fail();
-        })(v3.rails);
+        const routecond = allImpl(
+          (v4) => {
+            const v5 = getRailNode(v)(v4.nodeid);
+            if (v5.tag === "Just") {
+              return v5._1.rail.getNewState(v4.jointenter)(v5._1.state).newjoint === v4.jointexit && v5._1.rail.isLegal(v4.jointenter)(v5._1.state);
+            }
+            if (v5.tag === "Nothing") {
+              return false;
+            }
+            fail();
+          },
+          v3.rails
+        );
         return {
           route: v3,
           routecond,
           manualStop: v2.manualStop,
           restraint: v2.restraint,
-          cond: (() => {
-            if (routecond && all((v4) => {
+          cond: routecond && allImpl(
+            (v4) => {
               if ((() => {
-                const $0 = index(v.isclear)(v4.nodeid);
+                const $0 = isRailClear(v)(v4.nodeid);
                 if ($0.tag === "Nothing") {
                   return false;
                 }
-                if ($0.tag === "Just") {
-                  return $0._1;
-                }
-                return false;
+                return $0.tag === "Just" && $0._1;
               })()) {
                 return true;
               }
-              const v5 = index(v.traffic)(v4.nodeid);
+              const v5 = getRailTraffic(v)(v4.nodeid);
               if (v5.tag === "Just") {
-                const $0 = index(v.rails)(v4.nodeid);
+                const $0 = getRailNode(v)(v4.nodeid);
                 if ($0.tag === "Nothing") {
                   return false;
                 }
@@ -2617,115 +1991,83 @@ var updateSignalIndication = (changeManualStop) => (v) => {
                 return false;
               }
               fail();
-            })(v3.rails)) {
-              const v4 = index(v3.rails)(v3.rails.length - 1 | 0);
-              if (v4.tag === "Just") {
-                const go = (go$a0$copy) => (go$a1$copy) => (go$a2$copy) => {
-                  let go$a0 = go$a0$copy, go$a1 = go$a1$copy, go$a2 = go$a2$copy, go$c = true, go$r;
-                  while (go$c) {
-                    const nid = go$a0, jid = go$a1, cnt = go$a2;
-                    if (cnt > 120) {
-                      go$c = false;
-                      go$r = true;
-                      continue;
-                    }
-                    const v5 = index(v.rails)(nid);
-                    if (v5.tag === "Nothing") {
-                      go$c = false;
-                      go$r = false;
-                      continue;
-                    }
-                    if (v5.tag === "Just") {
-                      if (v5._1.rail.isSimple) {
-                        const jidexit = v5._1.rail.getNewState(jid)(v5._1.state).newjoint;
-                        if ((() => {
-                          const $02 = index(v.isclear)(nid);
-                          if ($02.tag === "Nothing") {
-                            return false;
-                          }
-                          if ($02.tag === "Just") {
-                            return $02._1;
-                          }
-                          return false;
-                        })()) {
-                          const $02 = findIndex((c) => c.from === jidexit)(v5._1.connections);
-                          if ($02.tag === "Just") {
-                            go$a0 = v5._1.connections[$02._1].nodeid;
-                            go$a1 = v5._1.connections[$02._1].jointid;
-                            go$a2 = cnt + 1 | 0;
-                            continue;
-                          }
-                          go$c = false;
-                          go$r = true;
-                          continue;
-                        }
-                        const $0 = index(v.traffic)(nid);
-                        const $1 = (() => {
-                          if ($0.tag === "Just") {
-                            return index($0._1)(jidexit);
-                          }
-                          if ($0.tag === "Nothing") {
-                            return Nothing;
-                          }
-                          fail();
-                        })();
-                        if ($1.tag === "Just") {
-                          if ($1._1.length === 0) {
-                            const $2 = findIndex((c) => c.from === jidexit)(v5._1.connections);
-                            if ($2.tag === "Just") {
-                              go$a0 = v5._1.connections[$2._1].nodeid;
-                              go$a1 = v5._1.connections[$2._1].jointid;
-                              go$a2 = cnt + 1 | 0;
-                              continue;
-                            }
-                            go$c = false;
-                            go$r = true;
-                            continue;
-                          }
-                          go$c = false;
-                          go$r = false;
-                          continue;
-                        }
-                        go$c = false;
-                        go$r = false;
-                        continue;
+            },
+            v3.rails
+          ) && (() => {
+            const v4 = last(v3.rails);
+            if (v4.tag === "Just") {
+              const go = (nid) => (jid) => (cnt) => {
+                if (cnt > 120) {
+                  return true;
+                }
+                const v5 = getRailNode(v)(nid);
+                if (v5.tag === "Nothing") {
+                  return false;
+                }
+                if (v5.tag === "Just") {
+                  if (v5._1.rail.isSimple) {
+                    const jidexit = v5._1.rail.getNewState(jid)(v5._1.state).newjoint;
+                    if ((() => {
+                      const $02 = isRailClear(v)(nid);
+                      if ($02.tag === "Nothing") {
+                        return false;
                       }
-                      go$c = false;
-                      go$r = true;
-                      continue;
+                      return $02.tag === "Just" && $02._1;
+                    })()) {
+                      const v6 = find((c) => c.from === jidexit)(v5._1.connections);
+                      if (v6.tag === "Nothing") {
+                        return true;
+                      }
+                      if (v6.tag === "Just") {
+                        return go(v6._1.nodeid)(v6._1.jointid)(cnt + 1 | 0);
+                      }
+                      fail();
+                    }
+                    const $0 = getRailTraffic(v)(nid);
+                    if ($0.tag === "Just") {
+                      return jidexit >= 0 && jidexit < $0._1.length && $0._1[jidexit].length === 0 && (() => {
+                        const v7 = find((c) => c.from === jidexit)(v5._1.connections);
+                        if (v7.tag === "Nothing") {
+                          return true;
+                        }
+                        if (v7.tag === "Just") {
+                          return go(v7._1.nodeid)(v7._1.jointid)(cnt + 1 | 0);
+                        }
+                        fail();
+                      })();
+                    }
+                    if ($0.tag === "Nothing") {
+                      return false;
                     }
                     fail();
                   }
-                  return go$r;
-                };
-                return go(v4._1.nodeid)(v4._1.jointenter)(0);
-              }
-              if (v4.tag === "Nothing") {
-                return false;
-              }
-              fail();
+                  return true;
+                }
+                fail();
+              };
+              return go(v4._1.nodeid)(v4._1.jointenter)(0);
             }
-            return false;
+            if (v4.tag === "Nothing") {
+              return false;
+            }
+            fail();
           })()
         };
       })(v2.routes)
     }))(v1.signals)
   }))(v.rails);
-  const filtered = arrayMap((rbd) => arrayMap((bd) => ({ routes: filter((d) => d.cond)(bd.routes), signal: bd.signal }))(rbd.signals))(blockingData);
+  const filtered = arrayMap((rbd) => arrayMap((bd) => ({ ...bd, routes: filterImpl((d) => d.cond, bd.routes) }))(rbd.signals))(blockingData);
   return {
-    version: v.version,
+    ...v,
     rails: arrayMap((rbd) => ({
-      nodeid: rbd.rail.nodeid,
-      instanceid: rbd.rail.instanceid,
-      rail: rbd.rail.rail,
-      state: rbd.rail.state,
+      ...rbd.rail,
       signals: arrayMap((bd) => ({
-        signalname: bd.signal.signalname,
-        nodeid: bd.signal.nodeid,
-        jointid: bd.signal.jointid,
-        routes: bd.signal.routes,
+        ...bd.signal,
         routecond: arrayMap((v3) => v3.routecond)(bd.routes),
-        colors: bd.signal.colors,
+        manualStop: bd.signal.manualStop || changeManualStop && !(bd.routes.length < 2 && allImpl((bdr) => bdr.route.isSimple, bd.routes) && allImpl((x) => x.tag !== "RuleComplex", bd.signal.rules)) && (anyImpl(identity5, zipWithImpl((route) => (routecond) => routecond !== route.routecond, bd.routes, bd.signal.routecond)) || anyImpl(
+          identity5,
+          zipWithImpl((route) => (indication) => indication > 0 && !route.cond, bd.routes, bd.signal.indication)
+        )),
         indication: arrayMap((d) => {
           if (d.cond) {
             const go = (go$a0$copy) => (go$a1$copy) => {
@@ -2737,7 +2079,7 @@ var updateSignalIndication = (changeManualStop) => (v) => {
                   go$r = $Maybe("Just", 4);
                   continue;
                 }
-                const $02 = index(filtered)(v3.nodeid);
+                const $02 = v3.nodeid >= 0 && v3.nodeid < filtered.length ? $Maybe("Just", filtered[v3.nodeid]) : Nothing;
                 const $1 = find((bd1) => bd1.signal.jointid === v3.jointid);
                 const v4 = (() => {
                   if ($02.tag === "Just") {
@@ -2749,15 +2091,14 @@ var updateSignalIndication = (changeManualStop) => (v) => {
                   fail();
                 })();
                 if (v4.tag === "Just") {
-                  const v5 = index(v4._1.routes)(0);
-                  if (v5.tag === "Just") {
-                    if (v5._1.cond && (!v5._1.manualStop && !v5._1.restraint || len === 0)) {
-                      go$a0 = len + v5._1.route.length;
-                      go$a1 = v5._1.route.nextsignal;
-                      continue;
-                    }
-                    go$c = false;
-                    go$r = maximum(filter((color) => len >= brakePattern((() => {
+                  if (0 < v4._1.routes.length && v4._1.routes[0].cond && (!v4._1.routes[0].manualStop && !v4._1.routes[0].restraint || len === 0)) {
+                    go$a0 = len + v4._1.routes[0].route.length;
+                    go$a1 = v4._1.routes[0].route.nextsignal;
+                    continue;
+                  }
+                  go$c = false;
+                  go$r = maximum(filterImpl(
+                    (color) => len >= brakePattern((() => {
                       if (color === 0) {
                         return 0;
                       }
@@ -2770,57 +2111,32 @@ var updateSignalIndication = (changeManualStop) => (v) => {
                       if (color === 3) {
                         return 1.625;
                       }
-                      if (color === 4) {
-                        return 2.5;
-                      }
                       return 2.5;
-                    })())(0))([0, 1, 2, 3]));
-                    continue;
-                  }
-                  if (v5.tag === "Nothing") {
-                    go$c = false;
-                    go$r = maximum(filter((color) => len >= brakePattern((() => {
-                      if (color === 0) {
-                        return 0;
-                      }
-                      if (color === 1) {
-                        return 0.625;
-                      }
-                      if (color === 2) {
-                        return 1.125;
-                      }
-                      if (color === 3) {
-                        return 1.625;
-                      }
-                      if (color === 4) {
-                        return 2.5;
-                      }
-                      return 2.5;
-                    })())(0))([0, 1, 2, 3]));
-                    continue;
-                  }
-                  fail();
+                    })())(0),
+                    [0, 1, 2, 3]
+                  ));
+                  continue;
                 }
                 if (v4.tag === "Nothing") {
                   go$c = false;
-                  go$r = maximum(filter((color) => len >= brakePattern((() => {
-                    if (color === 0) {
-                      return 0;
-                    }
-                    if (color === 1) {
-                      return 0.625;
-                    }
-                    if (color === 2) {
-                      return 1.125;
-                    }
-                    if (color === 3) {
-                      return 1.625;
-                    }
-                    if (color === 4) {
+                  go$r = maximum(filterImpl(
+                    (color) => len >= brakePattern((() => {
+                      if (color === 0) {
+                        return 0;
+                      }
+                      if (color === 1) {
+                        return 0.625;
+                      }
+                      if (color === 2) {
+                        return 1.125;
+                      }
+                      if (color === 3) {
+                        return 1.625;
+                      }
                       return 2.5;
-                    }
-                    return 2.5;
-                  })())(0))([0, 1, 2, 3]));
+                    })())(0),
+                    [0, 1, 2, 3]
+                  ));
                   continue;
                 }
                 fail();
@@ -2837,124 +2153,101 @@ var updateSignalIndication = (changeManualStop) => (v) => {
             fail();
           }
           return 0;
-        })(bd.routes),
-        manualStop: bd.signal.manualStop || changeManualStop && !(bd.routes.length < 2 && all((bdr) => bdr.route.isSimple)(bd.routes) && all((x) => !(x.tag === "RuleComplex"))(bd.signal.rules)) && (any(identity5)(zipWith((route) => (routecond) => routecond !== route.routecond)(bd.routes)(bd.signal.routecond)) || any(identity5)(zipWith((route) => (indication) => indication > 0 && !route.cond)(bd.routes)(bd.signal.indication))),
-        restraint: bd.signal.restraint,
-        rules: bd.signal.rules
-      }))(rbd.signals),
-      invalidRoutes: rbd.rail.invalidRoutes,
-      connections: rbd.rail.connections,
-      reserves: rbd.rail.reserves,
-      pos: rbd.rail.pos,
-      note: rbd.rail.note,
-      drawinfos: rbd.rail.drawinfos
-    }))(blockingData),
-    trains: v.trains,
-    signalcolors: v.signalcolors,
-    traffic: v.traffic,
-    isclear: v.isclear,
-    instancecount: v.instancecount,
-    traincount: v.traincount,
-    updatecount: v.updatecount,
-    jointData: v.jointData,
-    routequeue: v.routequeue,
-    time: v.time,
-    speed: v.speed,
-    activeReserves: v.activeReserves
+        })(bd.routes)
+      }))(rbd.signals)
+    }))(blockingData)
   };
 };
 var layoutUpdate = (x) => updateSignalIndication(true)(updateReserves(updateTraffic(x)));
 var tryOpenRouteFor = (v) => (nodeid) => (jointid) => (routeid) => (reserver) => {
-  const $0 = index(v.rails)(nodeid);
+  const $0 = getRailNode(v)(nodeid);
   if ($0.tag === "Just") {
-    const $1 = findIndex((v2) => v2.jointid === jointid)($0._1.signals);
-    const $2 = $1.tag === "Just" ? $Maybe("Just", $0._1.signals[$1._1]) : Nothing;
-    if ($2.tag === "Just") {
-      const $3 = index($2._1.routes)(routeid);
-      if ($3.tag === "Just") {
+    const $1 = find((v2) => v2.jointid === jointid)($0._1.signals);
+    if ($1.tag === "Just") {
+      const $2 = routeid >= 0 && routeid < $1._1.routes.length ? $Maybe("Just", $1._1.routes[routeid]) : Nothing;
+      if ($2.tag === "Just") {
         const reserveid = v.updatecount + 1 | 0;
         const programmedroute = reserver !== -1;
         const go = (go$a0$copy) => (go$a1$copy) => {
           let go$a0 = go$a0$copy, go$a1 = go$a1$copy, go$c = true, go$r;
           while (go$c) {
             const v4 = go$a0, rs = go$a1;
-            const $42 = index(v.rails)(v4.nodeid);
-            if ($42.tag === "Just") {
-              const $5 = findIndex((v7) => v7.jointid === v4.jointid)($42._1.signals);
-              if ($5.tag === "Just") {
-                const v6 = uncons($42._1.signals[$5._1].routes);
-                if (v6.tag === "Nothing") {
-                  go$c = false;
-                  go$r = rs;
-                  continue;
-                }
-                if (v6.tag === "Just") {
-                  if (v6._1.tail.length > 0 || !v6._1.head.isSimple) {
-                    go$c = false;
-                    go$r = rs;
-                    continue;
-                  }
-                  go$a0 = v6._1.head.nextsignal;
-                  go$a1 = concatArray(rs)(v6._1.head.rails);
-                  continue;
-                }
-                fail();
+            const $32 = getRailNode(v)(v4.nodeid);
+            const v5 = (() => {
+              if ($32.tag === "Just") {
+                return find((v7) => v7.jointid === v4.jointid)($32._1.signals);
               }
+              if ($32.tag === "Nothing") {
+                return Nothing;
+              }
+              fail();
+            })();
+            if (v5.tag === "Nothing") {
               go$c = false;
               go$r = rs;
               continue;
             }
-            if ($42.tag === "Nothing") {
-              go$c = false;
-              go$r = rs;
-              continue;
+            if (v5.tag === "Just") {
+              const v6 = unconsImpl((v$1) => Nothing, (x) => (xs) => $Maybe("Just", { head: x, tail: xs }), v5._1.routes);
+              if (v6.tag === "Nothing") {
+                go$c = false;
+                go$r = rs;
+                continue;
+              }
+              if (v6.tag === "Just") {
+                if (v6._1.tail.length > 0 || !v6._1.head.isSimple) {
+                  go$c = false;
+                  go$r = rs;
+                  continue;
+                }
+                go$a0 = v6._1.head.nextsignal;
+                go$a1 = [...rs, ...v6._1.head.rails];
+                continue;
+              }
             }
             fail();
           }
           return go$r;
         };
-        const $4 = foldM((v4) => {
-          const $42 = v4.newrails;
-          const $5 = v4.traffic;
+        const $3 = foldM((v4) => {
+          const $32 = v4.newrails;
+          const $4 = v4.traffic;
           return (v5) => {
-            const $6 = index(v.rails)(v5.nodeid);
-            if ($6.tag === "Just") {
-              const traffic$p = $5 || hasTraffic(v)($6._1);
-              const $7 = $6._1.rail.getRoute($6._1.state)(v5.jointenter)(v5.jointexit);
-              if ($7.tag === "Just") {
-                const $8 = updateAt(v5.nodeid)({
-                  nodeid: $6._1.nodeid,
-                  instanceid: $6._1.instanceid,
-                  rail: $6._1.rail,
-                  state: $7._1,
-                  signals: $6._1.signals,
-                  invalidRoutes: $6._1.invalidRoutes,
-                  connections: $6._1.connections,
-                  reserves: concatArray($6._1.reserves)([{ jointid: v5.jointenter, reserveid }]),
-                  pos: $6._1.pos,
-                  note: $6._1.note,
-                  drawinfos: $6._1.drawinfos
-                })($42);
-                if ($8.tag === "Just") {
-                  if ($7._1 !== $6._1.state && traffic$p || programmedroute && ($2._1.restraint || any((v7) => {
-                    const $9 = v7.reserveid;
-                    return v5.jointenter !== v7.jointid && ($6._1.rail.isBlocked(v5.jointenter)($6._1.state)(v7.jointid) || $6._1.rail.isBlocked(v5.jointenter)($7._1)(v7.jointid)) && any((a) => a.reserveid === $9)(v.activeReserves);
-                  })($6._1.reserves))) {
+            const $5 = getRailNode(v)(v5.nodeid);
+            if ($5.tag === "Just") {
+              const traffic$p = $4 || hasTraffic(v)($5._1);
+              const $6 = $5._1.rail.getRoute($5._1.state)(v5.jointenter)(v5.jointexit);
+              if ($6.tag === "Just") {
+                const $7 = _updateAt(
+                  Just,
+                  Nothing,
+                  v5.nodeid,
+                  { ...$5._1, state: $6._1, reserves: [...$5._1.reserves, { jointid: v5.jointenter, reserveid }] },
+                  $32
+                );
+                if ($7.tag === "Just") {
+                  if ($6._1 !== $5._1.state && traffic$p || programmedroute && ($1._1.restraint || anyImpl(
+                    (v7) => {
+                      const $8 = v7.reserveid;
+                      return v5.jointenter !== v7.jointid && ($5._1.rail.isBlocked(v5.jointenter)($5._1.state)(v7.jointid) || $5._1.rail.isBlocked(v5.jointenter)($6._1)(v7.jointid)) && anyImpl((a) => a.reserveid === $8, v.activeReserves);
+                    },
+                    $5._1.reserves
+                  ))) {
                     return Nothing;
                   }
-                  return $Maybe("Just", { traffic: traffic$p, newrails: $8._1 });
+                  return $Maybe("Just", { traffic: traffic$p, newrails: $7._1 });
                 }
-                if ($8.tag === "Nothing") {
+                if ($7.tag === "Nothing") {
                   return Nothing;
                 }
                 fail();
               }
-              if ($7.tag === "Nothing") {
+              if ($6.tag === "Nothing") {
                 return Nothing;
               }
               fail();
             }
-            if ($6.tag === "Nothing") {
+            if ($5.tag === "Nothing") {
               return Nothing;
             }
             fail();
@@ -2964,73 +2257,41 @@ var tryOpenRouteFor = (v) => (nodeid) => (jointid) => (routeid) => (reserver) =>
           newrails: programmedroute ? v.rails : arrayMap((v4) => {
             if (v4.nodeid === nodeid) {
               return {
-                nodeid: v4.nodeid,
-                instanceid: v4.instanceid,
-                rail: v4.rail,
-                state: v4.state,
+                ...v4,
                 signals: arrayMap((v6) => {
                   if (v6.jointid === jointid) {
-                    return {
-                      signalname: v6.signalname,
-                      nodeid: v6.nodeid,
-                      jointid: v6.jointid,
-                      routes: v6.routes,
-                      routecond: v6.routecond,
-                      colors: v6.colors,
-                      indication: v6.indication,
-                      manualStop: true,
-                      restraint: v6.restraint,
-                      rules: v6.rules
-                    };
+                    return { ...v6, manualStop: true };
                   }
                   return v6;
-                })(v4.signals),
-                invalidRoutes: v4.invalidRoutes,
-                connections: v4.connections,
-                reserves: v4.reserves,
-                pos: v4.pos,
-                note: v4.note,
-                drawinfos: v4.drawinfos
+                })(v4.signals)
               };
             }
             return v4;
           })(v.rails)
-        })(go($3._1.nextsignal)($3._1.rails));
-        if ($4.tag === "Just") {
+        })(go($2._1.nextsignal)($2._1.rails));
+        if ($3.tag === "Just") {
           return $Maybe(
             "Just",
             {
-              layout: newreserve(reserver)(reserveid)(updateSignalIndication(true)(updateReserves(updateTraffic({
-                version: v.version,
-                rails: $4._1.newrails,
-                trains: v.trains,
-                signalcolors: v.signalcolors,
-                traffic: v.traffic,
-                isclear: v.isclear,
-                instancecount: v.instancecount,
-                traincount: v.traincount,
-                updatecount: v.updatecount + 1 | 0,
-                jointData: v.jointData,
-                routequeue: v.routequeue,
-                time: v.time,
-                speed: v.speed,
-                activeReserves: v.activeReserves
-              })))),
+              layout: (() => {
+                const $4 = updateSignalIndication(true)(updateReserves(updateTraffic({ ...v, rails: $3._1.newrails, updatecount: v.updatecount + 1 | 0 })));
+                return { ...$4, activeReserves: [{ reserveid, reserver }, ...$4.activeReserves] };
+              })(),
               reserveid
             }
           );
         }
-        if ($4.tag === "Nothing") {
+        if ($3.tag === "Nothing") {
           return Nothing;
         }
         fail();
       }
-      if ($3.tag === "Nothing") {
+      if ($2.tag === "Nothing") {
         return Nothing;
       }
       fail();
     }
-    if ($2.tag === "Nothing") {
+    if ($1.tag === "Nothing") {
       return Nothing;
     }
     fail();
@@ -3071,29 +2332,32 @@ var addTrainset = (v) => (nodeid) => (jointid) => (types) => {
     let go$a0 = go$a0$copy, go$a1 = go$a1$copy, go$a2 = go$a2$copy, go$a3 = go$a3$copy, go$c = true, go$r;
     while (go$c) {
       const rs = go$a0, nid = go$a1, jid = go$a2, len = go$a3;
-      const $02 = index(v.rails)(nid);
-      if ($02.tag === "Just") {
-        const info = getRouteInfo($02._1)(jid);
+      const $0 = getRailNode(v)(nid);
+      if ($0.tag === "Just") {
+        const info = getRouteInfo($0._1)(jid);
         const lenhere = sum(arrayMap(shapeLength)(info.shapes));
         if (lenhere < len) {
-          const $1 = findIndex((c) => c.from === info.newjoint)($02._1.connections);
+          const $1 = find((c) => c.from === info.newjoint)($0._1.connections);
           if ($1.tag === "Just") {
-            go$a0 = concatArray([{ nodeid: nid, jointid: jid, railinstance: $02._1, shapes: info.shapes, length: lenhere }])(rs);
-            go$a1 = $02._1.connections[$1._1].nodeid;
-            go$a2 = $02._1.connections[$1._1].jointid;
+            go$a0 = [{ nodeid: nid, jointid: jid, railinstance: $0._1, shapes: info.shapes, length: lenhere }, ...rs];
+            go$a1 = $1._1.nodeid;
+            go$a2 = $1._1.jointid;
             go$a3 = len - lenhere;
             continue;
           }
-          go$c = false;
-          go$r = Nothing;
-          continue;
+          if ($1.tag === "Nothing") {
+            go$c = false;
+            go$r = Nothing;
+            continue;
+          }
+          fail();
         }
         go$c = false;
         go$r = $Maybe(
           "Just",
           {
             types,
-            route: concatArray([{ nodeid: nid, jointid: jid, railinstance: $02._1, shapes: info.shapes, length: lenhere }])(rs),
+            route: [{ nodeid: nid, jointid: jid, railinstance: $0._1, shapes: info.shapes, length: lenhere }, ...rs],
             distanceToNext: lenhere - len,
             distanceFromOldest: 0,
             speed: 0,
@@ -3110,7 +2374,7 @@ var addTrainset = (v) => (nodeid) => (jointid) => (types) => {
         );
         continue;
       }
-      if ($02.tag === "Nothing") {
+      if ($0.tag === "Nothing") {
         go$c = false;
         go$r = Nothing;
         continue;
@@ -3119,40 +2383,24 @@ var addTrainset = (v) => (nodeid) => (jointid) => (types) => {
     }
     return go$r;
   };
-  const $0 = index(v.rails)(nodeid);
-  if ($0.tag === "Just") {
-    const $1 = findIndex((c) => c.from === jointid)($0._1.connections);
-    if ($1.tag === "Just") {
-      const $2 = go([])($0._1.connections[$1._1].nodeid)($0._1.connections[$1._1].jointid)(toNumber(types.length) * 0.5140186915887851 - 0.04672897196261683);
-      if ($2.tag === "Just") {
-        return {
-          version: v.version,
-          rails: v.rails,
-          trains: concatArray(v.trains)([$2._1]),
-          signalcolors: v.signalcolors,
-          traffic: v.traffic,
-          isclear: v.isclear,
-          instancecount: v.instancecount,
-          traincount: v.traincount + 1 | 0,
-          updatecount: v.updatecount,
-          jointData: v.jointData,
-          routequeue: v.routequeue,
-          time: v.time,
-          speed: v.speed,
-          activeReserves: v.activeReserves
-        };
+  if (nodeid >= 0 && nodeid < v.rails.length) {
+    const $0 = find((c) => c.from === jointid)(v.rails[nodeid].connections);
+    if ($0.tag === "Just") {
+      const $1 = go([])($0._1.nodeid)($0._1.jointid)(toNumber(types.length) * 0.5140186915887851 - 0.04672897196261683);
+      if ($1.tag === "Just") {
+        return { ...v, traincount: v.traincount + 1 | 0, trains: [...v.trains, $1._1] };
       }
-      if ($2.tag === "Nothing") {
+      if ($1.tag === "Nothing") {
         return v;
       }
       fail();
     }
-    return v;
+    if ($0.tag === "Nothing") {
+      return v;
+    }
+    fail();
   }
-  if ($0.tag === "Nothing") {
-    return v;
-  }
-  fail();
+  return v;
 };
 var addSignal = (v) => (nodeid) => (jointid) => {
   const signal = {
@@ -3167,41 +2415,14 @@ var addSignal = (v) => (nodeid) => (jointid) => {
     manualStop: false,
     restraint: false
   };
-  const $0 = index(v.rails)(nodeid);
+  const $0 = getRailNode(v)(nodeid);
   if ($0.tag === "Just") {
-    if (any((v2) => v2.jointid === jointid)($0._1.signals) || any((v2) => v2.jointid === jointid)($0._1.invalidRoutes)) {
+    if (anyImpl((v2) => v2.jointid === jointid, $0._1.signals) || anyImpl((v2) => v2.jointid === jointid, $0._1.invalidRoutes)) {
       return v;
     }
-    const $1 = modifyAt(nodeid)((v2) => ({
-      nodeid: v2.nodeid,
-      instanceid: v2.instanceid,
-      rail: v2.rail,
-      state: v2.state,
-      signals: concatArray(v2.signals)([signal]),
-      invalidRoutes: v2.invalidRoutes,
-      connections: v2.connections,
-      reserves: v2.reserves,
-      pos: v2.pos,
-      note: v2.note,
-      drawinfos: v2.drawinfos
-    }))(v.rails);
+    const $1 = modifyAt(nodeid)((v2) => ({ ...v2, signals: [...v2.signals, signal] }))(v.rails);
     if ($1.tag === "Just") {
-      return updateSignalRoutes({
-        version: v.version,
-        rails: $1._1,
-        trains: v.trains,
-        signalcolors: v.signalcolors,
-        traffic: v.traffic,
-        isclear: v.isclear,
-        instancecount: v.instancecount,
-        traincount: v.traincount,
-        updatecount: v.updatecount + 1 | 0,
-        jointData: v.jointData,
-        routequeue: v.routequeue,
-        time: v.time,
-        speed: v.speed,
-        activeReserves: v.activeReserves
-      });
+      return updateSignalRoutes({ ...v, updatecount: v.updatecount + 1 | 0, rails: $1._1 });
     }
     if ($1.tag === "Nothing") {
       return v;
@@ -3213,43 +2434,23 @@ var addSignal = (v) => (nodeid) => (jointid) => {
   }
   fail();
 };
-var addRouteQueue = (l) => (n) => (j) => (r) => (t) => ({
-  version: l.version,
-  rails: l.rails,
-  trains: l.trains,
-  signalcolors: l.signalcolors,
-  traffic: l.traffic,
-  isclear: l.isclear,
-  instancecount: l.instancecount,
-  traincount: l.traincount,
-  updatecount: l.updatecount,
-  jointData: l.jointData,
-  routequeue: concatArray(l.routequeue)([{ jointid: j, nodeid: n, routeid: r, time: l.time, retryafter: l.time, trainid: t }]),
-  time: l.time,
-  speed: l.speed,
-  activeReserves: l.activeReserves
-});
+var addRouteQueue = (l) => (n) => (j) => (r) => (t) => ({ ...l, routequeue: [...l.routequeue, { jointid: j, nodeid: n, routeid: r, time: l.time, retryafter: l.time, trainid: t }] });
 var addJoint = (v) => (pos) => (nodeid) => (jointid) => ({
-  version: v.version,
-  rails: v.rails,
-  trains: v.trains,
-  signalcolors: v.signalcolors,
-  traffic: v.traffic,
-  isclear: v.isclear,
-  instancecount: v.instancecount,
-  traincount: v.traincount,
-  updatecount: v.updatecount,
+  ...v,
   jointData: saModifyAt(unsafeClamp(round(pos.coord.z)))(saEmpty)((() => {
     const $0 = saModifyAt(unsafeClamp(round(pos.coord.x)))(saEmpty)((() => {
-      const $02 = saModifyAt(unsafeClamp(round(pos.coord.y)))([])((ma) => concatArray((() => {
-        if (ma.tag === "Nothing") {
-          return [];
-        }
-        if (ma.tag === "Just") {
-          return ma._1;
-        }
-        fail();
-      })())([{ pos, nodeid, jointid }]));
+      const $02 = saModifyAt(unsafeClamp(round(pos.coord.y)))([])((ma) => [
+        ...(() => {
+          if (ma.tag === "Nothing") {
+            return [];
+          }
+          if (ma.tag === "Just") {
+            return ma._1;
+          }
+          fail();
+        })(),
+        { pos, nodeid, jointid }
+      ]);
       return (x) => $02((() => {
         if (x.tag === "Nothing") {
           return saEmpty;
@@ -3269,11 +2470,7 @@ var addJoint = (v) => (pos) => (nodeid) => (jointid) => ({
       }
       fail();
     })());
-  })())(v.jointData),
-  routequeue: v.routequeue,
-  time: v.time,
-  speed: v.speed,
-  activeReserves: v.activeReserves
+  })())(v.jointData)
 });
 var addRailWithPos = (v) => (v1) => (pos) => {
   const joints = arrayMap((j) => ({ jointid: j, pos: toAbsPos(pos)(v1.rail.getJointPos(j)) }))(v1.rail.getJoints);
@@ -3282,74 +2479,52 @@ var addRailWithPos = (v) => (v1) => (pos) => {
     if (elem(eqIntJoint)(v2.jointid)(cfroms)) {
       return Nothing;
     }
-    const $0 = index(filter((v3) => canJoin(v2.pos)(v3.pos))(getJoints(v)(v2.pos)))(0);
-    if ($0.tag === "Just") {
-      return $Maybe("Just", { jointData: $0._1, jointid: v2.jointid });
+    const $0 = filterImpl((v3) => canJoin(v2.pos)(v3.pos), getJoints(v)(v2.pos));
+    if (0 < $0.length) {
+      return $Maybe("Just", { jointData: $0[0], jointid: v2.jointid });
     }
     return Nothing;
   })(joints));
-  const connections = concatArray(arrayMap((v2) => ({ jointData: { pos: poszero, nodeid: v2.nodeid, jointid: v2.jointid }, jointid: v2.from }))(v1.connections))(newconnections);
+  const connections = [
+    ...arrayMap((v2) => ({ jointData: { pos: poszero, nodeid: v2.nodeid, jointid: v2.jointid }, jointid: v2.from }))(v1.connections),
+    ...newconnections
+  ];
   if (foldlArray(boolConj)(true)(arrayMap((v2) => {
-    const $0 = index(v.rails)(v2.jointData.nodeid);
+    const $0 = getRailNode(v)(v2.jointData.nodeid);
     if ($0.tag === "Just") {
-      return all((c) => c.from !== v2.jointData.jointid)($0._1.connections);
+      return allImpl((c) => c.from !== v2.jointData.jointid, $0._1.connections);
     }
     return true;
   })(connections))) {
     return $Maybe(
       "Just",
       updateSignalRoutes(foldlArray((l$p) => (v2) => addJoint(l$p)(v2.pos)(v1.nodeid)(v2.jointid))({
-        version: v.version,
-        rails: concatArray(foldlArray((rs) => (v2) => {
-          const $0 = v2.jointid;
-          const $1 = v2.jointData.jointid;
-          const $2 = modifyAt(v2.jointData.nodeid)((v3) => ({
-            nodeid: v3.nodeid,
-            instanceid: v3.instanceid,
-            rail: v3.rail,
-            state: v3.state,
-            signals: v3.signals,
-            invalidRoutes: v3.invalidRoutes,
-            connections: concatArray(v3.connections)([{ from: $1, nodeid: v1.nodeid, jointid: $0 }]),
-            reserves: v3.reserves,
-            pos: v3.pos,
-            note: v3.note,
-            drawinfos: v3.drawinfos
-          }))(rs);
-          if ($2.tag === "Nothing") {
-            return rs;
-          }
-          if ($2.tag === "Just") {
-            return $2._1;
-          }
-          fail();
-        })(v.rails)(connections))([
-          recalcInstanceDrawInfo({
-            nodeid: v1.nodeid,
-            instanceid: v.instancecount,
-            rail: v1.rail,
-            state: v1.state,
-            signals: v1.signals,
-            invalidRoutes: v1.invalidRoutes,
-            connections: concatArray(v1.connections)(arrayMap((v3) => ({ from: v3.jointid, nodeid: v3.jointData.nodeid, jointid: v3.jointData.jointid }))(newconnections)),
-            reserves: v1.reserves,
-            pos,
-            note: v1.note,
-            drawinfos: v1.drawinfos
-          })
-        ]),
-        trains: v.trains,
-        signalcolors: v.signalcolors,
-        traffic: v.traffic,
-        isclear: v.isclear,
-        instancecount: v.instancecount + 1 | 0,
-        traincount: v.traincount,
+        ...v,
         updatecount: v.updatecount + 1 | 0,
-        jointData: v.jointData,
-        routequeue: v.routequeue,
-        time: v.time,
-        speed: v.speed,
-        activeReserves: v.activeReserves
+        rails: [
+          ...foldlArray((rs) => (v2) => {
+            const $0 = v2.jointid;
+            const $1 = v2.jointData.jointid;
+            const $2 = modifyAt(v2.jointData.nodeid)((v3) => ({ ...v3, connections: [...v3.connections, { from: $1, nodeid: v1.nodeid, jointid: $0 }] }))(rs);
+            if ($2.tag === "Nothing") {
+              return rs;
+            }
+            if ($2.tag === "Just") {
+              return $2._1;
+            }
+            fail();
+          })(v.rails)(connections),
+          (() => {
+            const $0 = {
+              ...v1,
+              connections: [...v1.connections, ...arrayMap((v3) => ({ from: v3.jointid, nodeid: v3.jointData.nodeid, jointid: v3.jointData.jointid }))(newconnections)],
+              instanceid: v.instancecount,
+              pos
+            };
+            return { ...$0, drawinfos: instanceDrawInfos($0) };
+          })()
+        ],
+        instancecount: v.instancecount + 1 | 0
       })(joints))
     );
   }
@@ -3398,19 +2573,7 @@ var autoAdd = (v) => (selectednode) => (selectedjoint) => (rail) => (from) => {
   fail();
 };
 var fixBrokenConnections = (v) => foldlArray((l) => (v1) => {
-  const $0 = addRailWithPos(l)({
-    nodeid: v1.nodeid,
-    instanceid: v1.instanceid,
-    rail: v1.rail,
-    state: v1.state,
-    signals: v1.signals,
-    invalidRoutes: v1.invalidRoutes,
-    connections: [],
-    reserves: v1.reserves,
-    pos: v1.pos,
-    note: v1.note,
-    drawinfos: v1.drawinfos
-  })(v1.pos);
+  const $0 = addRailWithPos(l)({ ...v1, connections: [] })(v1.pos);
   if ($0.tag === "Nothing") {
     return l;
   }
@@ -3418,58 +2581,16 @@ var fixBrokenConnections = (v) => foldlArray((l) => (v1) => {
     return $0._1;
   }
   fail();
-})({
-  version: v.version,
-  rails: [],
-  trains: v.trains,
-  signalcolors: v.signalcolors,
-  traffic: v.traffic,
-  isclear: v.isclear,
-  instancecount: v.instancecount,
-  traincount: v.traincount,
-  updatecount: v.updatecount,
-  jointData: saEmpty,
-  routequeue: v.routequeue,
-  time: v.time,
-  speed: v.speed,
-  activeReserves: v.activeReserves
-})(v.rails);
+})({ ...v, rails: [], jointData: saEmpty })(v.rails);
 var addInvalidRoute = (v) => (nodeid) => (jointid) => {
-  const $0 = index(v.rails)(nodeid);
+  const $0 = getRailNode(v)(nodeid);
   if ($0.tag === "Just") {
-    if (any((v2) => v2.jointid === jointid)($0._1.signals) || any((v2) => v2.jointid === jointid)($0._1.invalidRoutes)) {
+    if (anyImpl((v2) => v2.jointid === jointid, $0._1.signals) || anyImpl((v2) => v2.jointid === jointid, $0._1.invalidRoutes)) {
       return v;
     }
-    const $1 = modifyAt(nodeid)((v2) => ({
-      nodeid: v2.nodeid,
-      instanceid: v2.instanceid,
-      rail: v2.rail,
-      state: v2.state,
-      signals: v2.signals,
-      invalidRoutes: concatArray(v2.invalidRoutes)([{ nodeid, jointid }]),
-      connections: v2.connections,
-      reserves: v2.reserves,
-      pos: v2.pos,
-      note: v2.note,
-      drawinfos: v2.drawinfos
-    }))(v.rails);
+    const $1 = modifyAt(nodeid)((v2) => ({ ...v2, invalidRoutes: [...v2.invalidRoutes, { nodeid, jointid }] }))(v.rails);
     if ($1.tag === "Just") {
-      return updateSignalRoutes({
-        version: v.version,
-        rails: $1._1,
-        trains: v.trains,
-        signalcolors: v.signalcolors,
-        traffic: v.traffic,
-        isclear: v.isclear,
-        instancecount: v.instancecount,
-        traincount: v.traincount,
-        updatecount: v.updatecount + 1 | 0,
-        jointData: v.jointData,
-        routequeue: v.routequeue,
-        time: v.time,
-        speed: v.speed,
-        activeReserves: v.activeReserves
-      });
+      return updateSignalRoutes({ ...v, updatecount: v.updatecount + 1 | 0, rails: $1._1 });
     }
     if ($1.tag === "Nothing") {
       return v;
@@ -3481,321 +2602,209 @@ var addInvalidRoute = (v) => (nodeid) => (jointid) => {
   }
   fail();
 };
-var acceralate = (v) => (notch) => (dt) => ({
-  types: v.types,
-  route: v.route,
-  distanceToNext: v.distanceToNext,
-  distanceFromOldest: v.distanceFromOldest,
-  speed: max2(0)(v.speed + dt * calcAcceralation(notch)(v.speed)),
-  trainid: v.trainid,
-  flipped: v.flipped,
-  signalRestriction: v.signalRestriction,
-  respectSignals: v.respectSignals,
-  realAcceralation: v.realAcceralation,
-  notch: v.notch,
-  note: v.note,
-  tags: v.tags,
-  signalRulePhase: v.signalRulePhase
-});
+var acceralate = (v) => (notch) => (dt) => ({ ...v, speed: max2(0)(v.speed + dt * calcAcceralation(notch)(v.speed)) });
 var trainTick = (v) => (v1) => (dt) => {
   const nextsignal = getNextSignal(v)(v1);
-  const v2 = (() => {
-    if (nextsignal.signal.tag === "Nothing") {
-      return { firedlayout: v, firedtrain: v1 };
-    }
-    if (nextsignal.signal.tag === "Just") {
-      if (v1.signalRulePhase === 0) {
-        const $02 = foldlArray((v3) => {
-          const $03 = v3.l;
-          const $12 = v3.t;
-          return (r) => {
-            if (any(test(getTag(r)))(arrayMap(unsafeCoerce)(v1.tags))) {
-              if (r.tag === "RuleComment") {
-                return { l: $03, t: $12 };
-              }
-              if (r.tag === "RuleComplex") {
-                return { l: $03, t: $12 };
-              }
-              if (r.tag === "RuleSpeed") {
-                return { l: $03, t: $12 };
-              }
-              if (r.tag === "RuleOpen") {
-                return { l: addRouteQueue($03)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(r._2)(v1.trainid), t: $12 };
-              }
-              if (r.tag === "RuleUpdate") {
-                const $22 = r._2;
-                const $3 = r._3;
-                return {
-                  l: $03,
-                  t: {
-                    types: $12.types,
-                    route: $12.route,
-                    distanceToNext: $12.distanceToNext,
-                    distanceFromOldest: $12.distanceFromOldest,
-                    speed: $12.speed,
-                    trainid: $12.trainid,
-                    flipped: $12.flipped,
-                    signalRestriction: $12.signalRestriction,
-                    respectSignals: $12.respectSignals,
-                    realAcceralation: $12.realAcceralation,
-                    notch: $12.notch,
-                    note: $12.note,
-                    tags: arrayMap((told) => replace2($22)($3)(told))($12.tags),
-                    signalRulePhase: $12.signalRulePhase
-                  }
-                };
-              }
-              if (r.tag === "RuleStop") {
-                return { l: setManualStop($03)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(true), t: $12 };
-              }
-              if (r.tag === "RuleStopOpen") {
-                return { l: setManualStop($03)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(true), t: $12 };
-              }
-              if (r.tag === "RuleStopUpdate") {
-                return { l: setManualStop($03)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(true), t: $12 };
-              }
-              if (r.tag === "RuleReverse") {
-                return { l: setManualStop($03)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(true), t: $12 };
-              }
-              if (r.tag === "RuleReverseUpdate") {
-                return { l: setManualStop($03)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(true), t: $12 };
-              }
-              fail();
+  if (nextsignal.signal.tag === "Nothing") {
+    const $0 = {
+      ...v1,
+      signalRestriction: max2(v1.signalRestriction)((() => {
+        if (nextsignal.signal.tag === "Nothing") {
+          return 0.625;
+        }
+        if (nextsignal.signal.tag === "Just") {
+          return signalToSpeed(nextsignal.signal._1);
+        }
+        fail();
+      })())
+    };
+    const notch = min1($0.notch)(getMaxNotch_(nextsignal)($0));
+    const $1 = $0.realAcceralation ? acceralate($0)(notch)(dt) : $0;
+    return movefoward(v)({
+      ...$1,
+      route: mapMaybe((x) => x)(arrayMap((v7) => {
+        const $2 = getRailNode(v)(v7.nodeid);
+        if ($2.tag === "Just") {
+          return $Maybe("Just", { ...v7, railinstance: $2._1 });
+        }
+        return Nothing;
+      })($1.route))
+    })(dt);
+  }
+  if (nextsignal.signal.tag === "Just") {
+    if (v1.signalRulePhase === 0) {
+      const $02 = foldlArray((v3) => {
+        const $03 = v3.l;
+        const $13 = v3.t;
+        return (r) => {
+          if (anyImpl(test(getTag(r)), arrayMap(unsafeCoerce)(v1.tags))) {
+            if (r.tag === "RuleComment") {
+              return { l: $03, t: $13 };
             }
-            return { l: $03, t: $12 };
-          };
-        })({ l: v, t: v1 })(nextsignal.signal._1.rules);
-        return {
-          firedlayout: $02.l,
-          firedtrain: {
-            types: $02.t.types,
-            route: $02.t.route,
-            distanceToNext: $02.t.distanceToNext,
-            distanceFromOldest: $02.t.distanceFromOldest,
-            speed: $02.t.speed,
-            trainid: $02.t.trainid,
-            flipped: $02.t.flipped,
-            signalRestriction: $02.t.signalRestriction,
-            respectSignals: $02.t.respectSignals,
-            realAcceralation: $02.t.realAcceralation,
-            notch: $02.t.notch,
-            note: $02.t.note,
-            tags: $02.t.tags,
-            signalRulePhase: 1
+            if (r.tag === "RuleComplex") {
+              return { l: $03, t: $13 };
+            }
+            if (r.tag === "RuleSpeed") {
+              return { l: $03, t: $13 };
+            }
+            if (r.tag === "RuleOpen") {
+              return { l: addRouteQueue($03)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(r._2)(v1.trainid), t: $13 };
+            }
+            if (r.tag === "RuleUpdate") {
+              const $22 = r._2;
+              const $32 = r._3;
+              return { l: $03, t: { ...$13, tags: arrayMap((told) => replace2($22)($32)(told))($13.tags) } };
+            }
+            if (r.tag === "RuleStop") {
+              return { l: setManualStop($03)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(true), t: $13 };
+            }
+            if (r.tag === "RuleStopOpen") {
+              return { l: setManualStop($03)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(true), t: $13 };
+            }
+            if (r.tag === "RuleStopUpdate") {
+              return { l: setManualStop($03)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(true), t: $13 };
+            }
+            if (r.tag === "RuleReverse") {
+              return { l: setManualStop($03)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(true), t: $13 };
+            }
+            if (r.tag === "RuleReverseUpdate") {
+              return { l: setManualStop($03)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(true), t: $13 };
+            }
+            fail();
           }
+          return { l: $03, t: $13 };
         };
-      }
-      if (v1.signalRulePhase === 1 && v1.speed === 0) {
-        const $02 = foldlArray((v3) => {
-          const $03 = v3.f;
-          const $12 = v3.l;
-          const $22 = v3.t;
-          return (r) => {
-            if (any(test(getTag(r)))(arrayMap(unsafeCoerce)(v1.tags))) {
-              if (r.tag === "RuleComment") {
-                return { f: $03, l: $12, t: $22 };
-              }
-              if (r.tag === "RuleComplex") {
-                return { f: $03, l: $12, t: $22 };
-              }
-              if (r.tag === "RuleSpeed") {
-                return { f: $03, l: $12, t: $22 };
-              }
-              if (r.tag === "RuleOpen") {
-                return { f: $03, l: $12, t: $22 };
-              }
-              if (r.tag === "RuleUpdate") {
-                return { f: $03, l: $12, t: $22 };
-              }
-              if (r.tag === "RuleStop") {
-                return { f: $03, l: $12, t: $22 };
-              }
-              if (r.tag === "RuleStopOpen") {
-                return { f: $03, l: addRouteQueue($12)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(r._2)(v1.trainid), t: $22 };
-              }
-              if (r.tag === "RuleStopUpdate") {
-                const $3 = r._2;
-                const $4 = r._3;
-                return {
-                  f: $03,
-                  l: $12,
-                  t: {
-                    types: $22.types,
-                    route: $22.route,
-                    distanceToNext: $22.distanceToNext,
-                    distanceFromOldest: $22.distanceFromOldest,
-                    speed: $22.speed,
-                    trainid: $22.trainid,
-                    flipped: $22.flipped,
-                    signalRestriction: $22.signalRestriction,
-                    respectSignals: $22.respectSignals,
-                    realAcceralation: $22.realAcceralation,
-                    notch: $22.notch,
-                    note: $22.note,
-                    tags: arrayMap((told) => replace2($3)($4)(told))($22.tags),
-                    signalRulePhase: $22.signalRulePhase
-                  }
-                };
-              }
-              if (r.tag === "RuleReverse") {
-                return {
-                  f: true,
-                  l: $12,
-                  t: {
-                    types: $22.types,
-                    route: $22.route,
-                    distanceToNext: $22.distanceToNext,
-                    distanceFromOldest: $22.distanceFromOldest,
-                    speed: $22.speed,
-                    trainid: $22.trainid,
-                    flipped: $22.flipped,
-                    signalRestriction: $22.signalRestriction,
-                    respectSignals: $22.respectSignals,
-                    realAcceralation: $22.realAcceralation,
-                    notch: $22.notch,
-                    note: $22.note,
-                    tags: $22.tags,
-                    signalRulePhase: 0
-                  }
-                };
-              }
-              if (r.tag === "RuleReverseUpdate") {
-                const $3 = r._2;
-                const $4 = r._3;
-                return {
-                  f: true,
-                  l: $12,
-                  t: {
-                    types: $22.types,
-                    route: $22.route,
-                    distanceToNext: $22.distanceToNext,
-                    distanceFromOldest: $22.distanceFromOldest,
-                    speed: $22.speed,
-                    trainid: $22.trainid,
-                    flipped: $22.flipped,
-                    signalRestriction: $22.signalRestriction,
-                    respectSignals: $22.respectSignals,
-                    realAcceralation: $22.realAcceralation,
-                    notch: $22.notch,
-                    note: $22.note,
-                    tags: arrayMap((told) => replace2($3)($4)(told))($22.tags),
-                    signalRulePhase: 0
-                  }
-                };
-              }
-              fail();
-            }
-            return { f: $03, l: $12, t: $22 };
-          };
-        })({ f: false, l: v, t: v1 })(nextsignal.signal._1.rules);
-        return {
-          firedlayout: $02.l,
-          firedtrain: ($02.f ? flipTrain : identity5)($02.t.signalRulePhase === 1 ? {
-            types: $02.t.types,
-            route: $02.t.route,
-            distanceToNext: $02.t.distanceToNext,
-            distanceFromOldest: $02.t.distanceFromOldest,
-            speed: $02.t.speed,
-            trainid: $02.t.trainid,
-            flipped: $02.t.flipped,
-            signalRestriction: $02.t.signalRestriction,
-            respectSignals: $02.t.respectSignals,
-            realAcceralation: $02.t.realAcceralation,
-            notch: $02.t.notch,
-            note: $02.t.note,
-            tags: $02.t.tags,
-            signalRulePhase: 3
-          } : $02.t)
-        };
-      }
-      return { firedlayout: v, firedtrain: v1 };
+      })({ l: v, t: v1 })(nextsignal.signal._1.rules);
+      const $12 = $02.l;
+      const $2 = {
+        ...$02.t,
+        signalRestriction: max2($02.t.signalRestriction)((() => {
+          if (nextsignal.signal.tag === "Nothing") {
+            return 0.625;
+          }
+          if (nextsignal.signal.tag === "Just") {
+            return signalToSpeed(nextsignal.signal._1);
+          }
+          fail();
+        })()),
+        signalRulePhase: 1
+      };
+      const notch2 = min1($2.notch)(getMaxNotch_(nextsignal)($2));
+      const $3 = $2.realAcceralation ? acceralate($2)(notch2)(dt) : $2;
+      return movefoward($12)({
+        ...$3,
+        route: mapMaybe((x) => x)(arrayMap((v7) => {
+          const $4 = getRailNode($12)(v7.nodeid);
+          if ($4.tag === "Just") {
+            return $Maybe("Just", { ...v7, railinstance: $4._1 });
+          }
+          return Nothing;
+        })($3.route))
+      })(dt);
     }
-    fail();
-  })();
-  const $0 = v2.firedlayout;
-  const $1 = {
-    types: v2.firedtrain.types,
-    route: v2.firedtrain.route,
-    distanceToNext: v2.firedtrain.distanceToNext,
-    distanceFromOldest: v2.firedtrain.distanceFromOldest,
-    speed: v2.firedtrain.speed,
-    trainid: v2.firedtrain.trainid,
-    flipped: v2.firedtrain.flipped,
-    signalRestriction: max2(v2.firedtrain.signalRestriction)((() => {
-      if (nextsignal.signal.tag === "Nothing") {
-        return 0.625;
-      }
-      if (nextsignal.signal.tag === "Just") {
-        return signalToSpeed(nextsignal.signal._1);
-      }
-      fail();
-    })()),
-    respectSignals: v2.firedtrain.respectSignals,
-    realAcceralation: v2.firedtrain.realAcceralation,
-    notch: v2.firedtrain.notch,
-    note: v2.firedtrain.note,
-    tags: v2.firedtrain.tags,
-    signalRulePhase: v2.firedtrain.signalRulePhase
-  };
-  const notch = min1($1.notch)(getMaxNotch_(nextsignal)($1));
-  const $2 = $1.realAcceralation ? acceralate($1)(notch)(dt) : $1;
-  return movefoward($0)({
-    types: $2.types,
-    route: mapMaybe((x) => x)(arrayMap((v7) => {
-      const $3 = index($0.rails)(v7.nodeid);
-      if ($3.tag === "Just") {
-        return $Maybe("Just", { nodeid: v7.nodeid, jointid: v7.jointid, railinstance: $3._1, shapes: v7.shapes, length: v7.length });
-      }
-      return Nothing;
-    })($2.route)),
-    distanceToNext: $2.distanceToNext,
-    distanceFromOldest: $2.distanceFromOldest,
-    speed: $2.speed,
-    trainid: $2.trainid,
-    flipped: $2.flipped,
-    signalRestriction: $2.signalRestriction,
-    respectSignals: $2.respectSignals,
-    realAcceralation: $2.realAcceralation,
-    notch: $2.notch,
-    note: $2.note,
-    tags: $2.tags,
-    signalRulePhase: $2.signalRulePhase
-  })(dt);
+    if (v1.signalRulePhase === 1 && v1.speed === 0) {
+      const $02 = foldlArray((v3) => {
+        const $03 = v3.f;
+        const $13 = v3.l;
+        const $22 = v3.t;
+        return (r) => {
+          if (anyImpl(test(getTag(r)), arrayMap(unsafeCoerce)(v1.tags))) {
+            if (r.tag === "RuleComment") {
+              return { f: $03, l: $13, t: $22 };
+            }
+            if (r.tag === "RuleComplex") {
+              return { f: $03, l: $13, t: $22 };
+            }
+            if (r.tag === "RuleSpeed") {
+              return { f: $03, l: $13, t: $22 };
+            }
+            if (r.tag === "RuleOpen") {
+              return { f: $03, l: $13, t: $22 };
+            }
+            if (r.tag === "RuleUpdate") {
+              return { f: $03, l: $13, t: $22 };
+            }
+            if (r.tag === "RuleStop") {
+              return { f: $03, l: $13, t: $22 };
+            }
+            if (r.tag === "RuleStopOpen") {
+              return { f: $03, l: addRouteQueue($13)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(r._2)(v1.trainid), t: $22 };
+            }
+            if (r.tag === "RuleStopUpdate") {
+              const $32 = r._2;
+              const $4 = r._3;
+              return { f: $03, l: $13, t: { ...$22, tags: arrayMap((told) => replace2($32)($4)(told))($22.tags) } };
+            }
+            if (r.tag === "RuleReverse") {
+              return { f: true, l: $13, t: { ...$22, signalRulePhase: 0 } };
+            }
+            if (r.tag === "RuleReverseUpdate") {
+              const $32 = r._2;
+              const $4 = r._3;
+              return { f: true, l: $13, t: { ...$22, tags: arrayMap((told) => replace2($32)($4)(told))($22.tags), signalRulePhase: 0 } };
+            }
+            fail();
+          }
+          return { f: $03, l: $13, t: $22 };
+        };
+      })({ f: false, l: v, t: v1 })(nextsignal.signal._1.rules);
+      const $12 = $02.l;
+      const $2 = {
+        ...($02.f ? flipTrain : identity5)($02.t.signalRulePhase === 1 ? { ...$02.t, signalRulePhase: 3 } : $02.t),
+        signalRestriction: max2(($02.f ? flipTrain : identity5)($02.t.signalRulePhase === 1 ? { ...$02.t, signalRulePhase: 3 } : $02.t).signalRestriction)((() => {
+          if (nextsignal.signal.tag === "Nothing") {
+            return 0.625;
+          }
+          if (nextsignal.signal.tag === "Just") {
+            return signalToSpeed(nextsignal.signal._1);
+          }
+          fail();
+        })())
+      };
+      const notch2 = min1($2.notch)(getMaxNotch_(nextsignal)($2));
+      const $3 = $2.realAcceralation ? acceralate($2)(notch2)(dt) : $2;
+      return movefoward($12)({
+        ...$3,
+        route: mapMaybe((x) => x)(arrayMap((v7) => {
+          const $4 = getRailNode($12)(v7.nodeid);
+          if ($4.tag === "Just") {
+            return $Maybe("Just", { ...v7, railinstance: $4._1 });
+          }
+          return Nothing;
+        })($3.route))
+      })(dt);
+    }
+    const $0 = {
+      ...v1,
+      signalRestriction: max2(v1.signalRestriction)((() => {
+        if (nextsignal.signal.tag === "Nothing") {
+          return 0.625;
+        }
+        if (nextsignal.signal.tag === "Just") {
+          return signalToSpeed(nextsignal.signal._1);
+        }
+        fail();
+      })())
+    };
+    const notch = min1($0.notch)(getMaxNotch_(nextsignal)($0));
+    const $1 = $0.realAcceralation ? acceralate($0)(notch)(dt) : $0;
+    return movefoward(v)({
+      ...$1,
+      route: mapMaybe((x) => x)(arrayMap((v7) => {
+        const $2 = getRailNode(v)(v7.nodeid);
+        if ($2.tag === "Just") {
+          return $Maybe("Just", { ...v7, railinstance: $2._1 });
+        }
+        return Nothing;
+      })($1.route))
+    })(dt);
+  }
+  fail();
 };
 var moveTrains = (dt) => (v) => foldlArray((l) => (t) => {
   const v1 = trainTick(l)(t)(dt);
-  return {
-    version: v1.newlayout.version,
-    rails: v1.newlayout.rails,
-    trains: concatArray(v1.newlayout.trains)([v1.newtrainset]),
-    signalcolors: v1.newlayout.signalcolors,
-    traffic: v1.newlayout.traffic,
-    isclear: v1.newlayout.isclear,
-    instancecount: v1.newlayout.instancecount,
-    traincount: v1.newlayout.traincount,
-    updatecount: v1.newlayout.updatecount,
-    jointData: v1.newlayout.jointData,
-    routequeue: v1.newlayout.routequeue,
-    time: v1.newlayout.time,
-    speed: v1.newlayout.speed,
-    activeReserves: v1.newlayout.activeReserves
-  };
-})({
-  version: v.version,
-  rails: v.rails,
-  trains: [],
-  signalcolors: v.signalcolors,
-  traffic: v.traffic,
-  isclear: v.isclear,
-  instancecount: v.instancecount,
-  traincount: v.traincount,
-  updatecount: v.updatecount,
-  jointData: v.jointData,
-  routequeue: v.routequeue,
-  time: v.time,
-  speed: v.speed,
-  activeReserves: v.activeReserves
-})(v.trains);
+  return { ...v1.newlayout, trains: [...v1.newlayout.trains, v1.newtrainset] };
+})({ ...v, trains: [] })(v.trains);
 var layoutTick = (v) => {
   const $0 = updateSignalIndication(true)(updateReserves(updateTraffic(moveTrains(v.speed / 60)(v))));
   const $1 = foldlArray((v2) => {
@@ -3803,14 +2812,11 @@ var layoutTick = (v) => {
     const $2 = v2.queuenew;
     return (v3) => {
       if ($0.time < v3.retryafter) {
-        return { layout: $12, queuenew: concatArray($2)([v3]) };
+        return { layout: $12, queuenew: [...$2, v3] };
       }
       const v4 = tryOpenRouteFor($12)(v3.nodeid)(v3.jointid)(v3.routeid)(v3.trainid);
       if (v4.tag === "Nothing") {
-        return {
-          layout: $12,
-          queuenew: concatArray($2)([{ time: v3.time, retryafter: $0.time + 0.25, nodeid: v3.nodeid, jointid: v3.jointid, routeid: v3.routeid, trainid: v3.trainid }])
-        };
+        return { layout: $12, queuenew: [...$2, { ...v3, retryafter: $0.time + 0.25 }] };
       }
       if (v4.tag === "Just") {
         return { layout: setManualStop(v4._1.layout)(v3.nodeid)(v3.jointid)(false), queuenew: $2 };
@@ -3818,36 +2824,13 @@ var layoutTick = (v) => {
       fail();
     };
   })({ layout: $0, queuenew: [] })($0.routequeue);
-  return {
-    version: $1.layout.version,
-    rails: $1.layout.rails,
-    trains: $1.layout.trains,
-    signalcolors: $1.layout.signalcolors,
-    traffic: $1.layout.traffic,
-    isclear: $1.layout.isclear,
-    instancecount: $1.layout.instancecount,
-    traincount: $1.layout.traincount,
-    updatecount: $1.layout.updatecount,
-    jointData: $1.layout.jointData,
-    routequeue: $1.queuenew,
-    time: v.time + v.speed / 60,
-    speed: $1.layout.speed,
-    activeReserves: $1.layout.activeReserves
-  };
+  return { ...$1.layout, routequeue: $1.queuenew, time: v.time + v.speed / 60 };
 };
 
 // output-es/Data.EuclideanRing/foreign.js
-var intDiv = function(x) {
-  return function(y) {
-    if (y === 0)
-      return 0;
-    return y > 0 ? Math.floor(x / y) : -Math.floor(x / -y);
-  };
-};
 var intMod = function(x) {
   return function(y) {
-    if (y === 0)
-      return 0;
+    if (y === 0) return 0;
     var yy = Math.abs(y);
     return (x % yy + yy) % yy;
   };
@@ -3903,7 +2886,10 @@ var intSerializeRecord = () => (dictRowListSerialize) => ({
     return (v) => $0;
   })()
 });
-var serialAll = (dictIntSerialize) => mapMaybe((x) => x)(arrayMap(dictIntSerialize.fromSerial)(range(0)(dictIntSerialize.lengthSerial($$Proxy) - 1 | 0)));
+var serialAll = (dictIntSerialize) => mapMaybe((x) => x)(arrayMap(dictIntSerialize.fromSerial)(rangeImpl(
+  0,
+  dictIntSerialize.lengthSerial($$Proxy) - 1 | 0
+)));
 var intSerialize = (dictGeneric) => (dictIntSerialize) => ({
   fromSerial: (i) => {
     const $0 = dictIntSerialize.fromSerial(i);
@@ -3922,7 +2908,6 @@ var intSerializeArgument = (dictIntSerialize) => ({
       if ($0.tag === "Just") {
         return $Maybe("Just", $0._1);
       }
-      return Nothing;
     }
     return Nothing;
   },
@@ -3939,7 +2924,6 @@ var intSerializeConstructor = (dictIntSerialize) => ({
       if ($0.tag === "Just") {
         return $Maybe("Just", $0._1);
       }
-      return Nothing;
     }
     return Nothing;
   },
@@ -3965,7 +2949,6 @@ var intSerializeSum = (dictIntSerialize) => (dictIntSerialize1) => ({
       if ($0.tag === "Just") {
         return $Maybe("Just", $Sum("Inr", $0._1));
       }
-      return Nothing;
     }
     return Nothing;
   },
@@ -3993,7 +2976,7 @@ var rowListSerializeCons = () => (dictIsSymbol) => (dictIntSerialize) => (dictRo
           return $Maybe("Just", insert(dictIsSymbol)()()($$Proxy)($0._1));
         }
         return Nothing;
-      })())(dictRowListSerialize.rlfromSerial($$Proxy)(intDiv(i)(l1)));
+      })())(dictRowListSerialize.rlfromSerial($$Proxy)(intDiv(i, l1)));
     }
     return Nothing;
   },
@@ -4005,12 +2988,12 @@ var rowListSerializeCons = () => (dictIsSymbol) => (dictIntSerialize) => (dictRo
 });
 
 // output-es/Internal.Rails/index.js
-var $JointsDouble = (tag) => ({ tag });
-var $JointsDoublePoint = (tag) => ({ tag });
-var $JointsPoint = (tag) => ({ tag });
-var $JointsSimple = (tag) => ({ tag });
-var $StateDiamond = (tag) => ({ tag });
-var $StateScissors = (tag) => ({ tag });
+var $JointsDouble = (tag) => tag;
+var $JointsDoublePoint = (tag) => tag;
+var $JointsPoint = (tag) => tag;
+var $JointsSimple = (tag) => tag;
+var $StateDiamond = (tag) => tag;
+var $StateScissors = (tag) => tag;
 var $StatesSolid = () => ({ tag: "StateSolid" });
 var intSerializeConstructor2 = /* @__PURE__ */ intSerializeConstructor(intSerializeNoArguments);
 var intSerializeSum1 = /* @__PURE__ */ intSerializeSum(intSerializeConstructor2)(intSerializeConstructor2);
@@ -4066,18 +3049,17 @@ var genericStateScissors = {
       if (x._1.tag === "Inr") {
         return StateSP_N;
       }
-      fail();
     }
     fail();
   },
   from: (x) => {
-    if (x.tag === "StateSP_P") {
+    if (x === "StateSP_P") {
       return $Sum("Inl", NoArguments);
     }
-    if (x.tag === "StateSP_S") {
+    if (x === "StateSP_S") {
       return $Sum("Inr", $Sum("Inl", NoArguments));
     }
-    if (x.tag === "StateSP_N") {
+    if (x === "StateSP_N") {
       return $Sum("Inr", $Sum("Inr", NoArguments));
     }
     fail();
@@ -4095,10 +3077,10 @@ var genericStateDiamond = {
     fail();
   },
   from: (x) => {
-    if (x.tag === "StateDM_P") {
+    if (x === "StateDM_P") {
       return $Sum("Inl", NoArguments);
     }
-    if (x.tag === "StateDM_N") {
+    if (x === "StateDM_N") {
       return $Sum("Inr", NoArguments);
     }
     fail();
@@ -4116,10 +3098,10 @@ var genericJointsSimple = {
     fail();
   },
   from: (x) => {
-    if (x.tag === "JointBegin") {
+    if (x === "JointBegin") {
       return $Sum("Inl", NoArguments);
     }
-    if (x.tag === "JointEnd") {
+    if (x === "JointEnd") {
       return $Sum("Inr", NoArguments);
     }
     fail();
@@ -4141,33 +3123,25 @@ var halfRail = /* @__PURE__ */ (() => {
     getStates: serialAll2,
     getOrigin: JointBegin,
     getJointPos: (j) => {
-      if (j.tag === "JointBegin") {
+      if (j === "JointBegin") {
         return pb;
       }
-      if (j.tag === "JointEnd") {
+      if (j === "JointEnd") {
         return pe;
       }
       fail();
     },
     getNewState: (j) => (s) => {
-      if (j.tag === "JointBegin") {
+      if (j === "JointBegin") {
         return { newjoint: JointEnd, newstate: s, shape: r0 };
       }
-      if (j.tag === "JointEnd") {
+      if (j === "JointEnd") {
         return { newjoint: JointBegin, newstate: s, shape: reverseShapes(r0) };
       }
       fail();
     },
     getRoute: (s) => (f) => (t) => {
-      if ((() => {
-        if (f.tag === "JointBegin") {
-          return !(t.tag === "JointBegin");
-        }
-        if (f.tag === "JointEnd") {
-          return !(t.tag === "JointEnd");
-        }
-        return true;
-      })()) {
+      if (f === "JointBegin" ? t !== "JointBegin" : !(f === "JointEnd" && t === "JointEnd")) {
         return $Maybe("Just", s);
       }
       return Nothing;
@@ -4192,33 +3166,25 @@ var longRail = /* @__PURE__ */ (() => {
     getStates: serialAll2,
     getOrigin: JointBegin,
     getJointPos: (j) => {
-      if (j.tag === "JointBegin") {
+      if (j === "JointBegin") {
         return pb;
       }
-      if (j.tag === "JointEnd") {
+      if (j === "JointEnd") {
         return pe;
       }
       fail();
     },
     getNewState: (j) => (s) => {
-      if (j.tag === "JointBegin") {
+      if (j === "JointBegin") {
         return { newjoint: JointEnd, newstate: s, shape: r0 };
       }
-      if (j.tag === "JointEnd") {
+      if (j === "JointEnd") {
         return { newjoint: JointBegin, newstate: s, shape: reverseShapes(r0) };
       }
       fail();
     },
     getRoute: (s) => (f) => (t) => {
-      if ((() => {
-        if (f.tag === "JointBegin") {
-          return !(t.tag === "JointBegin");
-        }
-        if (f.tag === "JointEnd") {
-          return !(t.tag === "JointEnd");
-        }
-        return true;
-      })()) {
+      if (f === "JointBegin" ? t !== "JointBegin" : !(f === "JointEnd" && t === "JointEnd")) {
         return $Maybe("Just", s);
       }
       return Nothing;
@@ -4243,33 +3209,25 @@ var quarterRail = /* @__PURE__ */ (() => {
     getStates: serialAll2,
     getOrigin: JointBegin,
     getJointPos: (j) => {
-      if (j.tag === "JointBegin") {
+      if (j === "JointBegin") {
         return pb;
       }
-      if (j.tag === "JointEnd") {
+      if (j === "JointEnd") {
         return pe;
       }
       fail();
     },
     getNewState: (j) => (s) => {
-      if (j.tag === "JointBegin") {
+      if (j === "JointBegin") {
         return { newjoint: JointEnd, newstate: s, shape: r0 };
       }
-      if (j.tag === "JointEnd") {
+      if (j === "JointEnd") {
         return { newjoint: JointBegin, newstate: s, shape: reverseShapes(r0) };
       }
       fail();
     },
     getRoute: (s) => (f) => (t) => {
-      if ((() => {
-        if (f.tag === "JointBegin") {
-          return !(t.tag === "JointBegin");
-        }
-        if (f.tag === "JointEnd") {
-          return !(t.tag === "JointEnd");
-        }
-        return true;
-      })()) {
+      if (f === "JointBegin" ? t !== "JointBegin" : !(f === "JointEnd" && t === "JointEnd")) {
         return $Maybe("Just", s);
       }
       return Nothing;
@@ -4294,33 +3252,25 @@ var slopeCurveLRail = /* @__PURE__ */ (() => {
     getStates: serialAll2,
     getOrigin: JointBegin,
     getJointPos: (j) => {
-      if (j.tag === "JointBegin") {
+      if (j === "JointBegin") {
         return pb;
       }
-      if (j.tag === "JointEnd") {
+      if (j === "JointEnd") {
         return pe;
       }
       fail();
     },
     getNewState: (j) => (s) => {
-      if (j.tag === "JointBegin") {
+      if (j === "JointBegin") {
         return { newjoint: JointEnd, newstate: s, shape: r0 };
       }
-      if (j.tag === "JointEnd") {
+      if (j === "JointEnd") {
         return { newjoint: JointBegin, newstate: s, shape: reverseShapes(r0) };
       }
       fail();
     },
     getRoute: (s) => (f) => (t) => {
-      if ((() => {
-        if (f.tag === "JointBegin") {
-          return !(t.tag === "JointBegin");
-        }
-        if (f.tag === "JointEnd") {
-          return !(t.tag === "JointEnd");
-        }
-        return true;
-      })()) {
+      if (f === "JointBegin" ? t !== "JointBegin" : !(f === "JointEnd" && t === "JointEnd")) {
         return $Maybe("Just", s);
       }
       return Nothing;
@@ -4346,33 +3296,25 @@ var slopeRail = /* @__PURE__ */ (() => {
     getStates: serialAll2,
     getOrigin: JointBegin,
     getJointPos: (j) => {
-      if (j.tag === "JointBegin") {
+      if (j === "JointBegin") {
         return pb;
       }
-      if (j.tag === "JointEnd") {
+      if (j === "JointEnd") {
         return pe;
       }
       fail();
     },
     getNewState: (j) => (s) => {
-      if (j.tag === "JointBegin") {
+      if (j === "JointBegin") {
         return { newjoint: JointEnd, newstate: s, shape: r0 };
       }
-      if (j.tag === "JointEnd") {
+      if (j === "JointEnd") {
         return { newjoint: JointBegin, newstate: s, shape: reverseShapes(r0) };
       }
       fail();
     },
     getRoute: (s) => (f) => (t) => {
-      if ((() => {
-        if (f.tag === "JointBegin") {
-          return !(t.tag === "JointBegin");
-        }
-        if (f.tag === "JointEnd") {
-          return !(t.tag === "JointEnd");
-        }
-        return true;
-      })()) {
+      if (f === "JointBegin" ? t !== "JointBegin" : !(f === "JointEnd" && t === "JointEnd")) {
         return $Maybe("Just", s);
       }
       return Nothing;
@@ -4397,33 +3339,25 @@ var straightRail = /* @__PURE__ */ (() => {
     getStates: serialAll2,
     getOrigin: JointBegin,
     getJointPos: (j) => {
-      if (j.tag === "JointBegin") {
+      if (j === "JointBegin") {
         return pb;
       }
-      if (j.tag === "JointEnd") {
+      if (j === "JointEnd") {
         return pe;
       }
       fail();
     },
     getNewState: (j) => (s) => {
-      if (j.tag === "JointBegin") {
+      if (j === "JointBegin") {
         return { newjoint: JointEnd, newstate: s, shape: r0 };
       }
-      if (j.tag === "JointEnd") {
+      if (j === "JointEnd") {
         return { newjoint: JointBegin, newstate: s, shape: reverseShapes(r0) };
       }
       fail();
     },
     getRoute: (s) => (f) => (t) => {
-      if ((() => {
-        if (f.tag === "JointBegin") {
-          return !(t.tag === "JointBegin");
-        }
-        if (f.tag === "JointEnd") {
-          return !(t.tag === "JointEnd");
-        }
-        return true;
-      })()) {
+      if (f === "JointBegin" ? t !== "JointBegin" : !(f === "JointEnd" && t === "JointEnd")) {
         return $Maybe("Just", s);
       }
       return Nothing;
@@ -4446,18 +3380,17 @@ var genericJointsPoint = {
       if (x._1.tag === "Inr") {
         return JointSub;
       }
-      fail();
     }
     fail();
   },
   from: (x) => {
-    if (x.tag === "JointEnter") {
+    if (x === "JointEnter") {
       return $Sum("Inl", NoArguments);
     }
-    if (x.tag === "JointMain") {
+    if (x === "JointMain") {
       return $Sum("Inr", $Sum("Inl", NoArguments));
     }
-    if (x.tag === "JointSub") {
+    if (x === "JointSub") {
       return $Sum("Inr", $Sum("Inr", NoArguments));
     }
     fail();
@@ -4492,25 +3425,25 @@ var turnOutLPlusRail = /* @__PURE__ */ (() => {
     getStates: serialAll1,
     getOrigin: JointEnter,
     getJointPos: (j) => {
-      if (j.tag === "JointEnter") {
+      if (j === "JointEnter") {
         return pe;
       }
-      if (j.tag === "JointMain") {
+      if (j === "JointMain") {
         return pm;
       }
-      if (j.tag === "JointSub") {
+      if (j === "JointSub") {
         return ps;
       }
       fail();
     },
     getNewState: (j) => (v) => {
-      if (j.tag === "JointMain") {
+      if (j === "JointMain") {
         return { newjoint: JointEnter, newstate: { turnout: false }, shape: reverseShapes(r0) };
       }
-      if (j.tag === "JointSub") {
+      if (j === "JointSub") {
         return { newjoint: JointEnter, newstate: { turnout: true }, shape: reverseShapes(r1) };
       }
-      if (j.tag === "JointEnter") {
+      if (j === "JointEnter") {
         if (v.turnout) {
           return { newjoint: JointSub, newstate: v, shape: r1 };
         }
@@ -4519,52 +3452,51 @@ var turnOutLPlusRail = /* @__PURE__ */ (() => {
       fail();
     },
     getRoute: (s) => (f) => (t) => {
-      if (f.tag === "JointEnter") {
-        if (t.tag === "JointEnter") {
+      if (f === "JointEnter") {
+        if (t === "JointEnter") {
           return Nothing;
         }
-        if (t.tag === "JointMain") {
-          return $Maybe("Just", { turnout: false });
+        if (t === "JointMain") {
+          return $Maybe("Just", { ...s, turnout: false });
         }
-        if (t.tag === "JointSub") {
-          return $Maybe("Just", { turnout: true });
+        if (t === "JointSub") {
+          return $Maybe("Just", { ...s, turnout: true });
         }
         fail();
       }
-      if (f.tag === "JointMain") {
-        if (t.tag === "JointEnter") {
-          return $Maybe("Just", { turnout: false });
+      if (f === "JointMain") {
+        if (t === "JointEnter") {
+          return $Maybe("Just", { ...s, turnout: false });
         }
-        if (t.tag === "JointMain") {
+        if (t === "JointMain") {
           return Nothing;
         }
-        if (t.tag === "JointSub") {
+        if (t === "JointSub") {
           return Nothing;
         }
         fail();
       }
-      if (f.tag === "JointSub") {
-        if (t.tag === "JointEnter") {
-          return $Maybe("Just", { turnout: true });
+      if (f === "JointSub") {
+        if (t === "JointEnter") {
+          return $Maybe("Just", { ...s, turnout: true });
         }
-        if (t.tag === "JointMain") {
+        if (t === "JointMain") {
           return Nothing;
         }
-        if (t.tag === "JointSub") {
+        if (t === "JointSub") {
           return Nothing;
         }
-        fail();
       }
       fail();
     },
     isLegal: (j) => (s) => {
-      if (j.tag === "JointEnter") {
+      if (j === "JointEnter") {
         return true;
       }
-      if (j.tag === "JointMain") {
+      if (j === "JointMain") {
         return !s.turnout;
       }
-      if (j.tag === "JointSub") {
+      if (j === "JointSub") {
         return s.turnout;
       }
       fail();
@@ -4604,36 +3536,32 @@ var genericJointsDoublePoint = {
             if (x._1._1._1._1.tag === "Inr") {
               return JointOuterSub;
             }
-            fail();
           }
-          fail();
         }
-        fail();
       }
-      fail();
     }
     fail();
   },
   from: (x) => {
-    if (x.tag === "JointOuterEnter") {
+    if (x === "JointOuterEnter") {
       return $Sum("Inl", NoArguments);
     }
-    if (x.tag === "JointInnerEnter") {
+    if (x === "JointInnerEnter") {
       return $Sum("Inr", $Sum("Inl", NoArguments));
     }
-    if (x.tag === "JointInnerMain") {
+    if (x === "JointInnerMain") {
       return $Sum("Inr", $Sum("Inr", $Sum("Inl", NoArguments)));
     }
-    if (x.tag === "JointOuterMain") {
+    if (x === "JointOuterMain") {
       return $Sum("Inr", $Sum("Inr", $Sum("Inr", $Sum("Inl", NoArguments))));
     }
-    if (x.tag === "JointInnerSub") {
+    if (x === "JointInnerSub") {
       return $Sum(
         "Inr",
         $Sum("Inr", $Sum("Inr", $Sum("Inr", $Sum("Inl", NoArguments))))
       );
     }
-    if (x.tag === "JointOuterSub") {
+    if (x === "JointOuterSub") {
       return $Sum(
         "Inr",
         $Sum("Inr", $Sum("Inr", $Sum("Inr", $Sum("Inr", NoArguments))))
@@ -4660,23 +3588,21 @@ var genericJointsDouble = {
         if (x._1._1.tag === "Inr") {
           return JointOuterEnd;
         }
-        fail();
       }
-      fail();
     }
     fail();
   },
   from: (x) => {
-    if (x.tag === "JointOuterBegin") {
+    if (x === "JointOuterBegin") {
       return $Sum("Inl", NoArguments);
     }
-    if (x.tag === "JointInnerEnd") {
+    if (x === "JointInnerEnd") {
       return $Sum("Inr", $Sum("Inl", NoArguments));
     }
-    if (x.tag === "JointInnerBegin") {
+    if (x === "JointInnerBegin") {
       return $Sum("Inr", $Sum("Inr", $Sum("Inl", NoArguments)));
     }
-    if (x.tag === "JointOuterEnd") {
+    if (x === "JointOuterEnd") {
       return $Sum("Inr", $Sum("Inr", $Sum("Inr", NoArguments)));
     }
     fail();
@@ -4707,23 +3633,43 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ (() => {
       if (v.outerturnout) {
         if (v.innerturnout) {
           return {
-            rails: concatArray(arrayMap(grayRail)(rom))(concatArray(arrayMap(grayRail)(rim))(concatArray(arrayMap(blueRail)(ros))(arrayMap(blueRail)(ris)))),
+            rails: [
+              ...arrayMap(grayRail)(rom),
+              ...arrayMap(grayRail)(rim),
+              ...arrayMap(blueRail)(ros),
+              ...arrayMap(blueRail)(ris)
+            ],
             additionals: []
           };
         }
         return {
-          rails: concatArray(arrayMap(grayRail)(rom))(concatArray(arrayMap(grayRail)(ris))(concatArray(arrayMap(blueRail)(ros))(arrayMap(blueRail)(rim)))),
+          rails: [
+            ...arrayMap(grayRail)(rom),
+            ...arrayMap(grayRail)(ris),
+            ...arrayMap(blueRail)(ros),
+            ...arrayMap(blueRail)(rim)
+          ],
           additionals: []
         };
       }
       if (v.innerturnout) {
         return {
-          rails: concatArray(arrayMap(grayRail)(ros))(concatArray(arrayMap(grayRail)(rim))(concatArray(arrayMap(blueRail)(rom))(arrayMap(blueRail)(ris)))),
+          rails: [
+            ...arrayMap(grayRail)(ros),
+            ...arrayMap(grayRail)(rim),
+            ...arrayMap(blueRail)(rom),
+            ...arrayMap(blueRail)(ris)
+          ],
           additionals: []
         };
       }
       return {
-        rails: concatArray(arrayMap(grayRail)(ros))(concatArray(arrayMap(grayRail)(ris))(concatArray(arrayMap(blueRail)(rom))(arrayMap(blueRail)(rim)))),
+        rails: [
+          ...arrayMap(grayRail)(ros),
+          ...arrayMap(grayRail)(ris),
+          ...arrayMap(blueRail)(rom),
+          ...arrayMap(blueRail)(rim)
+        ],
         additionals: []
       };
     },
@@ -4732,212 +3678,199 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ (() => {
     getStates: serialAll22,
     getOrigin: JointOuterEnter,
     getJointPos: (j) => {
-      if (j.tag === "JointOuterEnter") {
+      if (j === "JointOuterEnter") {
         return poe;
       }
-      if (j.tag === "JointOuterMain") {
+      if (j === "JointOuterMain") {
         return pom;
       }
-      if (j.tag === "JointOuterSub") {
+      if (j === "JointOuterSub") {
         return pos;
       }
-      if (j.tag === "JointInnerEnter") {
+      if (j === "JointInnerEnter") {
         return pie;
       }
-      if (j.tag === "JointInnerMain") {
+      if (j === "JointInnerMain") {
         return pim;
       }
-      if (j.tag === "JointInnerSub") {
+      if (j === "JointInnerSub") {
         return pis;
       }
       fail();
     },
     getNewState: (j) => (v) => {
-      if (j.tag === "JointOuterEnter") {
+      if (j === "JointOuterEnter") {
         if (v.outerturnout) {
           return { newjoint: JointOuterSub, newstate: v, shape: ros };
         }
         return { newjoint: JointOuterMain, newstate: v, shape: rom };
       }
-      if (j.tag === "JointOuterMain") {
-        if (v.outerturnout) {
-          return { newjoint: JointOuterEnter, newstate: { innerturnout: v.innerturnout, outerturnout: false }, shape: reverseShapes(rom) };
-        }
-        return { newjoint: JointOuterEnter, newstate: { innerturnout: v.innerturnout, outerturnout: false }, shape: reverseShapes(rom) };
+      if (j === "JointOuterMain") {
+        return { newjoint: JointOuterEnter, newstate: { ...v, outerturnout: false }, shape: reverseShapes(rom) };
       }
-      if (j.tag === "JointOuterSub") {
-        if (v.outerturnout) {
-          return { newjoint: JointOuterEnter, newstate: { innerturnout: v.innerturnout, outerturnout: true }, shape: reverseShapes(ros) };
-        }
-        return { newjoint: JointOuterEnter, newstate: { innerturnout: v.innerturnout, outerturnout: true }, shape: reverseShapes(ros) };
+      if (j === "JointOuterSub") {
+        return { newjoint: JointOuterEnter, newstate: { ...v, outerturnout: true }, shape: reverseShapes(ros) };
       }
-      if (j.tag === "JointInnerEnter") {
+      if (j === "JointInnerEnter") {
         if (v.innerturnout) {
           return { newjoint: JointInnerSub, newstate: v, shape: ris };
         }
         return { newjoint: JointInnerMain, newstate: v, shape: rim };
       }
-      if (j.tag === "JointInnerMain") {
-        if (v.innerturnout) {
-          return { newjoint: JointInnerEnter, newstate: { innerturnout: false, outerturnout: v.outerturnout }, shape: reverseShapes(rim) };
-        }
-        return { newjoint: JointInnerEnter, newstate: { innerturnout: false, outerturnout: v.outerturnout }, shape: reverseShapes(rim) };
+      if (j === "JointInnerMain") {
+        return { newjoint: JointInnerEnter, newstate: { ...v, innerturnout: false }, shape: reverseShapes(rim) };
       }
-      if (j.tag === "JointInnerSub") {
-        if (v.innerturnout) {
-          return { newjoint: JointInnerEnter, newstate: { innerturnout: true, outerturnout: v.outerturnout }, shape: reverseShapes(ris) };
-        }
-        return { newjoint: JointInnerEnter, newstate: { innerturnout: true, outerturnout: v.outerturnout }, shape: reverseShapes(ris) };
+      if (j === "JointInnerSub") {
+        return { newjoint: JointInnerEnter, newstate: { ...v, innerturnout: true }, shape: reverseShapes(ris) };
       }
       fail();
     },
     isLegal: (j) => (s) => {
-      if (j.tag === "JointOuterEnter") {
+      if (j === "JointOuterEnter") {
         return s.outerturnout || !s.innerturnout;
       }
-      if (j.tag === "JointOuterMain") {
+      if (j === "JointOuterMain") {
         return !s.outerturnout && !s.innerturnout;
       }
-      if (j.tag === "JointOuterSub") {
+      if (j === "JointOuterSub") {
         return s.outerturnout;
       }
-      if (j.tag === "JointInnerEnter") {
+      if (j === "JointInnerEnter") {
         return s.outerturnout || !s.innerturnout;
       }
-      if (j.tag === "JointInnerMain") {
+      if (j === "JointInnerMain") {
         return !s.innerturnout;
       }
-      if (j.tag === "JointInnerSub") {
+      if (j === "JointInnerSub") {
         return s.outerturnout && s.innerturnout;
       }
       fail();
     },
     getRoute: (s) => (f) => (t) => {
-      if (f.tag === "JointOuterEnter") {
-        if (t.tag === "JointOuterEnter") {
+      if (f === "JointOuterEnter") {
+        if (t === "JointOuterEnter") {
           return Nothing;
         }
-        if (t.tag === "JointOuterMain") {
-          return $Maybe("Just", { innerturnout: false, outerturnout: false });
+        if (t === "JointOuterMain") {
+          return $Maybe("Just", { ...s, outerturnout: false, innerturnout: false });
         }
-        if (t.tag === "JointOuterSub") {
-          return $Maybe("Just", { innerturnout: s.innerturnout, outerturnout: true });
+        if (t === "JointOuterSub") {
+          return $Maybe("Just", { ...s, outerturnout: true });
         }
-        if (t.tag === "JointInnerEnter") {
+        if (t === "JointInnerEnter") {
           return Nothing;
         }
-        if (t.tag === "JointInnerMain") {
+        if (t === "JointInnerMain") {
           return Nothing;
         }
-        if (t.tag === "JointInnerSub") {
-          return Nothing;
-        }
-        fail();
-      }
-      if (f.tag === "JointOuterMain") {
-        if (t.tag === "JointOuterEnter") {
-          return $Maybe("Just", { innerturnout: false, outerturnout: false });
-        }
-        if (t.tag === "JointOuterMain") {
-          return Nothing;
-        }
-        if (t.tag === "JointOuterSub") {
-          return Nothing;
-        }
-        if (t.tag === "JointInnerEnter") {
-          return Nothing;
-        }
-        if (t.tag === "JointInnerMain") {
-          return Nothing;
-        }
-        if (t.tag === "JointInnerSub") {
+        if (t === "JointInnerSub") {
           return Nothing;
         }
         fail();
       }
-      if (f.tag === "JointOuterSub") {
-        if (t.tag === "JointOuterEnter") {
-          return $Maybe("Just", { innerturnout: s.innerturnout, outerturnout: true });
+      if (f === "JointOuterMain") {
+        if (t === "JointOuterEnter") {
+          return $Maybe("Just", { ...s, outerturnout: false, innerturnout: false });
         }
-        if (t.tag === "JointOuterMain") {
+        if (t === "JointOuterMain") {
           return Nothing;
         }
-        if (t.tag === "JointOuterSub") {
+        if (t === "JointOuterSub") {
           return Nothing;
         }
-        if (t.tag === "JointInnerEnter") {
+        if (t === "JointInnerEnter") {
           return Nothing;
         }
-        if (t.tag === "JointInnerMain") {
+        if (t === "JointInnerMain") {
           return Nothing;
         }
-        if (t.tag === "JointInnerSub") {
-          return Nothing;
-        }
-        fail();
-      }
-      if (f.tag === "JointInnerEnter") {
-        if (t.tag === "JointOuterEnter") {
-          return Nothing;
-        }
-        if (t.tag === "JointOuterMain") {
-          return Nothing;
-        }
-        if (t.tag === "JointOuterSub") {
-          return Nothing;
-        }
-        if (t.tag === "JointInnerEnter") {
-          return Nothing;
-        }
-        if (t.tag === "JointInnerMain") {
-          return $Maybe("Just", { innerturnout: false, outerturnout: s.outerturnout });
-        }
-        if (t.tag === "JointInnerSub") {
-          return $Maybe("Just", { innerturnout: true, outerturnout: true });
-        }
-        fail();
-      }
-      if (f.tag === "JointInnerMain") {
-        if (t.tag === "JointOuterEnter") {
-          return Nothing;
-        }
-        if (t.tag === "JointOuterMain") {
-          return Nothing;
-        }
-        if (t.tag === "JointOuterSub") {
-          return Nothing;
-        }
-        if (t.tag === "JointInnerEnter") {
-          return $Maybe("Just", { innerturnout: false, outerturnout: s.outerturnout });
-        }
-        if (t.tag === "JointInnerMain") {
-          return Nothing;
-        }
-        if (t.tag === "JointInnerSub") {
+        if (t === "JointInnerSub") {
           return Nothing;
         }
         fail();
       }
-      if (f.tag === "JointInnerSub") {
-        if (t.tag === "JointOuterEnter") {
+      if (f === "JointOuterSub") {
+        if (t === "JointOuterEnter") {
+          return $Maybe("Just", { ...s, outerturnout: true });
+        }
+        if (t === "JointOuterMain") {
           return Nothing;
         }
-        if (t.tag === "JointOuterMain") {
+        if (t === "JointOuterSub") {
           return Nothing;
         }
-        if (t.tag === "JointOuterSub") {
+        if (t === "JointInnerEnter") {
           return Nothing;
         }
-        if (t.tag === "JointInnerEnter") {
-          return $Maybe("Just", { innerturnout: true, outerturnout: true });
-        }
-        if (t.tag === "JointInnerMain") {
+        if (t === "JointInnerMain") {
           return Nothing;
         }
-        if (t.tag === "JointInnerSub") {
+        if (t === "JointInnerSub") {
           return Nothing;
         }
         fail();
+      }
+      if (f === "JointInnerEnter") {
+        if (t === "JointOuterEnter") {
+          return Nothing;
+        }
+        if (t === "JointOuterMain") {
+          return Nothing;
+        }
+        if (t === "JointOuterSub") {
+          return Nothing;
+        }
+        if (t === "JointInnerEnter") {
+          return Nothing;
+        }
+        if (t === "JointInnerMain") {
+          return $Maybe("Just", { ...s, innerturnout: false });
+        }
+        if (t === "JointInnerSub") {
+          return $Maybe("Just", { ...s, innerturnout: true, outerturnout: true });
+        }
+        fail();
+      }
+      if (f === "JointInnerMain") {
+        if (t === "JointOuterEnter") {
+          return Nothing;
+        }
+        if (t === "JointOuterMain") {
+          return Nothing;
+        }
+        if (t === "JointOuterSub") {
+          return Nothing;
+        }
+        if (t === "JointInnerEnter") {
+          return $Maybe("Just", { ...s, innerturnout: false });
+        }
+        if (t === "JointInnerMain") {
+          return Nothing;
+        }
+        if (t === "JointInnerSub") {
+          return Nothing;
+        }
+        fail();
+      }
+      if (f === "JointInnerSub") {
+        if (t === "JointOuterEnter") {
+          return Nothing;
+        }
+        if (t === "JointOuterMain") {
+          return Nothing;
+        }
+        if (t === "JointOuterSub") {
+          return Nothing;
+        }
+        if (t === "JointInnerEnter") {
+          return $Maybe("Just", { ...s, innerturnout: true, outerturnout: true });
+        }
+        if (t === "JointInnerMain") {
+          return Nothing;
+        }
+        if (t === "JointInnerSub") {
+          return Nothing;
+        }
       }
       fail();
     },
@@ -4948,131 +3881,130 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ (() => {
       return serialAll5;
     },
     isBlocked: (j) => (s) => (j$p) => {
-      if (j.tag === "JointOuterEnter") {
-        if (j$p.tag === "JointOuterEnter") {
+      if (j === "JointOuterEnter") {
+        if (j$p === "JointOuterEnter") {
           return true;
         }
-        if (j$p.tag === "JointOuterMain") {
+        if (j$p === "JointOuterMain") {
           return true;
         }
-        if (j$p.tag === "JointOuterSub") {
+        if (j$p === "JointOuterSub") {
           return true;
         }
-        if (j$p.tag === "JointInnerEnter") {
+        if (j$p === "JointInnerEnter") {
           return !s.outerturnout && s.innerturnout;
         }
-        if (j$p.tag === "JointInnerMain") {
+        if (j$p === "JointInnerMain") {
           return false;
         }
-        if (j$p.tag === "JointInnerSub") {
+        if (j$p === "JointInnerSub") {
           return !s.outerturnout;
         }
         fail();
       }
-      if (j.tag === "JointOuterMain") {
-        if (j$p.tag === "JointOuterEnter") {
+      if (j === "JointOuterMain") {
+        if (j$p === "JointOuterEnter") {
           return true;
         }
-        if (j$p.tag === "JointOuterMain") {
+        if (j$p === "JointOuterMain") {
           return true;
         }
-        if (j$p.tag === "JointOuterSub") {
+        if (j$p === "JointOuterSub") {
           return true;
         }
-        if (j$p.tag === "JointInnerEnter") {
+        if (j$p === "JointInnerEnter") {
           return s.innerturnout;
         }
-        if (j$p.tag === "JointInnerMain") {
+        if (j$p === "JointInnerMain") {
           return false;
         }
-        if (j$p.tag === "JointInnerSub") {
+        if (j$p === "JointInnerSub") {
           return true;
         }
         fail();
       }
-      if (j.tag === "JointOuterSub") {
-        if (j$p.tag === "JointOuterEnter") {
+      if (j === "JointOuterSub") {
+        if (j$p === "JointOuterEnter") {
           return true;
         }
-        if (j$p.tag === "JointOuterMain") {
+        if (j$p === "JointOuterMain") {
           return true;
         }
-        if (j$p.tag === "JointOuterSub") {
+        if (j$p === "JointOuterSub") {
           return true;
         }
-        if (j$p.tag === "JointInnerEnter") {
+        if (j$p === "JointInnerEnter") {
           return false;
         }
-        if (j$p.tag === "JointInnerMain") {
+        if (j$p === "JointInnerMain") {
           return false;
         }
-        if (j$p.tag === "JointInnerSub") {
+        if (j$p === "JointInnerSub") {
           return false;
         }
         fail();
       }
-      if (j.tag === "JointInnerEnter") {
-        if (j$p.tag === "JointOuterEnter") {
+      if (j === "JointInnerEnter") {
+        if (j$p === "JointOuterEnter") {
           return !s.outerturnout && s.innerturnout;
         }
-        if (j$p.tag === "JointOuterMain") {
+        if (j$p === "JointOuterMain") {
           return s.innerturnout;
         }
-        if (j$p.tag === "JointOuterSub") {
+        if (j$p === "JointOuterSub") {
           return false;
         }
-        if (j$p.tag === "JointInnerEnter") {
+        if (j$p === "JointInnerEnter") {
           return true;
         }
-        if (j$p.tag === "JointInnerMain") {
+        if (j$p === "JointInnerMain") {
           return true;
         }
-        if (j$p.tag === "JointInnerSub") {
+        if (j$p === "JointInnerSub") {
           return true;
         }
         fail();
       }
-      if (j.tag === "JointInnerMain") {
-        if (j$p.tag === "JointOuterEnter") {
+      if (j === "JointInnerMain") {
+        if (j$p === "JointOuterEnter") {
           return false;
         }
-        if (j$p.tag === "JointOuterMain") {
+        if (j$p === "JointOuterMain") {
           return false;
         }
-        if (j$p.tag === "JointOuterSub") {
+        if (j$p === "JointOuterSub") {
           return false;
         }
-        if (j$p.tag === "JointInnerEnter") {
+        if (j$p === "JointInnerEnter") {
           return true;
         }
-        if (j$p.tag === "JointInnerMain") {
+        if (j$p === "JointInnerMain") {
           return true;
         }
-        if (j$p.tag === "JointInnerSub") {
+        if (j$p === "JointInnerSub") {
           return true;
         }
         fail();
       }
-      if (j.tag === "JointInnerSub") {
-        if (j$p.tag === "JointOuterEnter") {
+      if (j === "JointInnerSub") {
+        if (j$p === "JointOuterEnter") {
           return !s.outerturnout;
         }
-        if (j$p.tag === "JointOuterMain") {
+        if (j$p === "JointOuterMain") {
           return true;
         }
-        if (j$p.tag === "JointOuterSub") {
+        if (j$p === "JointOuterSub") {
           return false;
         }
-        if (j$p.tag === "JointInnerEnter") {
+        if (j$p === "JointInnerEnter") {
           return true;
         }
-        if (j$p.tag === "JointInnerMain") {
+        if (j$p === "JointInnerMain") {
           return true;
         }
-        if (j$p.tag === "JointInnerSub") {
+        if (j$p === "JointInnerSub") {
           return true;
         }
-        fail();
       }
       fail();
     },
@@ -5098,33 +4030,25 @@ var outerCurveLRail = /* @__PURE__ */ (() => {
     getStates: serialAll2,
     getOrigin: JointBegin,
     getJointPos: (j) => {
-      if (j.tag === "JointBegin") {
+      if (j === "JointBegin") {
         return pb;
       }
-      if (j.tag === "JointEnd") {
+      if (j === "JointEnd") {
         return pe;
       }
       fail();
     },
     getNewState: (j) => (s) => {
-      if (j.tag === "JointBegin") {
+      if (j === "JointBegin") {
         return { newjoint: JointEnd, newstate: s, shape: r0 };
       }
-      if (j.tag === "JointEnd") {
+      if (j === "JointEnd") {
         return { newjoint: JointBegin, newstate: s, shape: reverseShapes(r0) };
       }
       fail();
     },
     getRoute: (s) => (f) => (t) => {
-      if ((() => {
-        if (f.tag === "JointBegin") {
-          return !(t.tag === "JointBegin");
-        }
-        if (f.tag === "JointEnd") {
-          return !(t.tag === "JointEnd");
-        }
-        return true;
-      })()) {
+      if (f === "JointBegin" ? t !== "JointBegin" : !(f === "JointEnd" && t === "JointEnd")) {
         return $Maybe("Just", s);
       }
       return Nothing;
@@ -5150,21 +4074,36 @@ var scissorsRail = /* @__PURE__ */ (() => {
     flipped: false,
     opposed: false,
     getDrawInfo: (s) => {
-      if (s.tag === "StateSP_P") {
+      if (s === "StateSP_P") {
         return {
-          rails: concatArray(arrayMap(grayRail)(ri))(concatArray(arrayMap(grayRail)(ro))(concatArray(arrayMap(grayRail)(rn))(arrayMap(blueRail)(rp)))),
+          rails: [
+            ...arrayMap(grayRail)(ri),
+            ...arrayMap(grayRail)(ro),
+            ...arrayMap(grayRail)(rn),
+            ...arrayMap(blueRail)(rp)
+          ],
           additionals: []
         };
       }
-      if (s.tag === "StateSP_S") {
+      if (s === "StateSP_S") {
         return {
-          rails: concatArray(arrayMap(grayRail)(rn))(concatArray(arrayMap(grayRail)(rp))(concatArray(arrayMap(blueRail)(ri))(arrayMap(blueRail)(ro)))),
+          rails: [
+            ...arrayMap(grayRail)(rn),
+            ...arrayMap(grayRail)(rp),
+            ...arrayMap(blueRail)(ri),
+            ...arrayMap(blueRail)(ro)
+          ],
           additionals: []
         };
       }
-      if (s.tag === "StateSP_N") {
+      if (s === "StateSP_N") {
         return {
-          rails: concatArray(arrayMap(grayRail)(ri))(concatArray(arrayMap(grayRail)(ro))(concatArray(arrayMap(grayRail)(rp))(arrayMap(blueRail)(rn)))),
+          rails: [
+            ...arrayMap(grayRail)(ri),
+            ...arrayMap(grayRail)(ro),
+            ...arrayMap(grayRail)(rp),
+            ...arrayMap(blueRail)(rn)
+          ],
           additionals: []
         };
       }
@@ -5175,178 +4114,173 @@ var scissorsRail = /* @__PURE__ */ (() => {
     getStates: serialAll(intSerialize4),
     getOrigin: JointOuterBegin,
     getJointPos: (j) => {
-      if (j.tag === "JointOuterBegin") {
+      if (j === "JointOuterBegin") {
         return pob;
       }
-      if (j.tag === "JointOuterEnd") {
+      if (j === "JointOuterEnd") {
         return poe;
       }
-      if (j.tag === "JointInnerBegin") {
+      if (j === "JointInnerBegin") {
         return pib;
       }
-      if (j.tag === "JointInnerEnd") {
+      if (j === "JointInnerEnd") {
         return pie;
       }
       fail();
     },
     getNewState: (j) => (s) => {
-      if (s.tag === "StateSP_P") {
-        if (j.tag === "JointInnerBegin") {
+      if (s === "StateSP_P") {
+        if (j === "JointInnerBegin") {
           return { newjoint: JointOuterBegin, newstate: StateSP_P, shape: reverseShapes(rp) };
         }
-        if (j.tag === "JointInnerEnd") {
+        if (j === "JointInnerEnd") {
           return { newjoint: JointInnerBegin, newstate: StateSP_S, shape: reverseShapes(ri) };
         }
-        if (j.tag === "JointOuterBegin") {
+        if (j === "JointOuterBegin") {
           return { newjoint: JointInnerBegin, newstate: StateSP_P, shape: rp };
         }
-        if (j.tag === "JointOuterEnd") {
+        if (j === "JointOuterEnd") {
           return { newjoint: JointOuterBegin, newstate: StateSP_S, shape: reverseShapes(ro) };
         }
         fail();
       }
-      if (s.tag === "StateSP_S") {
-        if (j.tag === "JointInnerBegin") {
+      if (s === "StateSP_S") {
+        if (j === "JointInnerBegin") {
           return { newjoint: JointInnerEnd, newstate: StateSP_S, shape: ri };
         }
-        if (j.tag === "JointInnerEnd") {
+        if (j === "JointInnerEnd") {
           return { newjoint: JointInnerBegin, newstate: StateSP_S, shape: reverseShapes(ri) };
         }
-        if (j.tag === "JointOuterBegin") {
+        if (j === "JointOuterBegin") {
           return { newjoint: JointOuterEnd, newstate: StateSP_S, shape: ro };
         }
-        if (j.tag === "JointOuterEnd") {
+        if (j === "JointOuterEnd") {
           return { newjoint: JointOuterBegin, newstate: StateSP_S, shape: reverseShapes(ro) };
         }
         fail();
       }
-      if (s.tag === "StateSP_N") {
-        if (j.tag === "JointInnerBegin") {
+      if (s === "StateSP_N") {
+        if (j === "JointInnerBegin") {
           return { newjoint: JointInnerEnd, newstate: StateSP_S, shape: ri };
         }
-        if (j.tag === "JointInnerEnd") {
+        if (j === "JointInnerEnd") {
           return { newjoint: JointOuterEnd, newstate: StateSP_N, shape: rn };
         }
-        if (j.tag === "JointOuterBegin") {
+        if (j === "JointOuterBegin") {
           return { newjoint: JointOuterEnd, newstate: StateSP_S, shape: ro };
         }
-        if (j.tag === "JointOuterEnd") {
+        if (j === "JointOuterEnd") {
           return { newjoint: JointInnerEnd, newstate: StateSP_N, shape: reverseShapes(rn) };
         }
-        fail();
       }
       fail();
     },
     getRoute: (s) => (f) => (t) => {
-      if (f.tag === "JointInnerBegin") {
-        if (t.tag === "JointInnerBegin") {
+      if (f === "JointInnerBegin") {
+        if (t === "JointInnerBegin") {
           return Nothing;
         }
-        if (t.tag === "JointInnerEnd") {
+        if (t === "JointInnerEnd") {
           return $Maybe("Just", StateSP_S);
         }
-        if (t.tag === "JointOuterBegin") {
+        if (t === "JointOuterBegin") {
           return $Maybe("Just", StateSP_P);
         }
-        if (t.tag === "JointOuterEnd") {
+        if (t === "JointOuterEnd") {
           return Nothing;
         }
         fail();
       }
-      if (f.tag === "JointInnerEnd") {
-        if (t.tag === "JointInnerBegin") {
+      if (f === "JointInnerEnd") {
+        if (t === "JointInnerBegin") {
           return $Maybe("Just", StateSP_S);
         }
-        if (t.tag === "JointInnerEnd") {
+        if (t === "JointInnerEnd") {
           return Nothing;
         }
-        if (t.tag === "JointOuterBegin") {
+        if (t === "JointOuterBegin") {
           return Nothing;
         }
-        if (t.tag === "JointOuterEnd") {
+        if (t === "JointOuterEnd") {
           return $Maybe("Just", StateSP_N);
         }
         fail();
       }
-      if (f.tag === "JointOuterBegin") {
-        if (t.tag === "JointInnerBegin") {
+      if (f === "JointOuterBegin") {
+        if (t === "JointInnerBegin") {
           return $Maybe("Just", StateSP_P);
         }
-        if (t.tag === "JointInnerEnd") {
+        if (t === "JointInnerEnd") {
           return Nothing;
         }
-        if (t.tag === "JointOuterBegin") {
+        if (t === "JointOuterBegin") {
           return Nothing;
         }
-        if (t.tag === "JointOuterEnd") {
+        if (t === "JointOuterEnd") {
           return $Maybe("Just", StateSP_S);
         }
         fail();
       }
-      if (f.tag === "JointOuterEnd") {
-        if (t.tag === "JointInnerBegin") {
+      if (f === "JointOuterEnd") {
+        if (t === "JointInnerBegin") {
           return Nothing;
         }
-        if (t.tag === "JointInnerEnd") {
+        if (t === "JointInnerEnd") {
           return $Maybe("Just", StateSP_N);
         }
-        if (t.tag === "JointOuterBegin") {
+        if (t === "JointOuterBegin") {
           return $Maybe("Just", StateSP_S);
         }
-        if (t.tag === "JointOuterEnd") {
+        if (t === "JointOuterEnd") {
           return Nothing;
         }
-        fail();
       }
       fail();
     },
     isLegal: (j) => (s) => {
-      if (j.tag === "JointInnerBegin") {
-        return s.tag === "StateSP_P" || s.tag === "StateSP_S" || !(s.tag === "StateSP_N");
+      if (j === "JointInnerBegin") {
+        return s === "StateSP_P" || s === "StateSP_S" || s !== "StateSP_N";
       }
-      if (j.tag === "JointInnerEnd") {
-        return !(s.tag === "StateSP_P");
+      if (j === "JointInnerEnd") {
+        return s !== "StateSP_P";
       }
-      if (j.tag === "JointOuterBegin") {
-        return s.tag === "StateSP_P" || s.tag === "StateSP_S" || !(s.tag === "StateSP_N");
+      if (j === "JointOuterBegin") {
+        return s === "StateSP_P" || s === "StateSP_S" || s !== "StateSP_N";
       }
-      if (j.tag === "JointOuterEnd") {
-        return !(s.tag === "StateSP_P");
+      if (j === "JointOuterEnd") {
+        return s !== "StateSP_P";
       }
       fail();
     },
     lockedBy: (s) => (s$p) => {
       if ((() => {
-        if (s.tag === "StateSP_P") {
-          return s$p.tag === "StateSP_P";
+        if (s === "StateSP_P") {
+          return s$p === "StateSP_P";
         }
-        if (s.tag === "StateSP_S") {
-          return s$p.tag === "StateSP_S";
+        if (s === "StateSP_S") {
+          return s$p === "StateSP_S";
         }
-        if (s.tag === "StateSP_N") {
-          return s$p.tag === "StateSP_N";
-        }
-        return false;
+        return s === "StateSP_N" && s$p === "StateSP_N";
       })()) {
         return [];
       }
       return serialAll6;
     },
     isBlocked: (j) => (s) => (j$p) => {
-      if (s.tag === "StateSP_P" || !(s.tag === "StateSP_S")) {
+      if (s === "StateSP_P" || s !== "StateSP_S") {
         return true;
       }
-      if (j$p.tag === "JointInnerBegin") {
-        return j.tag === "JointInnerEnd";
+      if (j$p === "JointInnerBegin") {
+        return j === "JointInnerEnd";
       }
-      if (j$p.tag === "JointInnerEnd") {
-        return j.tag === "JointInnerBegin";
+      if (j$p === "JointInnerEnd") {
+        return j === "JointInnerBegin";
       }
-      if (j$p.tag === "JointOuterBegin") {
-        return j.tag === "JointOuterEnd";
+      if (j$p === "JointOuterBegin") {
+        return j === "JointOuterEnd";
       }
-      if (j$p.tag === "JointOuterEnd") {
-        return j.tag === "JointOuterBegin";
+      if (j$p === "JointOuterEnd") {
+        return j === "JointOuterBegin";
       }
       fail();
     },
@@ -5365,17 +4299,11 @@ var diamondRail = /* @__PURE__ */ (() => {
     flipped: false,
     opposed: false,
     getDrawInfo: (s) => {
-      if (s.tag === "StateDM_P") {
-        return {
-          rails: concatArray(arrayMap(grayRail)(rn))(arrayMap(blueRail)(rp)),
-          additionals: []
-        };
+      if (s === "StateDM_P") {
+        return { rails: [...arrayMap(grayRail)(rn), ...arrayMap(blueRail)(rp)], additionals: [] };
       }
-      if (s.tag === "StateDM_N") {
-        return {
-          rails: concatArray(arrayMap(grayRail)(rp))(arrayMap(blueRail)(rn)),
-          additionals: []
-        };
+      if (s === "StateDM_N") {
+        return { rails: [...arrayMap(grayRail)(rp), ...arrayMap(blueRail)(rn)], additionals: [] };
       }
       fail();
     },
@@ -5384,123 +4312,114 @@ var diamondRail = /* @__PURE__ */ (() => {
     getStates: serialAll(intSerialize5),
     getOrigin: JointOuterBegin,
     getJointPos: (j) => {
-      if (j.tag === "JointOuterBegin") {
+      if (j === "JointOuterBegin") {
         return pob;
       }
-      if (j.tag === "JointOuterEnd") {
+      if (j === "JointOuterEnd") {
         return poe;
       }
-      if (j.tag === "JointInnerBegin") {
+      if (j === "JointInnerBegin") {
         return pib;
       }
-      if (j.tag === "JointInnerEnd") {
+      if (j === "JointInnerEnd") {
         return pie;
       }
       fail();
     },
     getNewState: (j) => (s) => {
-      if (j.tag === "JointInnerBegin") {
+      if (j === "JointInnerBegin") {
         return { newjoint: JointOuterBegin, newstate: StateDM_P, shape: reverseShapes(rp) };
       }
-      if (j.tag === "JointInnerEnd") {
+      if (j === "JointInnerEnd") {
         return { newjoint: JointOuterEnd, newstate: StateDM_N, shape: rn };
       }
-      if (j.tag === "JointOuterBegin") {
+      if (j === "JointOuterBegin") {
         return { newjoint: JointInnerBegin, newstate: StateDM_P, shape: rp };
       }
-      if (j.tag === "JointOuterEnd") {
+      if (j === "JointOuterEnd") {
         return { newjoint: JointInnerEnd, newstate: StateDM_N, shape: reverseShapes(rn) };
       }
       fail();
     },
     getRoute: (s) => (f) => (t) => {
-      if (f.tag === "JointInnerBegin") {
-        if (t.tag === "JointInnerBegin") {
+      if (f === "JointInnerBegin") {
+        if (t === "JointInnerBegin") {
           return Nothing;
         }
-        if (t.tag === "JointInnerEnd") {
+        if (t === "JointInnerEnd") {
           return Nothing;
         }
-        if (t.tag === "JointOuterBegin") {
+        if (t === "JointOuterBegin") {
           return $Maybe("Just", StateDM_P);
         }
-        if (t.tag === "JointOuterEnd") {
+        if (t === "JointOuterEnd") {
           return Nothing;
         }
         fail();
       }
-      if (f.tag === "JointInnerEnd") {
-        if (t.tag === "JointInnerBegin") {
+      if (f === "JointInnerEnd") {
+        if (t === "JointInnerBegin") {
           return Nothing;
         }
-        if (t.tag === "JointInnerEnd") {
+        if (t === "JointInnerEnd") {
           return Nothing;
         }
-        if (t.tag === "JointOuterBegin") {
+        if (t === "JointOuterBegin") {
           return Nothing;
         }
-        if (t.tag === "JointOuterEnd") {
+        if (t === "JointOuterEnd") {
           return $Maybe("Just", StateDM_N);
         }
         fail();
       }
-      if (f.tag === "JointOuterBegin") {
-        if (t.tag === "JointInnerBegin") {
+      if (f === "JointOuterBegin") {
+        if (t === "JointInnerBegin") {
           return $Maybe("Just", StateDM_P);
         }
-        if (t.tag === "JointInnerEnd") {
+        if (t === "JointInnerEnd") {
           return Nothing;
         }
-        if (t.tag === "JointOuterBegin") {
+        if (t === "JointOuterBegin") {
           return Nothing;
         }
-        if (t.tag === "JointOuterEnd") {
+        if (t === "JointOuterEnd") {
           return Nothing;
         }
         fail();
       }
-      if (f.tag === "JointOuterEnd") {
-        if (t.tag === "JointInnerBegin") {
+      if (f === "JointOuterEnd") {
+        if (t === "JointInnerBegin") {
           return Nothing;
         }
-        if (t.tag === "JointInnerEnd") {
+        if (t === "JointInnerEnd") {
           return $Maybe("Just", StateDM_N);
         }
-        if (t.tag === "JointOuterBegin") {
+        if (t === "JointOuterBegin") {
           return Nothing;
         }
-        if (t.tag === "JointOuterEnd") {
+        if (t === "JointOuterEnd") {
           return Nothing;
         }
-        fail();
       }
       fail();
     },
     isLegal: (j) => (s) => {
-      if (j.tag === "JointInnerBegin") {
-        return s.tag === "StateDM_P" || !(s.tag === "StateDM_N");
+      if (j === "JointInnerBegin") {
+        return s === "StateDM_P" || s !== "StateDM_N";
       }
-      if (j.tag === "JointInnerEnd") {
-        return !(s.tag === "StateDM_P");
+      if (j === "JointInnerEnd") {
+        return s !== "StateDM_P";
       }
-      if (j.tag === "JointOuterBegin") {
-        return s.tag === "StateDM_P" || !(s.tag === "StateDM_N");
+      if (j === "JointOuterBegin") {
+        return s === "StateDM_P" || s !== "StateDM_N";
       }
-      if (j.tag === "JointOuterEnd") {
-        return !(s.tag === "StateDM_P");
+      if (j === "JointOuterEnd") {
+        return s !== "StateDM_P";
       }
       fail();
     },
     lockedBy: (s) => (s$p) => {
-      if ((() => {
-        if (s.tag === "StateDM_P") {
-          return s$p.tag === "StateDM_P";
-        }
-        if (s.tag === "StateDM_N") {
-          return s$p.tag === "StateDM_N";
-        }
-        return false;
-      })()) {
+      if (s === "StateDM_P" ? s$p === "StateDM_P" : s === "StateDM_N" && s$p === "StateDM_N") {
         return [];
       }
       return serialAll6;
@@ -5523,33 +4442,25 @@ var curveLRail = /* @__PURE__ */ (() => {
     getStates: serialAll2,
     getOrigin: JointBegin,
     getJointPos: (j) => {
-      if (j.tag === "JointBegin") {
+      if (j === "JointBegin") {
         return pb;
       }
-      if (j.tag === "JointEnd") {
+      if (j === "JointEnd") {
         return pe;
       }
       fail();
     },
     getNewState: (j) => (s) => {
-      if (j.tag === "JointBegin") {
+      if (j === "JointBegin") {
         return { newjoint: JointEnd, newstate: s, shape: r0 };
       }
-      if (j.tag === "JointEnd") {
+      if (j === "JointEnd") {
         return { newjoint: JointBegin, newstate: s, shape: reverseShapes(r0) };
       }
       fail();
     },
     getRoute: (s) => (f) => (t) => {
-      if ((() => {
-        if (f.tag === "JointBegin") {
-          return !(t.tag === "JointBegin");
-        }
-        if (f.tag === "JointEnd") {
-          return !(t.tag === "JointEnd");
-        }
-        return true;
-      })()) {
+      if (f === "JointBegin" ? t !== "JointBegin" : !(f === "JointEnd" && t === "JointEnd")) {
         return $Maybe("Just", s);
       }
       return Nothing;
@@ -5577,23 +4488,39 @@ var crossoverLRail = /* @__PURE__ */ (() => {
       if (v.outerturnout) {
         if (v.innerturnout) {
           return {
-            rails: concatArray(arrayMap(grayRail)(ri))(concatArray(arrayMap(grayRail)(ro))(arrayMap(blueRail)(rn))),
+            rails: [
+              ...arrayMap(grayRail)(ri),
+              ...arrayMap(grayRail)(ro),
+              ...arrayMap(blueRail)(rn)
+            ],
             additionals: []
           };
         }
         return {
-          rails: concatArray(arrayMap(grayRail)(ro))(concatArray(arrayMap(blueRail)(ri))(arrayMap(blueRail)(rn))),
+          rails: [
+            ...arrayMap(grayRail)(ro),
+            ...arrayMap(blueRail)(ri),
+            ...arrayMap(blueRail)(rn)
+          ],
           additionals: []
         };
       }
       if (v.innerturnout) {
         return {
-          rails: concatArray(arrayMap(grayRail)(ri))(concatArray(arrayMap(blueRail)(ro))(arrayMap(blueRail)(rn))),
+          rails: [
+            ...arrayMap(grayRail)(ri),
+            ...arrayMap(blueRail)(ro),
+            ...arrayMap(blueRail)(rn)
+          ],
           additionals: []
         };
       }
       return {
-        rails: concatArray(arrayMap(grayRail)(rn))(concatArray(arrayMap(blueRail)(ri))(arrayMap(blueRail)(ro))),
+        rails: [
+          ...arrayMap(grayRail)(rn),
+          ...arrayMap(blueRail)(ri),
+          ...arrayMap(blueRail)(ro)
+        ],
         additionals: []
       };
     },
@@ -5602,16 +4529,16 @@ var crossoverLRail = /* @__PURE__ */ (() => {
     getStates: serialAll22,
     getOrigin: JointOuterBegin,
     getJointPos: (j) => {
-      if (j.tag === "JointOuterBegin") {
+      if (j === "JointOuterBegin") {
         return pob;
       }
-      if (j.tag === "JointOuterEnd") {
+      if (j === "JointOuterEnd") {
         return poe;
       }
-      if (j.tag === "JointInnerBegin") {
+      if (j === "JointInnerBegin") {
         return pib;
       }
-      if (j.tag === "JointInnerEnd") {
+      if (j === "JointInnerEnd") {
         return pie;
       }
       fail();
@@ -5619,137 +4546,136 @@ var crossoverLRail = /* @__PURE__ */ (() => {
     getNewState: (j) => (v) => {
       if (v.outerturnout) {
         if (v.innerturnout) {
-          if (j.tag === "JointInnerBegin") {
-            return { newjoint: JointInnerEnd, newstate: { innerturnout: false, outerturnout: v.outerturnout }, shape: ri };
+          if (j === "JointInnerBegin") {
+            return { newjoint: JointInnerEnd, newstate: { ...v, innerturnout: false }, shape: ri };
           }
-          if (j.tag === "JointInnerEnd") {
+          if (j === "JointInnerEnd") {
             return { newjoint: JointOuterEnd, newstate: v, shape: rn };
           }
-          if (j.tag === "JointOuterBegin") {
-            return { newjoint: JointOuterEnd, newstate: { innerturnout: v.innerturnout, outerturnout: false }, shape: ro };
+          if (j === "JointOuterBegin") {
+            return { newjoint: JointOuterEnd, newstate: { ...v, outerturnout: false }, shape: ro };
           }
-          if (j.tag === "JointOuterEnd") {
+          if (j === "JointOuterEnd") {
             return { newjoint: JointInnerEnd, newstate: v, shape: reverseShapes(rn) };
           }
           fail();
         }
-        if (j.tag === "JointInnerBegin") {
+        if (j === "JointInnerBegin") {
           return { newjoint: JointInnerEnd, newstate: v, shape: ri };
         }
-        if (j.tag === "JointInnerEnd") {
+        if (j === "JointInnerEnd") {
           return { newjoint: JointInnerBegin, newstate: v, shape: reverseShapes(ri) };
         }
-        if (j.tag === "JointOuterBegin") {
-          return { newjoint: JointOuterEnd, newstate: { innerturnout: v.innerturnout, outerturnout: false }, shape: ro };
+        if (j === "JointOuterBegin") {
+          return { newjoint: JointOuterEnd, newstate: { ...v, outerturnout: false }, shape: ro };
         }
-        if (j.tag === "JointOuterEnd") {
-          return { newjoint: JointInnerEnd, newstate: { innerturnout: true, outerturnout: v.outerturnout }, shape: reverseShapes(rn) };
+        if (j === "JointOuterEnd") {
+          return { newjoint: JointInnerEnd, newstate: { ...v, innerturnout: true }, shape: reverseShapes(rn) };
         }
         fail();
       }
       if (v.innerturnout) {
-        if (j.tag === "JointInnerBegin") {
-          return { newjoint: JointInnerEnd, newstate: { innerturnout: false, outerturnout: v.outerturnout }, shape: ri };
+        if (j === "JointInnerBegin") {
+          return { newjoint: JointInnerEnd, newstate: { ...v, innerturnout: false }, shape: ri };
         }
-        if (j.tag === "JointInnerEnd") {
-          return { newjoint: JointOuterEnd, newstate: { innerturnout: v.innerturnout, outerturnout: true }, shape: rn };
+        if (j === "JointInnerEnd") {
+          return { newjoint: JointOuterEnd, newstate: { ...v, outerturnout: true }, shape: rn };
         }
-        if (j.tag === "JointOuterBegin") {
+        if (j === "JointOuterBegin") {
           return { newjoint: JointOuterEnd, newstate: v, shape: ro };
         }
-        if (j.tag === "JointOuterEnd") {
+        if (j === "JointOuterEnd") {
           return { newjoint: JointOuterBegin, newstate: v, shape: reverseShapes(ro) };
         }
         fail();
       }
-      if (j.tag === "JointInnerBegin") {
+      if (j === "JointInnerBegin") {
         return { newjoint: JointInnerEnd, newstate: v, shape: ri };
       }
-      if (j.tag === "JointInnerEnd") {
+      if (j === "JointInnerEnd") {
         return { newjoint: JointInnerBegin, newstate: v, shape: reverseShapes(ri) };
       }
-      if (j.tag === "JointOuterBegin") {
+      if (j === "JointOuterBegin") {
         return { newjoint: JointOuterEnd, newstate: v, shape: ro };
       }
-      if (j.tag === "JointOuterEnd") {
+      if (j === "JointOuterEnd") {
         return { newjoint: JointOuterBegin, newstate: v, shape: reverseShapes(ro) };
       }
       fail();
     },
     getRoute: (s) => (f) => (t) => {
-      if (f.tag === "JointInnerBegin") {
-        if (t.tag === "JointInnerBegin") {
+      if (f === "JointInnerBegin") {
+        if (t === "JointInnerBegin") {
           return Nothing;
         }
-        if (t.tag === "JointInnerEnd") {
-          return $Maybe("Just", { innerturnout: false, outerturnout: false });
+        if (t === "JointInnerEnd") {
+          return $Maybe("Just", { ...s, innerturnout: false, outerturnout: false });
         }
-        if (t.tag === "JointOuterBegin") {
+        if (t === "JointOuterBegin") {
           return Nothing;
         }
-        if (t.tag === "JointOuterEnd") {
+        if (t === "JointOuterEnd") {
           return Nothing;
         }
         fail();
       }
-      if (f.tag === "JointInnerEnd") {
-        if (t.tag === "JointInnerBegin") {
-          return $Maybe("Just", { innerturnout: false, outerturnout: false });
+      if (f === "JointInnerEnd") {
+        if (t === "JointInnerBegin") {
+          return $Maybe("Just", { ...s, innerturnout: false, outerturnout: false });
         }
-        if (t.tag === "JointInnerEnd") {
+        if (t === "JointInnerEnd") {
           return Nothing;
         }
-        if (t.tag === "JointOuterBegin") {
+        if (t === "JointOuterBegin") {
           return Nothing;
         }
-        if (t.tag === "JointOuterEnd") {
-          return $Maybe("Just", { innerturnout: true, outerturnout: true });
+        if (t === "JointOuterEnd") {
+          return $Maybe("Just", { ...s, innerturnout: true, outerturnout: true });
         }
         fail();
       }
-      if (f.tag === "JointOuterBegin") {
-        if (t.tag === "JointInnerBegin") {
+      if (f === "JointOuterBegin") {
+        if (t === "JointInnerBegin") {
           return Nothing;
         }
-        if (t.tag === "JointInnerEnd") {
+        if (t === "JointInnerEnd") {
           return Nothing;
         }
-        if (t.tag === "JointOuterBegin") {
+        if (t === "JointOuterBegin") {
           return Nothing;
         }
-        if (t.tag === "JointOuterEnd") {
-          return $Maybe("Just", { innerturnout: false, outerturnout: false });
+        if (t === "JointOuterEnd") {
+          return $Maybe("Just", { ...s, innerturnout: false, outerturnout: false });
         }
         fail();
       }
-      if (f.tag === "JointOuterEnd") {
-        if (t.tag === "JointInnerBegin") {
+      if (f === "JointOuterEnd") {
+        if (t === "JointInnerBegin") {
           return Nothing;
         }
-        if (t.tag === "JointInnerEnd") {
-          return $Maybe("Just", { innerturnout: true, outerturnout: true });
+        if (t === "JointInnerEnd") {
+          return $Maybe("Just", { ...s, innerturnout: true, outerturnout: true });
         }
-        if (t.tag === "JointOuterBegin") {
-          return $Maybe("Just", { innerturnout: false, outerturnout: false });
+        if (t === "JointOuterBegin") {
+          return $Maybe("Just", { ...s, innerturnout: false, outerturnout: false });
         }
-        if (t.tag === "JointOuterEnd") {
+        if (t === "JointOuterEnd") {
           return Nothing;
         }
-        fail();
       }
       fail();
     },
     isLegal: (j) => (s) => {
-      if (j.tag === "JointInnerBegin") {
+      if (j === "JointInnerBegin") {
         return !s.innerturnout && !s.outerturnout;
       }
-      if (j.tag === "JointInnerEnd") {
+      if (j === "JointInnerEnd") {
         return s.innerturnout === s.outerturnout;
       }
-      if (j.tag === "JointOuterBegin") {
+      if (j === "JointOuterBegin") {
         return !s.innerturnout && !s.outerturnout;
       }
-      if (j.tag === "JointOuterEnd") {
+      if (j === "JointOuterEnd") {
         return s.innerturnout === s.outerturnout;
       }
       fail();
@@ -5764,17 +4690,17 @@ var crossoverLRail = /* @__PURE__ */ (() => {
       if (s.innerturnout && s.outerturnout) {
         return true;
       }
-      if (j$p.tag === "JointInnerBegin") {
-        return j.tag === "JointInnerEnd";
+      if (j$p === "JointInnerBegin") {
+        return j === "JointInnerEnd";
       }
-      if (j$p.tag === "JointInnerEnd") {
-        return j.tag === "JointInnerBegin";
+      if (j$p === "JointInnerEnd") {
+        return j === "JointInnerBegin";
       }
-      if (j$p.tag === "JointOuterBegin") {
-        return j.tag === "JointOuterEnd";
+      if (j$p === "JointOuterBegin") {
+        return j === "JointOuterEnd";
       }
-      if (j$p.tag === "JointOuterEnd") {
-        return j.tag === "JointOuterBegin";
+      if (j$p === "JointOuterEnd") {
+        return j === "JointOuterBegin";
       }
       fail();
     },
@@ -5796,33 +4722,25 @@ var converterRail = /* @__PURE__ */ (() => {
     getStates: serialAll2,
     getOrigin: JointBegin,
     getJointPos: (j) => {
-      if (j.tag === "JointBegin") {
+      if (j === "JointBegin") {
         return pb;
       }
-      if (j.tag === "JointEnd") {
+      if (j === "JointEnd") {
         return pe;
       }
       fail();
     },
     getNewState: (j) => (s) => {
-      if (j.tag === "JointBegin") {
+      if (j === "JointBegin") {
         return { newjoint: JointEnd, newstate: s, shape: r0 };
       }
-      if (j.tag === "JointEnd") {
+      if (j === "JointEnd") {
         return { newjoint: JointBegin, newstate: s, shape: reverseShapes(r0) };
       }
       fail();
     },
     getRoute: (s) => (f) => (t) => {
-      if ((() => {
-        if (f.tag === "JointBegin") {
-          return !(t.tag === "JointBegin");
-        }
-        if (f.tag === "JointEnd") {
-          return !(t.tag === "JointEnd");
-        }
-        return true;
-      })()) {
+      if (f === "JointBegin" ? t !== "JointBegin" : !(f === "JointEnd" && t === "JointEnd")) {
         return $Maybe("Just", s);
       }
       return Nothing;
@@ -5849,23 +4767,39 @@ var doubleToWideLRail = /* @__PURE__ */ (() => {
       if (v.outerturnout) {
         if (v.innerturnout) {
           return {
-            rails: concatArray(arrayMap(grayRail)(ri))(concatArray(arrayMap(grayRail)(ro))(arrayMap(blueRail)(rn))),
+            rails: [
+              ...arrayMap(grayRail)(ri),
+              ...arrayMap(grayRail)(ro),
+              ...arrayMap(blueRail)(rn)
+            ],
             additionals: []
           };
         }
         return {
-          rails: concatArray(arrayMap(grayRail)(ro))(concatArray(arrayMap(blueRail)(ri))(arrayMap(blueRail)(rn))),
+          rails: [
+            ...arrayMap(grayRail)(ro),
+            ...arrayMap(blueRail)(ri),
+            ...arrayMap(blueRail)(rn)
+          ],
           additionals: []
         };
       }
       if (v.innerturnout) {
         return {
-          rails: concatArray(arrayMap(grayRail)(ri))(concatArray(arrayMap(blueRail)(ro))(arrayMap(blueRail)(rn))),
+          rails: [
+            ...arrayMap(grayRail)(ri),
+            ...arrayMap(blueRail)(ro),
+            ...arrayMap(blueRail)(rn)
+          ],
           additionals: []
         };
       }
       return {
-        rails: concatArray(arrayMap(grayRail)(rn))(concatArray(arrayMap(blueRail)(ri))(arrayMap(blueRail)(ro))),
+        rails: [
+          ...arrayMap(grayRail)(rn),
+          ...arrayMap(blueRail)(ri),
+          ...arrayMap(blueRail)(ro)
+        ],
         additionals: []
       };
     },
@@ -5874,16 +4808,16 @@ var doubleToWideLRail = /* @__PURE__ */ (() => {
     getStates: serialAll22,
     getOrigin: JointOuterBegin,
     getJointPos: (j) => {
-      if (j.tag === "JointOuterBegin") {
+      if (j === "JointOuterBegin") {
         return pob;
       }
-      if (j.tag === "JointOuterEnd") {
+      if (j === "JointOuterEnd") {
         return poe;
       }
-      if (j.tag === "JointInnerBegin") {
+      if (j === "JointInnerBegin") {
         return pib;
       }
-      if (j.tag === "JointInnerEnd") {
+      if (j === "JointInnerEnd") {
         return pie;
       }
       fail();
@@ -5891,137 +4825,136 @@ var doubleToWideLRail = /* @__PURE__ */ (() => {
     getNewState: (j) => (v) => {
       if (v.outerturnout) {
         if (v.innerturnout) {
-          if (j.tag === "JointInnerBegin") {
-            return { newjoint: JointInnerEnd, newstate: { innerturnout: false, outerturnout: v.outerturnout }, shape: ri };
+          if (j === "JointInnerBegin") {
+            return { newjoint: JointInnerEnd, newstate: { ...v, innerturnout: false }, shape: ri };
           }
-          if (j.tag === "JointInnerEnd") {
+          if (j === "JointInnerEnd") {
             return { newjoint: JointOuterEnd, newstate: v, shape: rn };
           }
-          if (j.tag === "JointOuterBegin") {
-            return { newjoint: JointOuterEnd, newstate: { innerturnout: v.innerturnout, outerturnout: false }, shape: ro };
+          if (j === "JointOuterBegin") {
+            return { newjoint: JointOuterEnd, newstate: { ...v, outerturnout: false }, shape: ro };
           }
-          if (j.tag === "JointOuterEnd") {
+          if (j === "JointOuterEnd") {
             return { newjoint: JointInnerEnd, newstate: v, shape: reverseShapes(rn) };
           }
           fail();
         }
-        if (j.tag === "JointInnerBegin") {
+        if (j === "JointInnerBegin") {
           return { newjoint: JointInnerEnd, newstate: v, shape: ri };
         }
-        if (j.tag === "JointInnerEnd") {
+        if (j === "JointInnerEnd") {
           return { newjoint: JointInnerBegin, newstate: v, shape: reverseShapes(ri) };
         }
-        if (j.tag === "JointOuterBegin") {
-          return { newjoint: JointOuterEnd, newstate: { innerturnout: v.innerturnout, outerturnout: false }, shape: ro };
+        if (j === "JointOuterBegin") {
+          return { newjoint: JointOuterEnd, newstate: { ...v, outerturnout: false }, shape: ro };
         }
-        if (j.tag === "JointOuterEnd") {
-          return { newjoint: JointInnerEnd, newstate: { innerturnout: true, outerturnout: v.outerturnout }, shape: reverseShapes(rn) };
+        if (j === "JointOuterEnd") {
+          return { newjoint: JointInnerEnd, newstate: { ...v, innerturnout: true }, shape: reverseShapes(rn) };
         }
         fail();
       }
       if (v.innerturnout) {
-        if (j.tag === "JointInnerBegin") {
-          return { newjoint: JointInnerEnd, newstate: { innerturnout: false, outerturnout: v.outerturnout }, shape: ri };
+        if (j === "JointInnerBegin") {
+          return { newjoint: JointInnerEnd, newstate: { ...v, innerturnout: false }, shape: ri };
         }
-        if (j.tag === "JointInnerEnd") {
-          return { newjoint: JointOuterEnd, newstate: { innerturnout: v.innerturnout, outerturnout: true }, shape: rn };
+        if (j === "JointInnerEnd") {
+          return { newjoint: JointOuterEnd, newstate: { ...v, outerturnout: true }, shape: rn };
         }
-        if (j.tag === "JointOuterBegin") {
+        if (j === "JointOuterBegin") {
           return { newjoint: JointOuterEnd, newstate: v, shape: ro };
         }
-        if (j.tag === "JointOuterEnd") {
+        if (j === "JointOuterEnd") {
           return { newjoint: JointOuterBegin, newstate: v, shape: reverseShapes(ro) };
         }
         fail();
       }
-      if (j.tag === "JointInnerBegin") {
+      if (j === "JointInnerBegin") {
         return { newjoint: JointInnerEnd, newstate: v, shape: ri };
       }
-      if (j.tag === "JointInnerEnd") {
+      if (j === "JointInnerEnd") {
         return { newjoint: JointInnerBegin, newstate: v, shape: reverseShapes(ri) };
       }
-      if (j.tag === "JointOuterBegin") {
+      if (j === "JointOuterBegin") {
         return { newjoint: JointOuterEnd, newstate: v, shape: ro };
       }
-      if (j.tag === "JointOuterEnd") {
+      if (j === "JointOuterEnd") {
         return { newjoint: JointOuterBegin, newstate: v, shape: reverseShapes(ro) };
       }
       fail();
     },
     getRoute: (s) => (f) => (t) => {
-      if (f.tag === "JointInnerBegin") {
-        if (t.tag === "JointInnerBegin") {
+      if (f === "JointInnerBegin") {
+        if (t === "JointInnerBegin") {
           return Nothing;
         }
-        if (t.tag === "JointInnerEnd") {
-          return $Maybe("Just", { innerturnout: false, outerturnout: false });
+        if (t === "JointInnerEnd") {
+          return $Maybe("Just", { ...s, innerturnout: false, outerturnout: false });
         }
-        if (t.tag === "JointOuterBegin") {
+        if (t === "JointOuterBegin") {
           return Nothing;
         }
-        if (t.tag === "JointOuterEnd") {
+        if (t === "JointOuterEnd") {
           return Nothing;
         }
         fail();
       }
-      if (f.tag === "JointInnerEnd") {
-        if (t.tag === "JointInnerBegin") {
-          return $Maybe("Just", { innerturnout: false, outerturnout: false });
+      if (f === "JointInnerEnd") {
+        if (t === "JointInnerBegin") {
+          return $Maybe("Just", { ...s, innerturnout: false, outerturnout: false });
         }
-        if (t.tag === "JointInnerEnd") {
+        if (t === "JointInnerEnd") {
           return Nothing;
         }
-        if (t.tag === "JointOuterBegin") {
+        if (t === "JointOuterBegin") {
           return Nothing;
         }
-        if (t.tag === "JointOuterEnd") {
-          return $Maybe("Just", { innerturnout: true, outerturnout: true });
+        if (t === "JointOuterEnd") {
+          return $Maybe("Just", { ...s, innerturnout: true, outerturnout: true });
         }
         fail();
       }
-      if (f.tag === "JointOuterBegin") {
-        if (t.tag === "JointInnerBegin") {
+      if (f === "JointOuterBegin") {
+        if (t === "JointInnerBegin") {
           return Nothing;
         }
-        if (t.tag === "JointInnerEnd") {
+        if (t === "JointInnerEnd") {
           return Nothing;
         }
-        if (t.tag === "JointOuterBegin") {
+        if (t === "JointOuterBegin") {
           return Nothing;
         }
-        if (t.tag === "JointOuterEnd") {
-          return $Maybe("Just", { innerturnout: false, outerturnout: false });
+        if (t === "JointOuterEnd") {
+          return $Maybe("Just", { ...s, innerturnout: false, outerturnout: false });
         }
         fail();
       }
-      if (f.tag === "JointOuterEnd") {
-        if (t.tag === "JointInnerBegin") {
+      if (f === "JointOuterEnd") {
+        if (t === "JointInnerBegin") {
           return Nothing;
         }
-        if (t.tag === "JointInnerEnd") {
-          return $Maybe("Just", { innerturnout: true, outerturnout: true });
+        if (t === "JointInnerEnd") {
+          return $Maybe("Just", { ...s, innerturnout: true, outerturnout: true });
         }
-        if (t.tag === "JointOuterBegin") {
-          return $Maybe("Just", { innerturnout: false, outerturnout: false });
+        if (t === "JointOuterBegin") {
+          return $Maybe("Just", { ...s, innerturnout: false, outerturnout: false });
         }
-        if (t.tag === "JointOuterEnd") {
+        if (t === "JointOuterEnd") {
           return Nothing;
         }
-        fail();
       }
       fail();
     },
     isLegal: (j) => (s) => {
-      if (j.tag === "JointInnerBegin") {
+      if (j === "JointInnerBegin") {
         return !s.innerturnout && !s.outerturnout;
       }
-      if (j.tag === "JointInnerEnd") {
+      if (j === "JointInnerEnd") {
         return s.innerturnout === s.outerturnout;
       }
-      if (j.tag === "JointOuterBegin") {
+      if (j === "JointOuterBegin") {
         return !s.innerturnout && !s.outerturnout;
       }
-      if (j.tag === "JointOuterEnd") {
+      if (j === "JointOuterEnd") {
         return s.innerturnout === s.outerturnout;
       }
       fail();
@@ -6036,17 +4969,17 @@ var doubleToWideLRail = /* @__PURE__ */ (() => {
       if (s.innerturnout && s.outerturnout) {
         return true;
       }
-      if (j$p.tag === "JointInnerBegin") {
-        return j.tag === "JointInnerEnd";
+      if (j$p === "JointInnerBegin") {
+        return j === "JointInnerEnd";
       }
-      if (j$p.tag === "JointInnerEnd") {
-        return j.tag === "JointInnerBegin";
+      if (j$p === "JointInnerEnd") {
+        return j === "JointInnerBegin";
       }
-      if (j$p.tag === "JointOuterBegin") {
-        return j.tag === "JointOuterEnd";
+      if (j$p === "JointOuterBegin") {
+        return j === "JointOuterEnd";
       }
-      if (j$p.tag === "JointOuterEnd") {
-        return j.tag === "JointOuterBegin";
+      if (j$p === "JointOuterEnd") {
+        return j === "JointOuterBegin";
       }
       fail();
     },
@@ -6068,41 +5001,40 @@ var doubleWidthSLRail = /* @__PURE__ */ (() => {
     getStates: serialAll2,
     getOrigin: JointBegin,
     getJointPos: (j) => {
-      if (j.tag === "JointBegin") {
+      if (j === "JointBegin") {
         return pe;
       }
-      if (j.tag === "JointEnd") {
+      if (j === "JointEnd") {
         return ps;
       }
       fail();
     },
     getNewState: (j) => (s) => {
-      if (j.tag === "JointEnd") {
+      if (j === "JointEnd") {
         return { newjoint: JointBegin, newstate: s, shape: reverseShapes(r1) };
       }
-      if (j.tag === "JointBegin") {
+      if (j === "JointBegin") {
         return { newjoint: JointEnd, newstate: s, shape: r1 };
       }
       fail();
     },
     getRoute: (s) => (f) => (t) => {
-      if (f.tag === "JointBegin") {
-        if (t.tag === "JointBegin") {
+      if (f === "JointBegin") {
+        if (t === "JointBegin") {
           return Nothing;
         }
-        if (t.tag === "JointEnd") {
+        if (t === "JointEnd") {
           return $Maybe("Just", s);
         }
         fail();
       }
-      if (f.tag === "JointEnd") {
-        if (t.tag === "JointBegin") {
+      if (f === "JointEnd") {
+        if (t === "JointBegin") {
           return $Maybe("Just", s);
         }
-        if (t.tag === "JointEnd") {
+        if (t === "JointEnd") {
           return Nothing;
         }
-        fail();
       }
       fail();
     },
@@ -6140,25 +5072,25 @@ var toDoubleLPlusRail = /* @__PURE__ */ (() => {
     getStates: serialAll1,
     getOrigin: JointEnter,
     getJointPos: (j) => {
-      if (j.tag === "JointEnter") {
+      if (j === "JointEnter") {
         return pe;
       }
-      if (j.tag === "JointMain") {
+      if (j === "JointMain") {
         return pm;
       }
-      if (j.tag === "JointSub") {
+      if (j === "JointSub") {
         return ps;
       }
       fail();
     },
     getNewState: (j) => (v) => {
-      if (j.tag === "JointMain") {
+      if (j === "JointMain") {
         return { newjoint: JointEnter, newstate: { turnout: false }, shape: reverseShapes(r0) };
       }
-      if (j.tag === "JointSub") {
+      if (j === "JointSub") {
         return { newjoint: JointEnter, newstate: { turnout: true }, shape: reverseShapes(r1) };
       }
-      if (j.tag === "JointEnter") {
+      if (j === "JointEnter") {
         if (v.turnout) {
           return { newjoint: JointSub, newstate: v, shape: r1 };
         }
@@ -6167,52 +5099,51 @@ var toDoubleLPlusRail = /* @__PURE__ */ (() => {
       fail();
     },
     getRoute: (s) => (f) => (t) => {
-      if (f.tag === "JointEnter") {
-        if (t.tag === "JointEnter") {
+      if (f === "JointEnter") {
+        if (t === "JointEnter") {
           return Nothing;
         }
-        if (t.tag === "JointMain") {
-          return $Maybe("Just", { turnout: false });
+        if (t === "JointMain") {
+          return $Maybe("Just", { ...s, turnout: false });
         }
-        if (t.tag === "JointSub") {
-          return $Maybe("Just", { turnout: true });
+        if (t === "JointSub") {
+          return $Maybe("Just", { ...s, turnout: true });
         }
         fail();
       }
-      if (f.tag === "JointMain") {
-        if (t.tag === "JointEnter") {
-          return $Maybe("Just", { turnout: false });
+      if (f === "JointMain") {
+        if (t === "JointEnter") {
+          return $Maybe("Just", { ...s, turnout: false });
         }
-        if (t.tag === "JointMain") {
+        if (t === "JointMain") {
           return Nothing;
         }
-        if (t.tag === "JointSub") {
+        if (t === "JointSub") {
           return Nothing;
         }
         fail();
       }
-      if (f.tag === "JointSub") {
-        if (t.tag === "JointEnter") {
-          return $Maybe("Just", { turnout: true });
+      if (f === "JointSub") {
+        if (t === "JointEnter") {
+          return $Maybe("Just", { ...s, turnout: true });
         }
-        if (t.tag === "JointMain") {
+        if (t === "JointMain") {
           return Nothing;
         }
-        if (t.tag === "JointSub") {
+        if (t === "JointSub") {
           return Nothing;
         }
-        fail();
       }
       fail();
     },
     isLegal: (j) => (s) => {
-      if (j.tag === "JointEnter") {
+      if (j === "JointEnter") {
         return true;
       }
-      if (j.tag === "JointMain") {
+      if (j === "JointMain") {
         return !s.turnout;
       }
-      if (j.tag === "JointSub") {
+      if (j === "JointSub") {
         return s.turnout;
       }
       fail();
@@ -6294,85 +5225,84 @@ var autoTurnOutLPlusRail = /* @__PURE__ */ (() => {
     getStates: serialAll(intSerialize3),
     getOrigin: JointEnter,
     getJointPos: (j) => {
-      if (j.tag === "JointEnter") {
+      if (j === "JointEnter") {
         return pe;
       }
-      if (j.tag === "JointMain") {
+      if (j === "JointMain") {
         return pm;
       }
-      if (j.tag === "JointSub") {
+      if (j === "JointSub") {
         return ps;
       }
       fail();
     },
     getNewState: (j) => (v) => {
-      if (j.tag === "JointMain") {
-        return { newjoint: JointEnter, newstate: v, shape: reverseShapes(concatArray(r_)(r0)) };
+      if (j === "JointMain") {
+        return { newjoint: JointEnter, newstate: v, shape: reverseShapes([...r_, ...r0]) };
       }
-      if (j.tag === "JointSub") {
-        return { newjoint: JointEnter, newstate: v, shape: reverseShapes(concatArray(r_)(r1)) };
+      if (j === "JointSub") {
+        return { newjoint: JointEnter, newstate: v, shape: reverseShapes([...r_, ...r1]) };
       }
-      if (j.tag === "JointEnter") {
+      if (j === "JointEnter") {
         if (v.auto) {
           if (v.turnout) {
-            return { newjoint: JointMain, newstate: { turnout: false, auto: true }, shape: concatArray(r_)(r0) };
+            return { newjoint: JointMain, newstate: { turnout: false, auto: true }, shape: [...r_, ...r0] };
           }
-          return { newjoint: JointSub, newstate: { turnout: true, auto: true }, shape: concatArray(r_)(r1) };
+          return { newjoint: JointSub, newstate: { turnout: true, auto: true }, shape: [...r_, ...r1] };
         }
         if (v.turnout) {
-          return { newjoint: JointSub, newstate: v, shape: concatArray(r_)(r1) };
+          return { newjoint: JointSub, newstate: v, shape: [...r_, ...r1] };
         }
-        return { newjoint: JointMain, newstate: v, shape: concatArray(r_)(r0) };
+        return { newjoint: JointMain, newstate: v, shape: [...r_, ...r0] };
       }
       fail();
     },
     getRoute: (s) => (f) => (t) => {
-      if (f.tag === "JointEnter") {
-        if (t.tag === "JointEnter") {
+      if (f === "JointEnter") {
+        if (t === "JointEnter") {
           return Nothing;
         }
-        if (t.tag === "JointMain") {
-          return $Maybe("Just", { turnout: false, auto: false });
+        if (t === "JointMain") {
+          return $Maybe("Just", { ...s, turnout: false, auto: false });
         }
-        if (t.tag === "JointSub") {
-          return $Maybe("Just", { turnout: true, auto: false });
+        if (t === "JointSub") {
+          return $Maybe("Just", { ...s, turnout: true, auto: false });
         }
         fail();
       }
-      if (f.tag === "JointMain") {
-        if (t.tag === "JointEnter") {
-          return $Maybe("Just", { turnout: false, auto: false });
+      if (f === "JointMain") {
+        if (t === "JointEnter") {
+          return $Maybe("Just", { ...s, turnout: false, auto: false });
         }
-        if (t.tag === "JointMain") {
+        if (t === "JointMain") {
           return Nothing;
         }
-        if (t.tag === "JointSub") {
+        if (t === "JointSub") {
           return Nothing;
         }
         fail();
       }
-      if (f.tag === "JointSub") {
-        if (t.tag === "JointEnter") {
-          return $Maybe("Just", { turnout: true, auto: false });
+      if (f === "JointSub") {
+        if (t === "JointEnter") {
+          return $Maybe("Just", { ...s, turnout: true, auto: false });
         }
-        if (t.tag === "JointMain") {
+        if (t === "JointMain") {
           return Nothing;
         }
-        if (t.tag === "JointSub") {
+        if (t === "JointSub") {
           return Nothing;
         }
-        fail();
       }
       fail();
     },
     isLegal: (j) => (s) => {
-      if (j.tag === "JointEnter") {
+      if (j === "JointEnter") {
         return true;
       }
-      if (j.tag === "JointMain") {
+      if (j === "JointMain") {
         return !s.turnout;
       }
-      if (j.tag === "JointSub") {
+      if (j === "JointSub") {
         return s.turnout;
       }
       fail();
@@ -6393,18 +5323,17 @@ var autoTurnOutRPlusRail = /* @__PURE__ */ memorizeRail(/* @__PURE__ */ flipRail
 var identity6 = (x) => x;
 var max3 = (x) => (y) => {
   const v = ordInt.compare(x)(y);
-  if (v.tag === "LT") {
+  if (v === "LT") {
     return y;
   }
-  if (v.tag === "EQ") {
+  if (v === "EQ") {
     return x;
   }
-  if (v.tag === "GT") {
+  if (v === "GT") {
     return x;
   }
   fail();
 };
-var readNumber = /* @__PURE__ */ unsafeReadTagged(monadIdentity)("Number");
 var splitSize = (shape) => {
   if (shape.start.coord.z === shape.end.coord.z && eqAngle.eq(shape.start.angle + 3.141592653589793)(shape.end.angle)) {
     return 1;
@@ -6484,7 +5413,7 @@ var encodeSignalRule = (rule) => {
     return "o " + source(rule._1) + " " + showIntImpl(rule._2) + (rule._3 === "" ? "" : " " + rule._3);
   }
   if (rule.tag === "RuleUpdate") {
-    return "u " + source(rule._1) + " " + source(rule._2) + (rule._4 === "" ? " " + rule._3 : " " + rule._3 + " " + rule._4);
+    return "u " + source(rule._1) + " " + source(rule._2) + " " + (rule._4 === "" ? rule._3 + "" : rule._3 + " " + rule._4);
   }
   if (rule.tag === "RuleStop") {
     return "s " + source(rule._1) + (rule._2 === "" ? "" : " " + rule._2);
@@ -6493,13 +5422,13 @@ var encodeSignalRule = (rule) => {
     return "O " + source(rule._1) + " " + showIntImpl(rule._2) + (rule._3 === "" ? "" : " " + rule._3);
   }
   if (rule.tag === "RuleStopUpdate") {
-    return "U " + source(rule._1) + " " + source(rule._2) + (rule._4 === "" ? " " + rule._3 : " " + rule._3 + " " + rule._4);
+    return "U " + source(rule._1) + " " + source(rule._2) + " " + (rule._4 === "" ? rule._3 + "" : rule._3 + " " + rule._4);
   }
   if (rule.tag === "RuleReverse") {
     return "r " + source(rule._1) + (rule._2 === "" ? "" : " " + rule._2);
   }
   if (rule.tag === "RuleReverseUpdate") {
-    return "R " + source(rule._1) + " " + source(rule._2) + (rule._4 === "" ? " " + rule._3 : " " + rule._3 + " " + rule._4);
+    return "R " + source(rule._1) + " " + source(rule._2) + " " + (rule._4 === "" ? rule._3 + "" : rule._3 + " " + rule._4);
   }
   fail();
 };
@@ -6520,13 +5449,14 @@ var encodeRailNode = (v) => ({
 var encodeLayout = (v) => ({
   rails: arrayMap(encodeRailNode)(v.rails),
   trains: arrayMap(encodeTrainset)(v.trains),
+  floor: v.floor,
   time: v.time,
   speed: v.speed,
   version: v.version,
   routequeue: v.routequeue,
   activeReserves: v.activeReserves
 });
-var defaultnode = /* @__PURE__ */ (() => ({
+var defaultnode = {
   nodeid: 0,
   instanceid: 0,
   state: 0,
@@ -6536,13 +5466,14 @@ var defaultnode = /* @__PURE__ */ (() => ({
   invalidRoutes: [],
   reserves: [],
   drawinfos: [],
-  pos: { coord: poszero.coord, angle: 3.141592653589793, isPlus: false },
+  pos: { ...poszero, angle: 3.141592653589793 },
   note: ""
-}))();
+};
 var defaultLayout = /* @__PURE__ */ (() => foldlArray((l$p) => (j) => addJoint(l$p)(straightRail.getJointPos(j))(0)(j))({
   instancecount: 1,
   traincount: 0,
   updatecount: 0,
+  floor: { height: 500, width: 500 },
   time: 0,
   speed: 1,
   rails: [defaultnode],
@@ -6555,22 +5486,8 @@ var defaultLayout = /* @__PURE__ */ (() => foldlArray((l$p) => (j) => addJoint(l
   version: 2,
   activeReserves: []
 })(straightRail.getJoints))();
-var decodeTrainRoute = (rs) => (v) => ({
-  nodeid: v.nodeid,
-  jointid: v.jointid,
-  railinstance: (() => {
-    const $0 = index(rs)(v.railinstance);
-    if ($0.tag === "Nothing") {
-      return defaultnode;
-    }
-    if ($0.tag === "Just") {
-      return $0._1;
-    }
-    fail();
-  })(),
-  shapes: v.shapes,
-  length: v.length
-});
+var defaultFloorData = { height: 500, width: 500 };
+var decodeTrainRoute = (rs) => (v) => ({ nodeid: v.nodeid, jointid: v.jointid, railinstance: v.railinstance >= 0 && v.railinstance < rs.length ? rs[v.railinstance] : defaultnode, shapes: v.shapes, length: v.length });
 var decodeTrainset = (rs) => (v) => ({
   types: v.types,
   route: arrayMap(decodeTrainRoute(rs))(v.route),
@@ -6589,7 +5506,7 @@ var decodeTrainset = (rs) => (v) => ({
 });
 var decodeSignalRule = (rule) => {
   const spl = split(" ")(replace2(unsafeRegex("\\s+")(global))(" ")(rule.trimStart()));
-  const v = index(spl)(0);
+  const v = 0 < spl.length ? $Maybe("Just", spl[0]) : Nothing;
   const $0 = (() => {
     if (v.tag === "Just") {
       if (v._1 === "c") {
@@ -6600,250 +5517,178 @@ var decodeSignalRule = (rule) => {
       }
       if (v._1 === "m") {
         return applyMaybe.apply(applyMaybe.apply((() => {
-          const $02 = index(spl)(1);
-          if ($02.tag === "Just") {
-            const $1 = regex($02._1)(noFlags);
-            if ($1.tag === "Left") {
+          if (1 < spl.length) {
+            const $02 = regex(spl[1])(noFlags);
+            if ($02.tag === "Left") {
               return Nothing;
             }
-            if ($1.tag === "Right") {
-              return $Maybe("Just", RuleSpeed($1._1));
+            if ($02.tag === "Right") {
+              return $Maybe("Just", RuleSpeed($02._1));
             }
             fail();
           }
-          if ($02.tag === "Nothing") {
-            return Nothing;
-          }
-          fail();
-        })())((() => {
-          const $02 = index(spl)(2);
-          if ($02.tag === "Just") {
-            return fromString($02._1);
-          }
-          if ($02.tag === "Nothing") {
-            return Nothing;
-          }
-          fail();
-        })()))($Maybe(
+          return Nothing;
+        })())(2 < spl.length ? fromString(spl[2]) : Nothing))($Maybe(
           "Just",
           replace2(unsafeRegex("^\\s*.\\s+\\S*\\s+\\S*")(noFlags))("")(rule)
         ));
       }
       if (v._1 === "o") {
         return applyMaybe.apply(applyMaybe.apply((() => {
-          const $02 = index(spl)(1);
-          if ($02.tag === "Just") {
-            const $1 = regex($02._1)(noFlags);
-            if ($1.tag === "Left") {
+          if (1 < spl.length) {
+            const $02 = regex(spl[1])(noFlags);
+            if ($02.tag === "Left") {
               return Nothing;
             }
-            if ($1.tag === "Right") {
-              return $Maybe("Just", RuleOpen($1._1));
+            if ($02.tag === "Right") {
+              return $Maybe("Just", RuleOpen($02._1));
             }
             fail();
           }
-          if ($02.tag === "Nothing") {
-            return Nothing;
-          }
-          fail();
-        })())((() => {
-          const $02 = index(spl)(2);
-          if ($02.tag === "Just") {
-            return fromString($02._1);
-          }
-          if ($02.tag === "Nothing") {
-            return Nothing;
-          }
-          fail();
-        })()))($Maybe(
+          return Nothing;
+        })())(2 < spl.length ? fromString(spl[2]) : Nothing))($Maybe(
           "Just",
           replace2(unsafeRegex("^\\s*.\\s+\\S*\\s+\\S*")(noFlags))("")(rule)
         ));
       }
       if (v._1 === "u") {
         return applyMaybe.apply(applyMaybe.apply(applyMaybe.apply((() => {
-          const $02 = index(spl)(1);
-          if ($02.tag === "Just") {
-            const $1 = regex($02._1)(noFlags);
-            if ($1.tag === "Left") {
+          if (1 < spl.length) {
+            const $02 = regex(spl[1])(noFlags);
+            if ($02.tag === "Left") {
               return Nothing;
             }
-            if ($1.tag === "Right") {
-              return $Maybe("Just", RuleUpdate($1._1));
+            if ($02.tag === "Right") {
+              return $Maybe("Just", RuleUpdate($02._1));
             }
             fail();
           }
-          if ($02.tag === "Nothing") {
-            return Nothing;
-          }
-          fail();
+          return Nothing;
         })())((() => {
-          const $02 = index(spl)(2);
-          if ($02.tag === "Just") {
-            const $1 = regex($02._1)(noFlags);
-            if ($1.tag === "Left") {
+          if (2 < spl.length) {
+            const $02 = regex(spl[2])(noFlags);
+            if ($02.tag === "Left") {
               return Nothing;
             }
-            if ($1.tag === "Right") {
-              return $Maybe("Just", $1._1);
+            if ($02.tag === "Right") {
+              return $Maybe("Just", $02._1);
             }
             fail();
           }
-          if ($02.tag === "Nothing") {
-            return Nothing;
-          }
-          fail();
-        })()))(index(spl)(3)))($Maybe(
+          return Nothing;
+        })()))(3 < spl.length ? $Maybe("Just", spl[3]) : Nothing))($Maybe(
           "Just",
           replace2(unsafeRegex("^\\s*.\\s+\\S*\\s+\\S*\\s+\\S*")(noFlags))("")(rule)
         ));
       }
       if (v._1 === "s") {
         return applyMaybe.apply((() => {
-          const $02 = index(spl)(1);
-          if ($02.tag === "Just") {
-            const $1 = regex($02._1)(noFlags);
-            if ($1.tag === "Left") {
+          if (1 < spl.length) {
+            const $02 = regex(spl[1])(noFlags);
+            if ($02.tag === "Left") {
               return Nothing;
             }
-            if ($1.tag === "Right") {
-              return $Maybe("Just", RuleStop($1._1));
+            if ($02.tag === "Right") {
+              return $Maybe("Just", RuleStop($02._1));
             }
             fail();
           }
-          if ($02.tag === "Nothing") {
-            return Nothing;
-          }
-          fail();
+          return Nothing;
         })())($Maybe("Just", replace2(unsafeRegex("^\\s*.\\s+\\S*")(noFlags))("")(rule)));
       }
       if (v._1 === "O") {
         return applyMaybe.apply(applyMaybe.apply((() => {
-          const $02 = index(spl)(1);
-          if ($02.tag === "Just") {
-            const $1 = regex($02._1)(noFlags);
-            if ($1.tag === "Left") {
+          if (1 < spl.length) {
+            const $02 = regex(spl[1])(noFlags);
+            if ($02.tag === "Left") {
               return Nothing;
             }
-            if ($1.tag === "Right") {
-              return $Maybe("Just", RuleStopOpen($1._1));
+            if ($02.tag === "Right") {
+              return $Maybe("Just", RuleStopOpen($02._1));
             }
             fail();
           }
-          if ($02.tag === "Nothing") {
-            return Nothing;
-          }
-          fail();
-        })())((() => {
-          const $02 = index(spl)(2);
-          if ($02.tag === "Just") {
-            return fromString($02._1);
-          }
-          if ($02.tag === "Nothing") {
-            return Nothing;
-          }
-          fail();
-        })()))($Maybe(
+          return Nothing;
+        })())(2 < spl.length ? fromString(spl[2]) : Nothing))($Maybe(
           "Just",
           replace2(unsafeRegex("^\\s*.\\s+\\S*\\s+\\S*")(noFlags))("")(rule)
         ));
       }
       if (v._1 === "U") {
         return applyMaybe.apply(applyMaybe.apply(applyMaybe.apply((() => {
-          const $02 = index(spl)(1);
-          if ($02.tag === "Just") {
-            const $1 = regex($02._1)(noFlags);
-            if ($1.tag === "Left") {
+          if (1 < spl.length) {
+            const $02 = regex(spl[1])(noFlags);
+            if ($02.tag === "Left") {
               return Nothing;
             }
-            if ($1.tag === "Right") {
-              return $Maybe("Just", RuleStopUpdate($1._1));
+            if ($02.tag === "Right") {
+              return $Maybe("Just", RuleStopUpdate($02._1));
             }
             fail();
           }
-          if ($02.tag === "Nothing") {
-            return Nothing;
-          }
-          fail();
+          return Nothing;
         })())((() => {
-          const $02 = index(spl)(2);
-          if ($02.tag === "Just") {
-            const $1 = regex($02._1)(noFlags);
-            if ($1.tag === "Left") {
+          if (2 < spl.length) {
+            const $02 = regex(spl[2])(noFlags);
+            if ($02.tag === "Left") {
               return Nothing;
             }
-            if ($1.tag === "Right") {
-              return $Maybe("Just", $1._1);
+            if ($02.tag === "Right") {
+              return $Maybe("Just", $02._1);
             }
             fail();
           }
-          if ($02.tag === "Nothing") {
-            return Nothing;
-          }
-          fail();
-        })()))(index(spl)(3)))($Maybe(
+          return Nothing;
+        })()))(3 < spl.length ? $Maybe("Just", spl[3]) : Nothing))($Maybe(
           "Just",
           replace2(unsafeRegex("^\\s*.\\s+\\S*\\s+\\S*\\s+\\S*")(noFlags))("")(rule)
         ));
       }
       if (v._1 === "r") {
         return applyMaybe.apply((() => {
-          const $02 = index(spl)(1);
-          if ($02.tag === "Just") {
-            const $1 = regex($02._1)(noFlags);
-            if ($1.tag === "Left") {
+          if (1 < spl.length) {
+            const $02 = regex(spl[1])(noFlags);
+            if ($02.tag === "Left") {
               return Nothing;
             }
-            if ($1.tag === "Right") {
-              return $Maybe("Just", RuleReverse($1._1));
+            if ($02.tag === "Right") {
+              return $Maybe("Just", RuleReverse($02._1));
             }
             fail();
           }
-          if ($02.tag === "Nothing") {
-            return Nothing;
-          }
-          fail();
+          return Nothing;
         })())($Maybe("Just", replace2(unsafeRegex("^\\s*.\\s+\\S*")(noFlags))("")(rule)));
       }
       if (v._1 === "R") {
         return applyMaybe.apply(applyMaybe.apply(applyMaybe.apply((() => {
-          const $02 = index(spl)(1);
-          if ($02.tag === "Just") {
-            const $1 = regex($02._1)(noFlags);
-            if ($1.tag === "Left") {
+          if (1 < spl.length) {
+            const $02 = regex(spl[1])(noFlags);
+            if ($02.tag === "Left") {
               return Nothing;
             }
-            if ($1.tag === "Right") {
-              return $Maybe("Just", RuleReverseUpdate($1._1));
+            if ($02.tag === "Right") {
+              return $Maybe("Just", RuleReverseUpdate($02._1));
             }
             fail();
           }
-          if ($02.tag === "Nothing") {
-            return Nothing;
-          }
-          fail();
+          return Nothing;
         })())((() => {
-          const $02 = index(spl)(2);
-          if ($02.tag === "Just") {
-            const $1 = regex($02._1)(noFlags);
-            if ($1.tag === "Left") {
+          if (2 < spl.length) {
+            const $02 = regex(spl[2])(noFlags);
+            if ($02.tag === "Left") {
               return Nothing;
             }
-            if ($1.tag === "Right") {
-              return $Maybe("Just", $1._1);
+            if ($02.tag === "Right") {
+              return $Maybe("Just", $02._1);
             }
             fail();
           }
-          if ($02.tag === "Nothing") {
-            return Nothing;
-          }
-          fail();
-        })()))(index(spl)(3)))($Maybe(
+          return Nothing;
+        })()))(3 < spl.length ? $Maybe("Just", spl[3]) : Nothing))($Maybe(
           "Just",
           replace2(unsafeRegex("^\\s*.\\s+\\S*\\s+\\S*\\s+\\S*")(noFlags))("")(rule)
         ));
       }
-      return Nothing;
     }
     return Nothing;
   })();
@@ -6872,9 +5717,9 @@ var decodeRail = (v) => {
   const $0 = v.name;
   const $1 = v.flipped ? flipRail : identity6;
   const $2 = v.opposed ? opposeRail : identity6;
-  const $3 = findIndex((v1) => v1.name === $0)(rails);
+  const $3 = find((v1) => v1.name === $0)(rails);
   if ($3.tag === "Just") {
-    return $Maybe("Just", $2($1(rails[$3._1])));
+    return $Maybe("Just", $2($1($3._1)));
   }
   return Nothing;
 };
@@ -6883,19 +5728,22 @@ var decodeRailNode = (v) => {
   if ($0.tag === "Just") {
     return $Maybe(
       "Just",
-      recalcInstanceDrawInfo({
-        nodeid: v.nodeid,
-        instanceid: v.instanceid,
-        rail: $0._1,
-        state: v.state,
-        connections: v.connections,
-        signals: arrayMap(decodeSignal)(isUndefined(v.signals) || isNull(v.signals) ? [] : v.signals),
-        invalidRoutes: isUndefined(v.invalidRoutes) || isNull(v.invalidRoutes) ? [] : v.invalidRoutes,
-        reserves: isUndefined(v.reserves) || isNull(v.reserves) ? [] : v.reserves,
-        pos: v.pos,
-        note: isUndefined(v.note) || isNull(v.note) ? "" : v.note,
-        drawinfos: []
-      })
+      (() => {
+        const $1 = {
+          nodeid: v.nodeid,
+          instanceid: v.instanceid,
+          rail: $0._1,
+          state: v.state,
+          connections: v.connections,
+          signals: arrayMap(decodeSignal)(isUndefined(v.signals) || isNull(v.signals) ? [] : v.signals),
+          invalidRoutes: isUndefined(v.invalidRoutes) || isNull(v.invalidRoutes) ? [] : v.invalidRoutes,
+          reserves: isUndefined(v.reserves) || isNull(v.reserves) ? [] : v.reserves,
+          pos: v.pos,
+          note: isUndefined(v.note) || isNull(v.note) ? "" : v.note,
+          drawinfos: []
+        };
+        return { ...$1, drawinfos: instanceDrawInfos($1) };
+      })()
     );
   }
   return Nothing;
@@ -6905,19 +5753,22 @@ var decodeRailNode_v1 = (v) => {
   if ($0.tag === "Just") {
     return $Maybe(
       "Just",
-      recalcInstanceDrawInfo({
-        nodeid: v.nodeid,
-        instanceid: v.instanceid,
-        rail: $0._1,
-        state: v.state,
-        connections: v.connections,
-        signals: isUndefined(v.signals) || isNull(v.signals) ? [] : v.signals,
-        invalidRoutes: isUndefined(v.invalidRoutes) || isNull(v.invalidRoutes) ? [] : v.invalidRoutes,
-        reserves: isUndefined(v.reserves) || isNull(v.reserves) ? [] : v.reserves,
-        pos: poszero,
-        drawinfos: [],
-        note: isUndefined(v.note) || isNull(v.note) ? "" : v.note
-      })
+      (() => {
+        const $1 = {
+          nodeid: v.nodeid,
+          instanceid: v.instanceid,
+          rail: $0._1,
+          state: v.state,
+          connections: v.connections,
+          signals: isUndefined(v.signals) || isNull(v.signals) ? [] : v.signals,
+          invalidRoutes: isUndefined(v.invalidRoutes) || isNull(v.invalidRoutes) ? [] : v.invalidRoutes,
+          reserves: isUndefined(v.reserves) || isNull(v.reserves) ? [] : v.reserves,
+          pos: poszero,
+          drawinfos: [],
+          note: isUndefined(v.note) || isNull(v.note) ? "" : v.note
+        };
+        return { ...$1, drawinfos: instanceDrawInfos($1) };
+      })()
     );
   }
   return Nothing;
@@ -6925,22 +5776,7 @@ var decodeRailNode_v1 = (v) => {
 var decodeRailInstance = (v) => {
   const $0 = decodeRailNode_v1(v.node);
   if ($0.tag === "Just") {
-    return $Maybe(
-      "Just",
-      {
-        nodeid: $0._1.nodeid,
-        instanceid: v.instanceid,
-        rail: $0._1.rail,
-        state: $0._1.state,
-        signals: $0._1.signals,
-        invalidRoutes: $0._1.invalidRoutes,
-        connections: $0._1.connections,
-        reserves: $0._1.reserves,
-        pos: v.pos,
-        note: $0._1.note,
-        drawinfos: $0._1.drawinfos
-      }
-    );
+    return $Maybe("Just", { ...$0._1, pos: v.pos, instanceid: v.instanceid });
   }
   return Nothing;
 };
@@ -6949,6 +5785,7 @@ var decodeLayout$p = (v) => {
   const rs = mapMaybe((x) => x)(rawrails);
   const ts = arrayMap(decodeTrainset(rs))(v.trains);
   const $0 = foldlArray(removeRail)({
+    floor: isUndefined(v.floor) || isNull(v.floor) ? defaultFloorData : v.floor,
     jointData: saEmpty,
     rails: rs,
     trains: ts,
@@ -6963,18 +5800,21 @@ var decodeLayout$p = (v) => {
     isclear: [],
     signalcolors: [],
     activeReserves: isUndefined(v.activeReserves) || isNull(v.activeReserves) ? [] : v.activeReserves
-  })(reverse(sortBy(ordIntNode.compare)(arrayMap((r) => r.index)(filter((r) => r.isdeleted)(zipWith((i) => (r) => ({
-    index: i,
-    isdeleted: (() => {
-      if (r.tag === "Nothing") {
-        return true;
-      }
-      if (r.tag === "Just") {
-        return false;
-      }
-      fail();
-    })()
-  }))(range(0)(rawrails.length - 1 | 0))(rawrails))))));
+  })(reverse(sortBy(ordIntNode.compare)(arrayMap((r) => r.index)(filterImpl(
+    (r) => r.isdeleted,
+    mapWithIndexArray((i) => (r) => ({
+      index: i,
+      isdeleted: (() => {
+        if (r.tag === "Nothing") {
+          return true;
+        }
+        if (r.tag === "Just") {
+          return false;
+        }
+        fail();
+      })()
+    }))(rawrails)
+  )))));
   const $1 = updateSignalRoutes(foldlArray((l) => (j) => addJoint(l)(j.pos)(j.nodeid)(j.jointid))($0)(arrayBind($0.rails)((v2) => {
     const nodeid = v2.nodeid;
     return arrayBind(v2.rail.getJoints)((jointid) => arrayBind((() => {
@@ -6994,17 +5834,18 @@ var decodeLayout$p = (v) => {
   return $1;
 };
 var decodeLayout = (v) => decodeLayout$p({
-  rails: arrayMap(unsafeCoerce)(v.rails),
+  floor: v.floor,
+  rails: arrayMap(unsafeCoerce)(isArray(v.rails) ? v.rails : []),
   trains: isArray(v.trains) ? v.trains : [],
   time: (() => {
-    const $0 = readNumber(v.time);
+    const $0 = unsafeReadTagged(monadIdentity)("Number")(v.time);
     if ($0.tag === "Right") {
       return $0._1;
     }
     return 0;
   })(),
   speed: (() => {
-    const $0 = readNumber(v.speed);
+    const $0 = unsafeReadTagged(monadIdentity)("Number")(v.speed);
     if ($0.tag === "Right") {
       return $0._1;
     }

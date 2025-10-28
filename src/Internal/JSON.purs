@@ -108,7 +108,7 @@ rails = [
     , crossoverLRail
     , diamondRail
     , halfSlopeRail
-    , quaterSlopeRail
+    , quarterSlopeRail
   ]
 
 type EncodedSignalRule = String

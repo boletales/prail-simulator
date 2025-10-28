@@ -329,26 +329,26 @@ class Layout {
           halfSlopeRailU: {
               onkey: ()=>{this.addRail(P.halfSlopeRail);}
             , text_ja: "1/2坂レール（上り）"
-            , softkey: "v"
-            , key    : ["v"]
+            , softkey: "b"
+            , key    : ["b"]
           },
           halfSlopeRailD: {
               onkey: ()=>{this.addRail(P.halfSlopeRail, 1);}
             , text_ja: "1/2坂レール（下り）"
-            , softkey: "V"
-            , key    : ["V"]
+            , softkey: "b"
+            , key    : ["B"]
           },
           quarterSlopeRailU: {
               onkey: ()=>{this.addRail(P.quarterSlopeRail);}
             , text_ja: "1/4坂レール（上り）"
-            , softkey: "b"
-            , key    : ["b"]
+            , softkey: "n"
+            , key    : ["n"]
           },
           quarterSlopeRailD: {
               onkey: ()=>{this.addRail(P.quarterSlopeRail, 1);}
             , text_ja: "1/4坂レール（下り）"
-            , softkey: "B"
-            , key    : ["B"]
+            , softkey: "N"
+            , key    : ["N"]
           }
         }
       },

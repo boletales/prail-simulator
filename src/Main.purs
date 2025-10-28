@@ -50,7 +50,7 @@ module Main
   , outerCurveRRail
   , poszero
   , quarterRail
-  , quaterSlopeRail
+  , quarterSlopeRail
   , removeRail
   , removeSignal
   , scissorsRail
@@ -64,7 +64,6 @@ module Main
   , splitSize
   , straightRail
   , toDoubleLPlusRail
-  , toDoubleRPlusRail
   , trainsetDrawInfo
   , trainsetLength
   , tryOpenRouteFor_ffi
@@ -148,7 +147,7 @@ toDoubleRPlusRail         = Ex.toDoubleRPlusRail
 turnOutLPlusRail          = Ex.turnOutLPlusRail          
 turnOutRPlusRail          = Ex.turnOutRPlusRail          
 halfSlopeRail             = Ex.halfSlopeRail
-quaterSlopeRail          = Ex.quaterSlopeRail
+quarterSlopeRail          = Ex.quarterSlopeRail
 
 -- Internal.Types         = Ex.-- Internal.Types         
 canJoin                   = Ex.canJoin                   

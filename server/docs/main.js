@@ -1100,7 +1100,7 @@ var updateTraffic = (v) => {
           fail();
         })(),
         isclear: (() => {
-          const $4 = modifyAt(v5.nodeid)((d) => false)($2);
+          const $4 = modifyAt(v5.nodeid)((v6) => false)($2);
           if ($4.tag === "Nothing") {
             return $2;
           }
@@ -1602,7 +1602,7 @@ var movefoward = (movefoward$a0$copy) => (movefoward$a1$copy) => (movefoward$a2$
         const $4 = $3._1.nodeid >= 0 && $3._1.nodeid < v.rails.length ? $Maybe("Just", v.rails[$3._1.nodeid]) : Nothing;
         if ($4.tag === "Just") {
           const updatedroute = updateRailNode($4._1)($3._1.jointid);
-          const newinstance = { ...updatedroute.instance, reserves: filterImpl((r1) => r1.jointid !== $3._1.jointid, updatedroute.instance.reserves) };
+          const newinstance = { ...updatedroute.instance, reserves: filterImpl((r$p) => r$p.jointid !== $3._1.jointid, updatedroute.instance.reserves) };
           const slength = sum(arrayMap(shapeLength)(updatedroute.shapes));
           movefoward$c = false;
           movefoward$r = {
@@ -1829,6 +1829,7 @@ var updateSignalIndication = (changeManualStop) => (v) => {
             const $0 = v3.rails.length - 1 | 0;
             const v4 = $0 >= 0 && $0 < v3.rails.length ? $Maybe("Just", v3.rails[$0]) : Nothing;
             if (v4.tag === "Just") {
+              const $1 = v4._1.nodeid;
               const go = (nid) => (jid) => (cnt) => cnt > 120 || nid >= 0 && nid < v.rails.length && (() => {
                 if (v.rails[nid].rail.isSimple) {
                   const jidexit = v.rails[nid].rail.getNewState(jid)(v.rails[nid].state).newjoint;
@@ -1838,19 +1839,19 @@ var updateSignalIndication = (changeManualStop) => (v) => {
                       return true;
                     }
                     if (v6.tag === "Just") {
-                      return go(v6._1.nodeid)(v6._1.jointid)(cnt + 1 | 0);
+                      return go($1)(v6._1.jointid)(cnt + 1 | 0);
                     }
                     fail();
                   }
                   return nid >= 0 && nid < v.traffic.length && (() => {
-                    const $1 = v.traffic[nid];
-                    return jidexit >= 0 && jidexit < $1.length && $1[jidexit].length === 0 && (() => {
+                    const $2 = v.traffic[nid];
+                    return jidexit >= 0 && jidexit < $2.length && $2[jidexit].length === 0 && (() => {
                       const v7 = find((c) => c.from === jidexit)(v.rails[nid].connections);
                       if (v7.tag === "Nothing") {
                         return true;
                       }
                       if (v7.tag === "Just") {
-                        return go(v7._1.nodeid)(v7._1.jointid)(cnt + 1 | 0);
+                        return go($1)(v7._1.jointid)(cnt + 1 | 0);
                       }
                       fail();
                     })();
@@ -1858,7 +1859,7 @@ var updateSignalIndication = (changeManualStop) => (v) => {
                 }
                 return true;
               })();
-              return go(v4._1.nodeid)(v4._1.jointenter)(0);
+              return go($1)(v4._1.jointenter)(0);
             }
             if (v4.tag === "Nothing") {
               return false;
@@ -1893,7 +1894,7 @@ var updateSignalIndication = (changeManualStop) => (v) => {
                   continue;
                 }
                 const $02 = v3.nodeid >= 0 && v3.nodeid < filtered.length ? $Maybe("Just", filtered[v3.nodeid]) : Nothing;
-                const $1 = find((bd1) => bd1.signal.jointid === v3.jointid);
+                const $1 = find((bd$p) => bd$p.signal.jointid === v3.jointid);
                 const v4 = (() => {
                   if ($02.tag === "Just") {
                     return $1($02._1);
@@ -1985,8 +1986,8 @@ var tryOpenRouteFor = (v) => (nodeid) => (jointid) => (routeid) => (reserver) =>
           let go$a0 = go$a0$copy, go$a1 = go$a1$copy, go$c = true, go$r;
           while (go$c) {
             const v4 = go$a0, rs = go$a1;
-            if (v4.nodeid >= 0 && v4.nodeid < v.rails.length) {
-              const v5 = find((v7) => v7.jointid === v4.jointid)(v.rails[v4.nodeid].signals);
+            if (nodeid >= 0 && nodeid < v.rails.length) {
+              const v5 = find((v7) => v7.jointid === jointid)(v.rails[nodeid].signals);
               if (v5.tag === "Nothing") {
                 go$c = false;
                 go$r = rs;
@@ -2021,7 +2022,7 @@ var tryOpenRouteFor = (v) => (nodeid) => (jointid) => (routeid) => (reserver) =>
           const $32 = v4.newrails;
           const $4 = v4.traffic;
           return (v5) => {
-            const $5 = v5.nodeid >= 0 && v5.nodeid < v.rails.length ? $Maybe("Just", v.rails[v5.nodeid]) : Nothing;
+            const $5 = nodeid >= 0 && nodeid < v.rails.length ? $Maybe("Just", v.rails[nodeid]) : Nothing;
             if ($5.tag === "Just") {
               const traffic$p = $4 || hasTraffic(v)($5._1);
               const $6 = $5._1.rail.getRoute($5._1.state)(v5.jointenter)(v5.jointexit);
@@ -2029,16 +2030,16 @@ var tryOpenRouteFor = (v) => (nodeid) => (jointid) => (routeid) => (reserver) =>
                 const $7 = _updateAt(
                   Just,
                   Nothing,
-                  v5.nodeid,
+                  nodeid,
                   { ...$5._1, state: $6._1, reserves: [...$5._1.reserves, { jointid: v5.jointenter, reserveid }] },
                   $32
                 );
                 if ($7.tag === "Just") {
                   if ($6._1 !== $5._1.state && traffic$p || programmedroute && ($1._1.restraint || anyImpl(
-                    (v7) => {
-                      const $8 = v7.reserveid;
-                      return v5.jointenter !== v7.jointid && ($5._1.rail.isBlocked(v5.jointenter)($5._1.state)(v7.jointid) || $5._1.rail.isBlocked(v5.jointenter)($6._1)(v7.jointid)) && anyImpl((a) => a.reserveid === $8, v.activeReserves);
-                    },
+                    (v7) => v5.jointenter !== jointid && ($5._1.rail.isBlocked(v5.jointenter)($5._1.state)(jointid) || $5._1.rail.isBlocked(v5.jointenter)($6._1)(jointid)) && anyImpl(
+                      (a) => a.reserveid === reserveid,
+                      v.activeReserves
+                    ),
                     $5._1.reserves
                   ))) {
                     return Nothing;
@@ -2966,9 +2967,9 @@ var halfRail = /* @__PURE__ */ (() => {
       }
       return Nothing;
     },
-    isLegal: (j) => (s) => true,
-    lockedBy: (s) => (s$p) => [],
-    isBlocked: (j) => (s) => (j$p) => true,
+    isLegal: (v) => (v1) => true,
+    lockedBy: (v) => (v1) => [],
+    isBlocked: (v) => (v1) => (v2) => true,
     isSimple: true
   }));
 })();
@@ -3009,9 +3010,9 @@ var halfSlopeRail = /* @__PURE__ */ (() => {
       }
       return Nothing;
     },
-    isLegal: (j) => (s) => true,
-    lockedBy: (s) => (s$p) => [],
-    isBlocked: (j) => (s) => (j$p) => true,
+    isLegal: (v) => (v1) => true,
+    lockedBy: (v) => (v1) => [],
+    isBlocked: (v) => (v1) => (v2) => true,
     isSimple: true
   }));
 })();
@@ -3052,9 +3053,9 @@ var longRail = /* @__PURE__ */ (() => {
       }
       return Nothing;
     },
-    isLegal: (j) => (s) => true,
-    lockedBy: (s) => (s$p) => [],
-    isBlocked: (j) => (s) => (j$p) => true,
+    isLegal: (v) => (v1) => true,
+    lockedBy: (v) => (v1) => [],
+    isBlocked: (v) => (v1) => (v2) => true,
     isSimple: true
   }));
 })();
@@ -3095,13 +3096,13 @@ var quarterRail = /* @__PURE__ */ (() => {
       }
       return Nothing;
     },
-    isLegal: (j) => (s) => true,
-    lockedBy: (s) => (s$p) => [],
-    isBlocked: (j) => (s) => (j$p) => true,
+    isLegal: (v) => (v1) => true,
+    lockedBy: (v) => (v1) => [],
+    isBlocked: (v) => (v1) => (v2) => true,
     isSimple: true
   }));
 })();
-var quaterSlopeRail = /* @__PURE__ */ (() => {
+var quarterSlopeRail = /* @__PURE__ */ (() => {
   const pe = { coord: { x: 1, y: 0, z: 0.25 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: true };
   const pb = { coord: { x: 0, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
   const r0 = [{ start: pb, end: pe, length: partLength(pb)(pe) }];
@@ -3138,9 +3139,9 @@ var quaterSlopeRail = /* @__PURE__ */ (() => {
       }
       return Nothing;
     },
-    isLegal: (j) => (s) => true,
-    lockedBy: (s) => (s$p) => [],
-    isBlocked: (j) => (s) => (j$p) => true,
+    isLegal: (v) => (v1) => true,
+    lockedBy: (v) => (v1) => [],
+    isBlocked: (v) => (v1) => (v2) => true,
     isSimple: true
   }));
 })();
@@ -3181,9 +3182,9 @@ var slopeCurveLRail = /* @__PURE__ */ (() => {
       }
       return Nothing;
     },
-    isLegal: (j) => (s) => true,
-    lockedBy: (s) => (s$p) => [],
-    isBlocked: (j) => (s) => (j$p) => true,
+    isLegal: (v) => (v1) => true,
+    lockedBy: (v) => (v1) => [],
+    isBlocked: (v) => (v1) => (v2) => true,
     isSimple: true
   }));
 })();
@@ -3225,9 +3226,9 @@ var slopeRail = /* @__PURE__ */ (() => {
       }
       return Nothing;
     },
-    isLegal: (j) => (s) => true,
-    lockedBy: (s) => (s$p) => [],
-    isBlocked: (j) => (s) => (j$p) => true,
+    isLegal: (v) => (v1) => true,
+    lockedBy: (v) => (v1) => [],
+    isBlocked: (v) => (v1) => (v2) => true,
     isSimple: true
   }));
 })();
@@ -3268,9 +3269,9 @@ var straightRail = /* @__PURE__ */ (() => {
       }
       return Nothing;
     },
-    isLegal: (j) => (s) => true,
-    lockedBy: (s) => (s$p) => [],
-    isBlocked: (j) => (s) => (j$p) => true,
+    isLegal: (v) => (v1) => true,
+    lockedBy: (v) => (v1) => [],
+    isBlocked: (v) => (v1) => (v2) => true,
     isSimple: true
   }));
 })();
@@ -3422,7 +3423,7 @@ var turnOutLPlusRail = /* @__PURE__ */ (() => {
       }
       return serialAll4;
     },
-    isBlocked: (j) => (s) => (j$p) => true,
+    isBlocked: (v) => (v1) => (v2) => true,
     isSimple: false
   }));
 })();
@@ -3989,9 +3990,9 @@ var outerCurveLRail = /* @__PURE__ */ (() => {
       }
       return Nothing;
     },
-    isLegal: (j) => (s) => true,
-    lockedBy: (s) => (s$p) => [],
-    isBlocked: (j) => (s) => (j$p) => true,
+    isLegal: (v) => (v1) => true,
+    lockedBy: (v) => (v1) => [],
+    isBlocked: (v) => (v1) => (v2) => true,
     isSimple: true
   }));
 })();
@@ -4111,7 +4112,7 @@ var scissorsRail = /* @__PURE__ */ (() => {
       }
       fail();
     },
-    getRoute: (s) => (f) => (t) => {
+    getRoute: (v) => (f) => (t) => {
       if (f === "JointInnerBegin") {
         if (t === "JointInnerBegin") {
           return Nothing;
@@ -4262,7 +4263,7 @@ var diamondRail = /* @__PURE__ */ (() => {
       }
       fail();
     },
-    getNewState: (j) => (s) => {
+    getNewState: (j) => (v) => {
       if (j === "JointInnerBegin") {
         return { newjoint: JointOuterBegin, newstate: StateDM_P, shape: reverseShapes(rp) };
       }
@@ -4277,7 +4278,7 @@ var diamondRail = /* @__PURE__ */ (() => {
       }
       fail();
     },
-    getRoute: (s) => (f) => (t) => {
+    getRoute: (v) => (f) => (t) => {
       if (f === "JointInnerBegin") {
         if (t === "JointInnerBegin") {
           return Nothing;
@@ -4360,7 +4361,7 @@ var diamondRail = /* @__PURE__ */ (() => {
       }
       return serialAll6;
     },
-    isBlocked: (j) => (s) => (j$p) => true,
+    isBlocked: (v) => (v1) => (v2) => true,
     isSimple: true
   }));
 })();
@@ -4401,9 +4402,9 @@ var curveLRail = /* @__PURE__ */ (() => {
       }
       return Nothing;
     },
-    isLegal: (j) => (s) => true,
-    lockedBy: (s) => (s$p) => [],
-    isBlocked: (j) => (s) => (j$p) => true,
+    isLegal: (v) => (v1) => true,
+    lockedBy: (v) => (v1) => [],
+    isBlocked: (v) => (v1) => (v2) => true,
     isSimple: true
   }));
 })();
@@ -4681,9 +4682,9 @@ var converterRail = /* @__PURE__ */ (() => {
       }
       return Nothing;
     },
-    isLegal: (j) => (s) => true,
-    lockedBy: (s) => (s$p) => [],
-    isBlocked: (j) => (s) => (j$p) => true,
+    isLegal: (v) => (v1) => true,
+    lockedBy: (v) => (v1) => [],
+    isBlocked: (v) => (v1) => (v2) => true,
     isSimple: true
   }));
 })();
@@ -4974,9 +4975,9 @@ var doubleWidthSLRail = /* @__PURE__ */ (() => {
       }
       fail();
     },
-    isLegal: (j) => (s) => true,
-    lockedBy: (s) => (s$p) => [],
-    isBlocked: (j) => (s) => (j$p) => true,
+    isLegal: (v) => (v1) => true,
+    lockedBy: (v) => (v1) => [],
+    isBlocked: (v) => (v1) => (v2) => true,
     isSimple: true
   }));
 })();
@@ -5090,11 +5091,10 @@ var toDoubleLPlusRail = /* @__PURE__ */ (() => {
       }
       return serialAll4;
     },
-    isBlocked: (j) => (s) => (j$p) => true,
+    isBlocked: (v) => (v1) => (v2) => true,
     isSimple: false
   }));
 })();
-var toDoubleRPlusRail = /* @__PURE__ */ memorizeRail(/* @__PURE__ */ flipRail_(toDoubleLPlusRail));
 var autoTurnOutLPlusRail = /* @__PURE__ */ (() => {
   const ps = {
     coord: { x: 0.5 + sqrt(0.5), y: 1 - sqrt(0.5), z: 0 },
@@ -5121,7 +5121,7 @@ var autoTurnOutLPlusRail = /* @__PURE__ */ (() => {
         if (v.turnout) {
           return {
             rails: arrayBind([
-              arrayMap((s1) => ({ color: "#33a", shape: s1 }))(r0),
+              arrayMap((sh) => ({ color: "#33a", shape: sh }))(r0),
               arrayMap(blueRail)(r_),
               arrayMap(blueRail)(r1)
             ])(identity),
@@ -5130,7 +5130,7 @@ var autoTurnOutLPlusRail = /* @__PURE__ */ (() => {
         }
         return {
           rails: arrayBind([
-            arrayMap((s1) => ({ color: "#33a", shape: s1 }))(r1),
+            arrayMap((sh) => ({ color: "#33a", shape: sh }))(r1),
             arrayMap(blueRail)(r_),
             arrayMap(blueRail)(r0)
           ])(identity),
@@ -5140,7 +5140,7 @@ var autoTurnOutLPlusRail = /* @__PURE__ */ (() => {
       if (v.turnout) {
         return {
           rails: arrayBind([
-            arrayMap((s1) => ({ color: "#866", shape: s1 }))(r0),
+            arrayMap((sh) => ({ color: "#866", shape: sh }))(r0),
             arrayMap(blueRail)(r_),
             arrayMap(blueRail)(r1)
           ])(identity),
@@ -5149,7 +5149,7 @@ var autoTurnOutLPlusRail = /* @__PURE__ */ (() => {
       }
       return {
         rails: arrayBind([
-          arrayMap((s1) => ({ color: "#866", shape: s1 }))(r1),
+          arrayMap((sh) => ({ color: "#866", shape: sh }))(r1),
           arrayMap(blueRail)(r_),
           arrayMap(blueRail)(r0)
         ])(identity),
@@ -5249,7 +5249,7 @@ var autoTurnOutLPlusRail = /* @__PURE__ */ (() => {
       }
       return serialAll4;
     },
-    isBlocked: (j) => (s) => (j$p) => true,
+    isBlocked: (v) => (v1) => (v2) => true,
     isSimple: false
   }));
 })();
@@ -5317,7 +5317,7 @@ var rails = [
   crossoverLRail,
   diamondRail,
   halfSlopeRail,
-  quaterSlopeRail
+  quarterSlopeRail
 ];
 var isArc = (shape) => !eqAngle.eq(shape.start.angle + 3.141592653589793)(shape.end.angle);
 var encodeTrainRoute = (v) => ({ nodeid: v.nodeid, jointid: v.jointid, railinstance: v.railinstance.instanceid, shapes: v.shapes, length: v.length });
@@ -5810,7 +5810,6 @@ var turnOutLPlusRail2 = turnOutLPlusRail;
 var tryOpenRouteFor_ffi2 = tryOpenRouteFor_ffi;
 var trainsetLength2 = trainsetLength;
 var trainsetDrawInfo2 = trainsetDrawInfo;
-var toDoubleRPlusRail2 = toDoubleRPlusRail;
 var toDoubleLPlusRail2 = toDoubleLPlusRail;
 var straightRail2 = straightRail;
 var splitSize2 = splitSize;
@@ -5824,7 +5823,7 @@ var shapeLength2 = shapeLength;
 var scissorsRail2 = scissorsRail;
 var removeSignal2 = removeSignal;
 var removeRail2 = removeRail;
-var quaterSlopeRail2 = quaterSlopeRail;
+var quarterSlopeRail2 = quarterSlopeRail;
 var quarterRail2 = quarterRail;
 var poszero2 = poszero;
 var outerCurveRRail2 = outerCurveRRail;
@@ -5928,7 +5927,7 @@ export {
   outerCurveRRail2 as outerCurveRRail,
   poszero2 as poszero,
   quarterRail2 as quarterRail,
-  quaterSlopeRail2 as quaterSlopeRail,
+  quarterSlopeRail2 as quarterSlopeRail,
   removeRail2 as removeRail,
   removeSignal2 as removeSignal,
   scissorsRail2 as scissorsRail,
@@ -5942,7 +5941,6 @@ export {
   splitSize2 as splitSize,
   straightRail2 as straightRail,
   toDoubleLPlusRail2 as toDoubleLPlusRail,
-  toDoubleRPlusRail2 as toDoubleRPlusRail,
   trainsetDrawInfo2 as trainsetDrawInfo,
   trainsetLength2 as trainsetLength,
   tryOpenRouteFor_ffi2 as tryOpenRouteFor_ffi,

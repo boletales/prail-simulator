@@ -29,7 +29,7 @@ module Internal.Rails
   , outerCurveLRail
   , outerCurveRRail
   , quarterRail
-  , quaterSlopeRail
+  , quarterSlopeRail
   , scissorsRail
   , slopeCurveLRail
   , slopeCurveRRail
@@ -42,21 +42,21 @@ module Internal.Rails
   )
   where
 
+import Data.Array
 import Data.Generic.Rep
 import Data.Maybe
 import Data.Newtype
 import Data.Number
+import Internal.Types
 import Prelude
 import Type.Proxy
-import Data.Array
 
+import Data.NaturalTransformation (NaturalTransformation)
 import Data.Symbol (class IsSymbol)
 import Data.Traversable (scanl)
 import Record as R
 import Type.Row as R
 import Type.RowList as RL
-
-import Internal.Types
 
 
 
@@ -123,6 +123,7 @@ derive instance Eq JointsDoublePoint
 derive instance genericJointsDoublePoint:: Generic JointsDoublePoint _
 
 
+noAdditionals :: forall x. Array (DrawRail x) -> DrawInfo x
 noAdditionals x =  DrawInfo {rails: x, additionals: []}
 
 straightRail :: Rail
@@ -148,9 +149,9 @@ straightRail =
         JointEnd   -> {newjoint: JointBegin, newstate:s, shape: reverseShapes r0}
 
       ,getRoute  : \s f t  -> if f /= t then Just s else Nothing
-      ,isLegal   : \j s    -> true
-      ,lockedBy  : \s s'   -> []
-      ,isBlocked : \j s j' -> true
+      ,isLegal   : \_ _    -> true
+      ,lockedBy  : \_ _    -> []
+      ,isBlocked : \_ _ _  -> true
       ,isSimple  : true
     }
 
@@ -177,9 +178,9 @@ longRail =
         JointEnd   -> {newjoint: JointBegin, newstate:s, shape: reverseShapes r0}
 
       ,getRoute  : \s f t  -> if f /= t then Just s else Nothing
-      ,isLegal   : \j s    -> true
-      ,lockedBy  : \s s'   -> []
-      ,isBlocked : \j s j' -> true
+      ,isLegal   : \_ _    -> true
+      ,lockedBy  : \_ _    -> []
+      ,isBlocked : \_ _ _  -> true
       ,isSimple  : true
     }
 
@@ -206,9 +207,9 @@ halfRail =
         JointEnd   -> {newjoint: JointBegin, newstate:s, shape: reverseShapes r0}
         
       ,getRoute  : \s f t  -> if f /= t then Just s else Nothing
-      ,isLegal   : \j s    -> true
-      ,lockedBy  : \s s'   -> []
-      ,isBlocked : \j s j' -> true
+      ,isLegal   : \_ _    -> true
+      ,lockedBy  : \_ _    -> []
+      ,isBlocked : \_ _ _  -> true
       ,isSimple  : true
     }
 
@@ -235,9 +236,9 @@ quarterRail =
         JointEnd   -> {newjoint: JointBegin, newstate:s, shape: reverseShapes r0}
         
       ,getRoute  : \s f t  -> if f /= t then Just s else Nothing
-      ,isLegal   : \j s    -> true
-      ,lockedBy  : \s s'   -> []
-      ,isBlocked : \j s j' -> true
+      ,isLegal   : \_ _    -> true
+      ,lockedBy  : \_ _    -> []
+      ,isBlocked : \_ _ _  -> true
       ,isSimple  : true
     }
 converterRail :: Rail
@@ -263,9 +264,9 @@ converterRail =
         JointEnd   -> {newjoint: JointBegin, newstate:s, shape: reverseShapes r0}
         
       ,getRoute  : \s f t  -> if f /= t then Just s else Nothing
-      ,isLegal   : \j s    -> true
-      ,lockedBy  : \s s'   -> []
-      ,isBlocked : \j s j' -> true
+      ,isLegal   : \_ _    -> true
+      ,lockedBy  : \_ _    -> []
+      ,isBlocked : \_ _ _  -> true
       ,isSimple  : true
     }
 slopeRail :: Rail
@@ -291,9 +292,9 @@ slopeRail =
         JointEnd   -> {newjoint: JointBegin, newstate:s, shape: reverseShapes r0}
         
       ,getRoute  : \s f t  -> if f /= t then Just s else Nothing
-      ,isLegal   : \j s    -> true
-      ,lockedBy  : \s s'   -> []
-      ,isBlocked : \j s j' -> true
+      ,isLegal   : \_ _    -> true
+      ,lockedBy  : \_ _    -> []
+      ,isBlocked : \_ _ _  -> true
       ,isSimple  : true
     }
 
@@ -320,9 +321,9 @@ curveLRail =
         JointEnd   -> {newjoint: JointBegin, newstate:s, shape: reverseShapes r0}
         
     ,getRoute  : \s f t  -> if f /= t then Just s else Nothing
-    ,isLegal   : \j s    -> true
-    ,lockedBy  : \s s'   -> []
-    ,isBlocked : \j s j' -> true
+    ,isLegal   : \_ _    -> true
+    ,lockedBy  : \_ _    -> []
+    ,isBlocked : \_ _ _  -> true
     ,isSimple  : true
   }
 
@@ -352,9 +353,9 @@ slopeCurveLRail =
         JointEnd   -> {newjoint: JointBegin, newstate:s, shape: reverseShapes r0}
         
     ,getRoute  : \s f t  -> if f /= t then Just s else Nothing
-    ,isLegal   : \j s    -> true
-    ,lockedBy  : \s s'   -> []
-    ,isBlocked : \j s j' -> true
+    ,isLegal   : \_ _    -> true
+    ,lockedBy  : \_ _    -> []
+    ,isBlocked : \_ _ _  -> true
     ,isSimple  : true
   }
 slopeCurveRRail ∷ Rail
@@ -384,9 +385,9 @@ outerCurveLRail =
       JointEnd   -> {newjoint: JointBegin, newstate:s, shape: reverseShapes r0}
 
     ,getRoute  : \s f t  -> if f /= t then Just s else Nothing
-    ,isLegal   : \j s    -> true
-    ,lockedBy  : \s s'   -> []
-    ,isBlocked : \j s j' -> true
+    ,isLegal   : \_ _    -> true
+    ,lockedBy  : \_ _    -> []
+    ,isBlocked : \_ _ _  -> true
     ,isSimple  : true
   }
 
@@ -427,9 +428,9 @@ doubleWidthSLRail =
                           case t of
                             JointBegin -> Just s
                             JointEnd   -> Nothing
-      ,isLegal   : \j s    -> true
-      ,lockedBy  : \s s'   -> []
-      ,isBlocked : \j s j' -> true
+      ,isLegal   : \_ _    -> true
+      ,lockedBy  : \_ _    -> []
+      ,isBlocked : \_ _ _  -> true
       ,isSimple  : true
     }
 
@@ -490,10 +491,11 @@ turnOutLPlusRail =
             JointMain  -> not (unwrap s).turnout
             JointSub   -> (unwrap s).turnout
       ,lockedBy  : \s s'   -> if s == s' then [] else serialAll
-      ,isBlocked : \j s j' -> true
+      ,isBlocked : \_ _ _  -> true
       ,isSimple  : false
     }
 
+turnOutRPlusRail ∷ RailGen IntJoint IntState
 turnOutRPlusRail = flipRail turnOutLPlusRail
 
 autoTurnOutLPlusRail :: Rail
@@ -514,12 +516,12 @@ autoTurnOutLPlusRail =
         if s.auto
         then
           if s.turnout
-          then noAdditionals $ join [(\s -> DrawRail {color : "#33a", shape : s}) <$> r0, blueRail <$> r_, blueRail <$> r1]
-          else noAdditionals $ join [(\s -> DrawRail {color : "#33a", shape : s}) <$> r1, blueRail <$> r_, blueRail <$> r0]
+          then noAdditionals $ join [(\sh -> DrawRail {color : "#33a", shape : sh}) <$> r0, blueRail <$> r_, blueRail <$> r1]
+          else noAdditionals $ join [(\sh -> DrawRail {color : "#33a", shape : sh}) <$> r1, blueRail <$> r_, blueRail <$> r0]
         else
           if s.turnout
-          then noAdditionals $ join [(\s -> DrawRail {color : "#866", shape : s}) <$> r0, blueRail <$> r_, blueRail <$> r1]
-          else noAdditionals $ join [(\s -> DrawRail {color : "#866", shape : s}) <$> r1, blueRail <$> r_, blueRail <$> r0]
+          then noAdditionals $ join [(\sh -> DrawRail {color : "#866", shape : sh}) <$> r0, blueRail <$> r_, blueRail <$> r1]
+          else noAdditionals $ join [(\sh -> DrawRail {color : "#866", shape : sh}) <$> r1, blueRail <$> r_, blueRail <$> r0]
     ,defaultState : StateAP {turnout: false, auto: true}
     ,getJoints    : serialAll
     ,getStates    : serialAll
@@ -565,15 +567,18 @@ autoTurnOutLPlusRail =
           JointMain  -> not (unwrap s).turnout
           JointSub   -> (unwrap s).turnout
     ,lockedBy  : \s s'   -> if s == s' then [] else serialAll
-    ,isBlocked : \j s j' -> true
+    ,isBlocked : \_ _ _  -> true
     ,isSimple  : false
   }
 
+autoTurnOutRPlusRail ∷ RailGen IntJoint IntState
 autoTurnOutRPlusRail = flipRail autoTurnOutLPlusRail
 
+doubleRailWidth :: Number
 doubleRailWidth = 6.0/21.4
 
 
+calcMidAngle :: Number -> Number -> Number
 calcMidAngle x y =
   let r = (y `pow` 2.0 + x `pow`2.0) / (2.0*y)
   in  asin (x/r)
@@ -583,8 +588,8 @@ toDoubleLPlusRail =
   let anglep = fromRadian $ calcMidAngle 1.0 doubleRailWidth
       pe  = RelPos (Pos {coord: Coord{x: 0.0, y: 0.0                , z:0.0}, angle: angle8 4            , isPlus: false})
       pm  = RelPos (Pos {coord: Coord{x: 1.0, y: 0.0                , z:0.0}, angle: angle8 0            , isPlus: true })
-      pp  = RelPos (Pos {coord: Coord{x: 0.5, y: doubleRailWidth/2.0, z:0.0}, angle: anglep              , isPlus: true })
-      pP  = RelPos (Pos {coord: Coord{x: 0.5, y: doubleRailWidth/2.0, z:0.0}, angle: reverseAngle anglep , isPlus: false})
+      _pp  = RelPos (Pos {coord: Coord{x: 0.5, y: doubleRailWidth/2.0, z:0.0}, angle: anglep              , isPlus: true })
+      _pP  = RelPos (Pos {coord: Coord{x: 0.5, y: doubleRailWidth/2.0, z:0.0}, angle: reverseAngle anglep , isPlus: false})
       ps  = RelPos (Pos {coord: Coord{x: 1.0, y: doubleRailWidth    , z:0.0}, angle: angle8 0            , isPlus: true })
       r0 = [railShape {start: pe, end: pm}]
       r1 = slipShapes {start: pe, end: ps}
@@ -635,7 +640,7 @@ toDoubleLPlusRail =
             JointMain  -> not (unwrap s).turnout
             JointSub   -> (unwrap s).turnout
       ,lockedBy  : \s s'   -> if s == s' then [] else serialAll
-      ,isBlocked : \j s j' -> true
+      ,isBlocked : \_ _ _  -> true
       ,isSimple  : false
     }
 
@@ -649,10 +654,10 @@ scissorsRail =
       pie = RelPos (Pos {coord: Coord{x: 0.0 , y: -doubleRailWidth    , z:0.0}, angle: angle8 4    , isPlus: true}) 
       pob = RelPos (Pos {coord: Coord{x: 0.0 , y:  0.0                , z:0.0}, angle: angle8 4    , isPlus: true})
       poe = RelPos (Pos {coord: Coord{x: 1.0 , y:  0.0                , z:0.0}, angle: angle8 0    , isPlus: false}) 
-      ppp = RelPos (Pos {coord: Coord{x: 0.5 , y: -doubleRailWidth/2.0, z:0.0}, angle: anglen 12 11, isPlus: true }) 
-      pPp = RelPos (Pos {coord: Coord{x: 0.5 , y: -doubleRailWidth/2.0, z:0.0}, angle: anglen 12 5 , isPlus: false}) 
-      ppn = RelPos (Pos {coord: Coord{x: 0.5 , y: -doubleRailWidth/2.0, z:0.0}, angle: anglen 12 1 , isPlus: true }) 
-      pPn = RelPos (Pos {coord: Coord{x: 0.5 , y: -doubleRailWidth/2.0, z:0.0}, angle: anglen 12 7 , isPlus: false}) 
+      _ppp = RelPos (Pos {coord: Coord{x: 0.5 , y: -doubleRailWidth/2.0, z:0.0}, angle: anglen 12 11, isPlus: true }) 
+      _pPp = RelPos (Pos {coord: Coord{x: 0.5 , y: -doubleRailWidth/2.0, z:0.0}, angle: anglen 12 5 , isPlus: false}) 
+      _ppn = RelPos (Pos {coord: Coord{x: 0.5 , y: -doubleRailWidth/2.0, z:0.0}, angle: anglen 12 1 , isPlus: true }) 
+      _pPn = RelPos (Pos {coord: Coord{x: 0.5 , y: -doubleRailWidth/2.0, z:0.0}, angle: anglen 12 7 , isPlus: false}) 
       ro = [railShape {start :pob, end: poe}]
       ri = [railShape {start :pib, end: pie}]
       rp = slipShapes {start :pob, end: pib}
@@ -709,7 +714,7 @@ scissorsRail =
             JointOuterBegin -> {newjoint: JointOuterEnd   , newstate:StateSP_S, shape:               ro}
             JointOuterEnd   -> {newjoint: JointInnerEnd   , newstate:StateSP_N, shape: reverseShapes rn}
 
-      ,getRoute  : \s f t  -> 
+      ,getRoute  : \_ f t  -> 
                       case f of
                         JointInnerBegin -> 
                           case t of
@@ -948,9 +953,11 @@ doubleTurnoutLPlusRail =
       ,isSimple  : false
   }
 
+doubleTurnoutRPlusRail ∷ RailGen IntJoint IntState
 doubleTurnoutRPlusRail = flipRail doubleTurnoutLPlusRail
 
-wideRailWidth = 16.1/21.4
+-- wideRailWidth ∷ Number
+-- wideRailWidth = 16.1/21.4
 
 doubleToWideLRail :: Rail
 doubleToWideLRail = 
@@ -960,10 +967,10 @@ doubleToWideLRail =
       pie = RelPos (Pos {coord: Coord{x: 0.0   , y: -doubleRailWidth             , z:0.0}, angle: angle8 4            , isPlus: false}) 
       pob = RelPos (Pos {coord: Coord{x: 0.0   , y:  0.0                         , z:0.0}, angle: angle8 4            , isPlus: false})
       poe = RelPos (Pos {coord: Coord{x: 1.25  , y:  0.5 - doubleRailWidth       , z:0.0}, angle: angle8 0            , isPlus: true }) 
-      ppn = RelPos (Pos {coord: Coord{x: 0.625 , y:  0.25 - doubleRailWidth      , z:0.0}, angle: anglep              , isPlus: true }) 
-      pPn = RelPos (Pos {coord: Coord{x: 0.625 , y:  0.25 - doubleRailWidth      , z:0.0}, angle: reverseAngle anglep , isPlus: false}) 
-      pqn = RelPos (Pos {coord: Coord{x: 0.625 , y:  (0.5 - doubleRailWidth)/2.0 , z:0.0}, angle: angleq              , isPlus: true }) 
-      pQn = RelPos (Pos {coord: Coord{x: 0.625 , y:  (0.5 - doubleRailWidth)/2.0 , z:0.0}, angle: reverseAngle angleq , isPlus: false}) 
+      _ppn = RelPos (Pos {coord: Coord{x: 0.625 , y:  0.25 - doubleRailWidth      , z:0.0}, angle: anglep              , isPlus: true }) 
+      _pPn = RelPos (Pos {coord: Coord{x: 0.625 , y:  0.25 - doubleRailWidth      , z:0.0}, angle: reverseAngle anglep , isPlus: false}) 
+      _pqn = RelPos (Pos {coord: Coord{x: 0.625 , y:  (0.5 - doubleRailWidth)/2.0 , z:0.0}, angle: angleq              , isPlus: true }) 
+      _pQn = RelPos (Pos {coord: Coord{x: 0.625 , y:  (0.5 - doubleRailWidth)/2.0 , z:0.0}, angle: reverseAngle angleq , isPlus: false}) 
       ro = slipShapes {start :pob, end: poe}
       ri = [railShape {start :pib, end: pie}]
       rn = slipShapes {start :pie, end: poe}
@@ -1200,6 +1207,7 @@ crossoverLRail =
       ,isSimple  : false
   }
 
+crossoverRRail ∷ RailGen IntJoint IntState
 crossoverRRail = flipRail crossoverLRail
 
 diamondRail :: Rail
@@ -1232,14 +1240,14 @@ diamondRail =
       JointOuterEnd   -> poe
       JointInnerBegin -> pib
       JointInnerEnd   -> pie
-    ,getNewState : \j s ->
+    ,getNewState : \j _ ->
         case j of
           JointInnerBegin -> {newjoint: JointOuterBegin , newstate:StateDM_P, shape: reverseShapes rp}
           JointInnerEnd   -> {newjoint: JointOuterEnd   , newstate:StateDM_N, shape:               rn}
           JointOuterBegin -> {newjoint: JointInnerBegin , newstate:StateDM_P, shape:               rp}
           JointOuterEnd   -> {newjoint: JointInnerEnd   , newstate:StateDM_N, shape: reverseShapes rn}
 
-      ,getRoute  : \s f t  -> 
+      ,getRoute  : \_ f t  -> 
                       case f of
                         JointInnerBegin -> 
                           case t of
@@ -1272,7 +1280,7 @@ diamondRail =
             JointOuterBegin -> s /= StateDM_N
             JointOuterEnd   -> s /= StateDM_P
       ,lockedBy  : \s s'   -> if s == s' then [] else serialAll
-      ,isBlocked : \j s j' -> true
+      ,isBlocked : \_ _ _  -> true
       ,isSimple  : true
   }
 
@@ -1300,14 +1308,14 @@ halfSlopeRail =
         JointEnd   -> {newjoint: JointBegin, newstate:s, shape: reverseShapes r0}
         
       ,getRoute  : \s f t  -> if f /= t then Just s else Nothing
-      ,isLegal   : \j s    -> true
-      ,lockedBy  : \s s'   -> []
-      ,isBlocked : \j s j' -> true
+      ,isLegal   : \_ _    -> true
+      ,lockedBy  : \_ _    -> []
+      ,isBlocked : \_ _ _  -> true
       ,isSimple  : true
     }
 
-quaterSlopeRail :: Rail
-quaterSlopeRail = 
+quarterSlopeRail :: Rail
+quarterSlopeRail = 
   let pb = RelPos (Pos {coord: Coord{x: 0.0, y: 0.0, z:0.0}, angle: angle8 4, isPlus: false})
       pe = RelPos (Pos {coord: Coord{x: 1.0, y: 0.0, z:0.25}, angle: angle8 0, isPlus: true})
       r0 = [railShape {start: pb, end:pe}]
@@ -1329,8 +1337,8 @@ quaterSlopeRail =
         JointEnd   -> {newjoint: JointBegin, newstate:s, shape: reverseShapes r0}
         
       ,getRoute  : \s f t  -> if f /= t then Just s else Nothing
-      ,isLegal   : \j s    -> true
-      ,lockedBy  : \s s'   -> []
-      ,isBlocked : \j s j' -> true
+      ,isLegal   : \_ _    -> true
+      ,lockedBy  : \_ _    -> []
+      ,isBlocked : \_ _ _  -> true
       ,isSimple  : true
     }

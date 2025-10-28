@@ -64,6 +64,7 @@ module Main
   , splitSize
   , straightRail
   , toDoubleLPlusRail
+  , toDoubleRPlusRail
   , trainsetDrawInfo
   , trainsetLength
   , tryOpenRouteFor_ffi

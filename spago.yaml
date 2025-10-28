@@ -1,0 +1,37 @@
+package:
+  dependencies:
+    - arrays
+    - console
+    - effect
+    - either
+    - foldable-traversable
+    - foreign
+    - foreign-object
+    - identity
+    - integers
+    - lists
+    - maybe
+    - newtype
+    - numbers
+    - partial
+    - prelude
+    - psci-support
+    - record
+    - strings
+    - stringutils
+    - transformers
+    - typelevel-prelude
+  name: my-project
+  build:
+    censorProjectWarnings:
+      - ImplicitImport
+      - ImplicitQualifiedImport
+      - MissingTypeDeclaration
+workspace:
+  backend:
+    cmd: purs-backend-es
+    args:
+      - build
+  extraPackages: {}
+  packageSet:
+    url: https://raw.githubusercontent.com/purescript/package-sets/psc-0.15.15-20240829/packages.json

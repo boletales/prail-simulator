@@ -73,17 +73,15 @@ class Layout {
           },
           speedUp: {
               onkey: ()=>{ this.layout.speed = this.layout.speed * 1.2}
-            , text_ja: "speed +20%"
-            , softkey: "extra_speedup"
-            , key    : ["extra_speedup", "["]
-            , skip   : true
+            , text_ja: "シミュレーション速度 +20%"
+            , softkey: "["
+            , key    : ["[", "extra_speedup"]
           },
           speedDown: {
               onkey: ()=>{ this.layout.speed = this.layout.speed / 1.2}
-            , text_ja: "speed -20%"
-            , softkey: "extra_speeddown"
-            , key    : ["extra_speeddown", "]"]
-            , skip   : true
+            , text_ja: "シミュレーション速度 -20%"
+            , softkey: "]"
+            , key    : ["]", "extra_speeddown"]
           },
         }
       },
@@ -328,6 +326,30 @@ class Layout {
             , softkey: "C"
             , key    : ["C"]
           },
+          halfSlopeRailU: {
+              onkey: ()=>{this.addRail(P.halfSlopeRail);}
+            , text_ja: "1/2坂レール（上り）"
+            , softkey: "v"
+            , key    : ["v"]
+          },
+          halfSlopeRailD: {
+              onkey: ()=>{this.addRail(P.halfSlopeRail, 1);}
+            , text_ja: "1/2坂レール（下り）"
+            , softkey: "V"
+            , key    : ["V"]
+          },
+          quarterSlopeRailU: {
+              onkey: ()=>{this.addRail(P.quarterSlopeRail);}
+            , text_ja: "1/4坂レール（上り）"
+            , softkey: "b"
+            , key    : ["b"]
+          },
+          quarterSlopeRailD: {
+              onkey: ()=>{this.addRail(P.quarterSlopeRail, 1);}
+            , text_ja: "1/4坂レール（下り）"
+            , softkey: "B"
+            , key    : ["B"]
+          }
         }
       },
       points : {

@@ -24,10 +24,12 @@ module Internal.Rails
   , doubleWidthSLRail
   , doubleWidthSRRail
   , halfRail
+  , halfSlopeRail
   , longRail
   , outerCurveLRail
   , outerCurveRRail
   , quarterRail
+  , quaterSlopeRail
   , scissorsRail
   , slopeCurveLRail
   , slopeCurveRRail
@@ -1273,3 +1275,62 @@ diamondRail =
       ,isBlocked : \j s j' -> true
       ,isSimple  : true
   }
+
+
+halfSlopeRail :: Rail
+halfSlopeRail = 
+  let pb = RelPos (Pos {coord: Coord{x: 0.0, y: 0.0, z:0.0}, angle: angle8 4, isPlus: false})
+      pe = RelPos (Pos {coord: Coord{x: 1.0, y: 0.0, z:0.5}, angle: angle8 0, isPlus: true})
+      r0 = [railShape {start: pb, end:pe}]
+  in toRail $ RailGen {
+      name : "halfslope"
+      ,flipped : false
+      ,opposed : false
+      ,getDrawInfo : \_ ->
+        noAdditionals $ blueRail <$> r0
+      ,defaultState : StateSolid
+      ,getJoints    : serialAll
+      ,getStates    : serialAll
+      ,getOrigin    : JointBegin
+      ,getJointPos : \j -> case j of
+        JointBegin -> pb
+        JointEnd   -> pe
+      ,getNewState : \j s -> case j of
+        JointBegin -> {newjoint: JointEnd  , newstate:s, shape:               r0}
+        JointEnd   -> {newjoint: JointBegin, newstate:s, shape: reverseShapes r0}
+        
+      ,getRoute  : \s f t  -> if f /= t then Just s else Nothing
+      ,isLegal   : \j s    -> true
+      ,lockedBy  : \s s'   -> []
+      ,isBlocked : \j s j' -> true
+      ,isSimple  : true
+    }
+
+quaterSlopeRail :: Rail
+quaterSlopeRail = 
+  let pb = RelPos (Pos {coord: Coord{x: 0.0, y: 0.0, z:0.0}, angle: angle8 4, isPlus: false})
+      pe = RelPos (Pos {coord: Coord{x: 1.0, y: 0.0, z:0.25}, angle: angle8 0, isPlus: true})
+      r0 = [railShape {start: pb, end:pe}]
+  in toRail $ RailGen {
+      name : "quaterslope"
+      ,flipped : false
+      ,opposed : false
+      ,getDrawInfo : \_ ->
+        noAdditionals $ blueRail <$> r0
+      ,defaultState : StateSolid
+      ,getJoints    : serialAll
+      ,getStates    : serialAll
+      ,getOrigin    : JointBegin
+      ,getJointPos : \j -> case j of
+        JointBegin -> pb
+        JointEnd   -> pe
+      ,getNewState : \j s -> case j of
+        JointBegin -> {newjoint: JointEnd  , newstate:s, shape:               r0}
+        JointEnd   -> {newjoint: JointBegin, newstate:s, shape: reverseShapes r0}
+        
+      ,getRoute  : \s f t  -> if f /= t then Just s else Nothing
+      ,isLegal   : \j s    -> true
+      ,lockedBy  : \s s'   -> []
+      ,isBlocked : \j s j' -> true
+      ,isSimple  : true
+    }

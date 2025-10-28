@@ -64,34 +64,11 @@ var EQ = /* @__PURE__ */ $Ordering("EQ");
 var $Maybe = (tag, _1) => ({ tag, _1 });
 var Nothing = /* @__PURE__ */ $Maybe("Nothing");
 var Just = (value0) => $Maybe("Just", value0);
-var functorMaybe = {
-  map: (v) => (v1) => {
-    if (v1.tag === "Just") {
-      return $Maybe("Just", v(v1._1));
-    }
-    return Nothing;
-  }
-};
 var fromJust = () => (v) => {
   if (v.tag === "Just") {
     return v._1;
   }
   fail();
-};
-var applyMaybe = {
-  apply: (v) => (v1) => {
-    if (v.tag === "Just") {
-      if (v1.tag === "Just") {
-        return $Maybe("Just", v._1(v1._1));
-      }
-      return Nothing;
-    }
-    if (v.tag === "Nothing") {
-      return Nothing;
-    }
-    fail();
-  },
-  Functor0: () => functorMaybe
 };
 
 // output-es/Data.Functor/foreign.js
@@ -177,15 +154,6 @@ var foldlArray = function(f) {
 };
 
 // output-es/Data.Foldable/index.js
-var maximumBy = (dictFoldable) => (cmp) => dictFoldable.foldl((v) => (v1) => {
-  if (v.tag === "Nothing") {
-    return $Maybe("Just", v1);
-  }
-  if (v.tag === "Just") {
-    return $Maybe("Just", cmp(v._1)(v1) === "GT" ? v._1 : v1);
-  }
-  fail();
-})(Nothing);
 var foldableArray = {
   foldr: foldrArray,
   foldl: foldlArray,
@@ -317,7 +285,7 @@ var reverse = function(l) {
 var filterImpl = function(f, xs) {
   return xs.filter(f);
 };
-var sortByImpl2 = /* @__PURE__ */ function() {
+var sortByImpl2 = /* @__PURE__ */ (function() {
   function mergeFromTo(compare, fromOrdering, xs1, xs2, from, to) {
     var mid;
     var i;
@@ -358,7 +326,7 @@ var sortByImpl2 = /* @__PURE__ */ function() {
     mergeFromTo(compare, fromOrdering, out, xs.slice(0), 0, xs.length);
     return out;
   };
-}();
+})();
 var sliceImpl = function(s, e, l) {
   return l.slice(s, e);
 };
@@ -403,20 +371,17 @@ var sortBy = (comp) => ($0) => sortByImpl2(
   $0
 );
 var sortWith = (dictOrd) => (f) => sortBy((x) => (y) => dictOrd.compare(f(x))(f(y)));
-var last = (xs) => {
+var unsnoc = (xs) => {
+  if (xs.length === 0) {
+    const $02 = xs.length - 1 | 0;
+    return Nothing;
+  }
   const $0 = xs.length - 1 | 0;
   if ($0 >= 0 && $0 < xs.length) {
-    return $Maybe("Just", xs[$0]);
+    return $Maybe("Just", { init: sliceImpl(0, xs.length - 1 | 0, xs), last: xs[$0] });
   }
   return Nothing;
 };
-var unsnoc = (xs) => applyMaybe.apply(xs.length === 0 ? Nothing : $Maybe(
-  "Just",
-  (() => {
-    const $0 = sliceImpl(0, xs.length - 1 | 0, xs);
-    return (v1) => ({ init: $0, last: v1 });
-  })()
-))(last(xs));
 var modifyAt = (i) => (f) => (xs) => {
   if (i >= 0 && i < xs.length) {
     return _updateAt(Just, Nothing, i, f(xs[i]), xs);
@@ -430,9 +395,9 @@ var nubBy = (comp) => (xs) => {
       const result = [indexedAndSorted[0]];
       for (const v1 of indexedAndSorted) {
         const $0 = comp((() => {
-          const $02 = last(result);
-          if ($02.tag === "Just") {
-            return $02._1._2;
+          const $02 = result.length - 1 | 0;
+          if ($02 >= 0 && $02 < result.length) {
+            return result[$02]._2;
           }
           fail();
         })())(v1._2);
@@ -496,7 +461,6 @@ var mapMaybe = (f) => concatMap((x) => {
   }
   fail();
 });
-var any = ($0) => ($1) => anyImpl($0, $1);
 
 // output-es/Data.Number/foreign.js
 var infinity = Infinity;
@@ -732,12 +696,6 @@ var foldableWithIndexArray = {
   },
   Foldable0: () => foldableArray
 };
-var findWithIndex = (dictFoldableWithIndex) => (p) => dictFoldableWithIndex.foldlWithIndex((v) => (v1) => (v2) => {
-  if (v1.tag === "Nothing" && p(v)(v2)) {
-    return $Maybe("Just", { index: v, value: v2 });
-  }
-  return v1;
-})(Nothing);
 
 // output-es/Data.HeytingAlgebra/foreign.js
 var boolConj = function(b1) {
@@ -969,15 +927,16 @@ var toRail_ = (dictIntSerialize) => (dictIntSerialize1) => (v) => ({
     return poszero;
   },
   getNewState: (v1) => (v2) => {
-    const $0 = applyMaybe.apply((() => {
-      const $02 = dictIntSerialize.fromSerial(v1);
-      if ($02.tag === "Just") {
-        return $Maybe("Just", v.getNewState($02._1));
-      }
-      return Nothing;
-    })())(dictIntSerialize1.fromSerial(v2));
+    const $0 = dictIntSerialize.fromSerial(v1);
     if ($0.tag === "Just") {
-      return { newjoint: dictIntSerialize.toSerial($0._1.newjoint), newstate: dictIntSerialize1.toSerial($0._1.newstate), shape: $0._1.shape };
+      const $1 = dictIntSerialize1.fromSerial(v2);
+      if ($1.tag === "Just") {
+        return {
+          newjoint: dictIntSerialize.toSerial(v.getNewState($0._1)($1._1).newjoint),
+          newstate: dictIntSerialize1.toSerial(v.getNewState($0._1)($1._1).newstate),
+          shape: v.getNewState($0._1)($1._1).shape
+        };
+      }
     }
     return { newjoint: v1, newstate: v2, shape: [] };
   },
@@ -989,63 +948,44 @@ var toRail_ = (dictIntSerialize) => (dictIntSerialize1) => (v) => ({
     return brokenDrawInfo;
   },
   getRoute: (v1) => (v2) => (v3) => {
-    const $0 = applyMaybe.apply(applyMaybe.apply((() => {
-      const $02 = dictIntSerialize1.fromSerial(v1);
-      if ($02.tag === "Just") {
-        return $Maybe("Just", v.getRoute($02._1));
+    const $0 = dictIntSerialize1.fromSerial(v1);
+    if ($0.tag === "Just") {
+      const $1 = dictIntSerialize.fromSerial(v2);
+      if ($1.tag === "Just") {
+        const $2 = dictIntSerialize.fromSerial(v3);
+        if ($2.tag === "Just" && v.getRoute($0._1)($1._1)($2._1).tag === "Just") {
+          return $Maybe("Just", dictIntSerialize1.toSerial(v.getRoute($0._1)($1._1)($2._1)._1));
+        }
       }
-      return Nothing;
-    })())(dictIntSerialize.fromSerial(v2)))(dictIntSerialize.fromSerial(v3));
-    if ($0.tag === "Just" && $0._1.tag === "Just") {
-      return $Maybe("Just", dictIntSerialize1.toSerial($0._1._1));
     }
     return Nothing;
   },
   isLegal: (v1) => (v2) => {
-    const $0 = applyMaybe.apply((() => {
-      const $02 = dictIntSerialize.fromSerial(v1);
-      if ($02.tag === "Just") {
-        return $Maybe("Just", v.isLegal($02._1));
-      }
-      return Nothing;
-    })())(dictIntSerialize1.fromSerial(v2));
-    if ($0.tag === "Nothing") {
-      return false;
-    }
-    if ($0.tag === "Just") {
-      return $0._1;
-    }
-    fail();
+    const $0 = dictIntSerialize.fromSerial(v1);
+    return $0.tag === "Just" && (() => {
+      const $1 = dictIntSerialize1.fromSerial(v2);
+      return $1.tag === "Just" && v.isLegal($0._1)($1._1);
+    })();
   },
   lockedBy: (v1) => (v2) => {
-    const $0 = applyMaybe.apply((() => {
-      const $02 = dictIntSerialize1.fromSerial(v1);
-      if ($02.tag === "Just") {
-        return $Maybe("Just", v.lockedBy($02._1));
-      }
-      return Nothing;
-    })())(dictIntSerialize1.fromSerial(v2));
-    const $1 = arrayMap((x) => dictIntSerialize.toSerial(x));
+    const $0 = dictIntSerialize1.fromSerial(v1);
     if ($0.tag === "Just") {
-      return $1($0._1);
+      const $1 = dictIntSerialize1.fromSerial(v2);
+      if ($1.tag === "Just") {
+        return arrayMap((x) => dictIntSerialize.toSerial(x))(v.lockedBy($0._1)($1._1));
+      }
     }
     return [];
   },
   isBlocked: (v1) => (v2) => (v3) => {
-    const $0 = applyMaybe.apply(applyMaybe.apply((() => {
-      const $02 = dictIntSerialize.fromSerial(v1);
-      if ($02.tag === "Just") {
-        return $Maybe("Just", v.isBlocked($02._1));
-      }
-      return Nothing;
-    })())(dictIntSerialize1.fromSerial(v2)))(dictIntSerialize.fromSerial(v3));
-    if ($0.tag === "Nothing") {
-      return false;
-    }
-    if ($0.tag === "Just") {
-      return $0._1;
-    }
-    fail();
+    const $0 = dictIntSerialize.fromSerial(v1);
+    return $0.tag === "Just" && (() => {
+      const $1 = dictIntSerialize1.fromSerial(v2);
+      return $1.tag === "Just" && (() => {
+        const $2 = dictIntSerialize.fromSerial(v3);
+        return $2.tag === "Just" && v.isBlocked($0._1)($1._1)($2._1);
+      })();
+    })();
   },
   isSimple: v.isSimple
 });
@@ -1058,6 +998,12 @@ var absDrawInfo = (p) => (v) => ({ rails: arrayMap(absParts(p))(v.rails), additi
 // output-es/Internal.Layout/index.js
 var $SignalRule = (tag, _1, _2, _3, _4) => ({ tag, _1, _2, _3, _4 });
 var identity5 = (x) => x;
+var findWithIndex = (p) => foldableWithIndexArray.foldlWithIndex((v) => (v1) => (v2) => {
+  if (v1.tag === "Nothing" && p(v)(v2)) {
+    return $Maybe("Just", { index: v, value: v2 });
+  }
+  return v1;
+})(Nothing);
 var sum = /* @__PURE__ */ foldlArray(numAdd)(0);
 var foldM = (f) => (b0) => foldlArray((b) => (a) => {
   if (b.tag === "Just") {
@@ -1068,7 +1014,15 @@ var foldM = (f) => (b0) => foldlArray((b) => (a) => {
   }
   fail();
 })($Maybe("Just", b0));
-var maximum = /* @__PURE__ */ (() => maximumBy(foldableArray)(ordInt.compare))();
+var maximum = /* @__PURE__ */ foldlArray((v) => (v1) => {
+  if (v.tag === "Nothing") {
+    return $Maybe("Just", v1);
+  }
+  if (v.tag === "Just") {
+    return $Maybe("Just", v._1 > v1 ? v._1 : v1);
+  }
+  fail();
+})(Nothing);
 var min2 = (x) => (y) => {
   const v = ordNumber.compare(x)(y);
   if (v === "LT") {
@@ -1115,14 +1069,6 @@ var min1 = (x) => (y) => {
   }
   fail();
 };
-var RuleSpeed = (value0) => (value1) => (value2) => $SignalRule("RuleSpeed", value0, value1, value2);
-var RuleOpen = (value0) => (value1) => (value2) => $SignalRule("RuleOpen", value0, value1, value2);
-var RuleUpdate = (value0) => (value1) => (value2) => (value3) => $SignalRule("RuleUpdate", value0, value1, value2, value3);
-var RuleStop = (value0) => (value1) => $SignalRule("RuleStop", value0, value1);
-var RuleStopOpen = (value0) => (value1) => (value2) => $SignalRule("RuleStopOpen", value0, value1, value2);
-var RuleStopUpdate = (value0) => (value1) => (value2) => (value3) => $SignalRule("RuleStopUpdate", value0, value1, value2, value3);
-var RuleReverse = (value0) => (value1) => $SignalRule("RuleReverse", value0, value1);
-var RuleReverseUpdate = (value0) => (value1) => (value2) => (value3) => $SignalRule("RuleReverseUpdate", value0, value1, value2, value3);
 var functorSectionArray = { map: (f) => (v) => ({ arraydata: arrayMap(f)(v.arraydata), head: v.head, end: v.end }) };
 var eqIntNode = { eq: (x) => (y) => x === y };
 var ordIntNode = { compare: (x) => (y) => ordInt.compare(x)(y), Eq0: () => eqIntNode };
@@ -1210,20 +1156,7 @@ var saModifyAt = (i) => (d) => (f) => (v) => {
     end: v.end
   };
 };
-var saIndex = (i) => (v) => {
-  const $0 = i - v.head | 0;
-  if ($0 >= 0 && $0 < v.arraydata.length) {
-    return $Maybe("Just", v.arraydata[$0]);
-  }
-  return Nothing;
-};
 var saEmpty = { arraydata: [], head: 0, end: 0 };
-var isRailClear = (v) => (v1) => {
-  if (v1 >= 0 && v1 < v.isclear.length) {
-    return $Maybe("Just", v.isclear[v1]);
-  }
-  return Nothing;
-};
 var instanceDrawInfos = (v) => arrayMap((x) => absDrawInfo(v.pos)(v.rail.getDrawInfo(x)))(v.rail.getStates);
 var instanceDrawInfo = (v) => {
   if (v.state >= 0 && v.state < v.drawinfos.length) {
@@ -1268,77 +1201,44 @@ var getRouteInfo = (v) => (j) => {
   const v1 = v.rail.getNewState(j)(v.state);
   return { newjoint: v1.newjoint, shapes: arrayMap(absShape(v.pos))(v1.shape) };
 };
-var getRailTraffic = (v) => (v1) => {
-  if (v1 >= 0 && v1 < v.traffic.length) {
-    return $Maybe("Just", v.traffic[v1]);
-  }
-  return Nothing;
-};
-var getRailNode = (v) => (v1) => {
-  if (v1 >= 0 && v1 < v.rails.length) {
-    return $Maybe("Just", v.rails[v1]);
-  }
-  return Nothing;
-};
 var hasTraffic = (v) => (v1) => {
-  if ((() => {
-    const $0 = any((t) => t.length > 0);
-    const $1 = getRailTraffic(v)(v1.nodeid);
-    if ($1.tag === "Nothing") {
-      return false;
-    }
-    if ($1.tag === "Just") {
-      return $0($1._1);
-    }
-    fail();
-  })()) {
+  if (v1.nodeid >= 0 && v1.nodeid < v.traffic.length && anyImpl((t) => t.length > 0, v.traffic[v1.nodeid])) {
     return true;
   }
   const go = (nid) => (jid) => (depth) => {
     if (depth > 30) {
       return false;
     }
-    const v2 = getRailNode(v)(nid);
-    if (v2.tag === "Nothing") {
-      return false;
-    }
-    if (v2.tag === "Just") {
-      if (anyImpl((x) => x.jointid === jid, v2._1.signals) || anyImpl((x) => x.jointid === jid, v2._1.invalidRoutes)) {
+    return nid >= 0 && nid < v.rails.length && (() => {
+      if (anyImpl((x) => x.jointid === jid, v.rails[nid].signals) || anyImpl((x) => x.jointid === jid, v.rails[nid].invalidRoutes)) {
         return false;
       }
-      const jointexit = getRouteInfo(v2._1)(jid).newjoint;
-      const v3 = getRailTraffic(v)(nid);
-      if (v3.tag === "Nothing") {
-        return false;
-      }
-      if (v3.tag === "Just") {
-        return jointexit >= 0 && jointexit < v3._1.length && (() => {
-          if (v3._1[jointexit].length > 0) {
-            return true;
-          }
-          const v5 = find((c) => c.from === jointexit)(v2._1.connections);
-          if (v5.tag === "Nothing") {
-            return false;
-          }
-          if (v5.tag === "Just") {
-            return go(v5._1.nodeid)(v5._1.jointid)(depth + 1 | 0);
-          }
-          fail();
-        })();
-      }
-    }
-    fail();
+      const jointexit = getRouteInfo(v.rails[nid])(jid).newjoint;
+      return nid >= 0 && nid < v.traffic.length && jointexit >= 0 && jointexit < v.traffic[nid].length && (() => {
+        if (v.traffic[nid][jointexit].length > 0) {
+          return true;
+        }
+        const v5 = find((c) => c.from === jointexit)(v.rails[nid].connections);
+        if (v5.tag === "Nothing") {
+          return false;
+        }
+        if (v5.tag === "Just") {
+          return go(v5._1.nodeid)(v5._1.jointid)(depth + 1 | 0);
+        }
+        fail();
+      })();
+    })();
   };
   return anyImpl(identity5, arrayMap((cdata) => go(cdata.nodeid)(cdata.jointid)(0))(v1.connections));
 };
 var setManualStop = (v) => (nodeid) => (jointid) => (stop) => {
-  const $0 = getRailNode(v)(nodeid);
-  if ($0.tag === "Just") {
-    const $1 = findWithIndex(foldableWithIndexArray)((v2) => (v3) => v3.jointid === jointid)($0._1.signals);
+  if (nodeid >= 0 && nodeid < v.rails.length) {
+    const $0 = v.rails[nodeid];
+    const $1 = findWithIndex((v2) => (v3) => v3.jointid === jointid)($0.signals);
     if ($1.tag === "Just") {
-      const $2 = _updateAt(Just, Nothing, $1._1.index, { ...$1._1.value, manualStop: stop }, $0._1.signals);
+      const $2 = _updateAt(Just, Nothing, $1._1.index, { ...$1._1.value, manualStop: stop }, $0.signals);
       if ($2.tag === "Just") {
-        const $3 = _updateAt(Just, Nothing, nodeid, { ...$0._1, signals: $2._1 }, v.rails);
+        const $3 = _updateAt(Just, Nothing, nodeid, { ...$0, signals: $2._1 }, v.rails);
         if ($3.tag === "Just") {
           return { ...v, rails: $3._1 };
         }
@@ -1357,10 +1257,7 @@ var setManualStop = (v) => (nodeid) => (jointid) => (stop) => {
     }
     fail();
   }
-  if ($0.tag === "Nothing") {
-    return v;
-  }
-  fail();
+  return v;
 };
 var updateSignalRoutes = (v) => ({
   ...v,
@@ -1369,22 +1266,22 @@ var updateSignalRoutes = (v) => ({
     signals: arrayMap((v4) => ({
       ...v4,
       routes: (() => {
-        const go = (v62) => {
-          if (v62.rails.length > 30) {
+        const go = (v6) => {
+          if (v6.rails.length > 30) {
             return [];
           }
-          const v7 = getRailNode(v)(v62.nid);
+          const v7 = v6.nid >= 0 && v6.nid < v.rails.length ? $Maybe("Just", v.rails[v6.nid]) : Nothing;
           if (v7.tag === "Nothing") {
             return [];
           }
           if (v7.tag === "Just") {
             const $0 = v7._1;
-            return arrayBind(($0.rail.flipped ? reverse : identity5)(nubBy((x) => (y) => ordInt.compare(x.newjoint)(y.newjoint))(arrayMap($0.rail.getNewState(v62.jid))($0.rail.getStates))))((v8) => {
+            return arrayBind(($0.rail.flipped ? reverse : identity5)(nubBy((x) => (y) => ordInt.compare(x.newjoint)(y.newjoint))(arrayMap($0.rail.getNewState(v6.jid))($0.rail.getStates))))((v8) => {
               const $1 = v8.newjoint;
               const v9 = find((v10) => v10.jointid === $1)($0.invalidRoutes);
               if (v9.tag === "Nothing") {
-                const newrails = [...v62.rails, { nodeid: v62.nid, jointenter: v62.jid, jointexit: $1 }];
-                const newlen = v62.len + sum(arrayMap((x) => x.length)(v8.shape));
+                const newrails = [...v6.rails, { nodeid: v6.nid, jointenter: v6.jid, jointexit: $1 }];
+                const newlen = v6.len + sum(arrayMap((x) => x.length)(v8.shape));
                 const v10 = find((v11) => v11.jointid === $1)($0.signals);
                 if (v10.tag === "Nothing") {
                   const v11 = find((c) => c.from === $1)($0.connections);
@@ -1392,22 +1289,22 @@ var updateSignalRoutes = (v) => ({
                     return [];
                   }
                   if (v11.tag === "Just") {
-                    if (elem(eqIntNode)(v11._1.nodeid)(v62.rids)) {
+                    if (elem(eqIntNode)(v11._1.nodeid)(v6.rids)) {
                       return [];
                     }
                     return go({
                       nid: v11._1.nodeid,
                       jid: v11._1.jointid,
                       rails: newrails,
-                      rids: insertBy(ordIntNode.compare)(v11._1.nodeid)(v62.rids),
-                      isSimple: v62.isSimple && $0.rail.isSimple,
+                      rids: insertBy(ordIntNode.compare)(v11._1.nodeid)(v6.rids),
+                      isSimple: v6.isSimple && $0.rail.isSimple,
                       len: newlen
                     });
                   }
                   fail();
                 }
                 if (v10.tag === "Just") {
-                  return [{ nextsignal: { nodeid: v62.nid, jointid: $1 }, rails: newrails, isSimple: v62.isSimple, length: newlen }];
+                  return [{ nextsignal: { nodeid: v6.nid, jointid: $1 }, rails: newrails, isSimple: v6.isSimple, length: newlen }];
                 }
                 fail();
               }
@@ -1419,20 +1316,17 @@ var updateSignalRoutes = (v) => ({
           }
           fail();
         };
-        const v6 = getRailNode(v)(v4.nodeid);
-        if (v6.tag === "Nothing") {
-          return [];
-        }
-        if (v6.tag === "Just") {
-          const v7 = find((c) => c.from === v4.jointid)(v6._1.connections);
+        if (v4.nodeid >= 0 && v4.nodeid < v.rails.length) {
+          const v7 = find((c) => c.from === v4.jointid)(v.rails[v4.nodeid].connections);
           if (v7.tag === "Nothing") {
             return [];
           }
           if (v7.tag === "Just") {
             return go({ nid: v7._1.nodeid, jid: v7._1.jointid, rails: [], rids: [], isSimple: true, len: 0 });
           }
+          fail();
         }
-        fail();
+        return [];
       })()
     }))(v2.signals)
   }))(v.rails)
@@ -1452,7 +1346,7 @@ var removeSignal = (v) => (nodeid) => (jointid) => updateSignalRoutes({
   })()
 });
 var removeRail = (v) => (nodeid) => {
-  const v1 = getRailNode(v)(nodeid);
+  const v1 = nodeid >= 0 && nodeid < v.rails.length ? $Maybe("Just", v.rails[nodeid]) : Nothing;
   const layout$p = (() => {
     if (v1.tag === "Just") {
       return foldlArray((l) => (j) => removeSignal(l)(nodeid)(j))(v)(v1._1.rail.getJoints);
@@ -1503,21 +1397,15 @@ var getNextSignal = (v) => (v1) => {
           go$r = { signal: Nothing, sections: sectionsold, distance: distanceold };
           continue;
         }
-        const v3 = getRailNode(v)(nid);
-        if (v3.tag === "Nothing") {
-          go$c = false;
-          go$r = { signal: Nothing, sections: sectionsold, distance: distanceold };
-          continue;
-        }
-        if (v3.tag === "Just") {
+        if (nid >= 0 && nid < v.rails.length) {
           const sections = sectionsold + 1 | 0;
-          const next = getRouteInfo(v3._1)(jid);
+          const next = getRouteInfo(v.rails[nid])(jid);
           const distance = isfirst ? distanceold : distanceold + sum(arrayMap(shapeLength)(next.shapes));
-          const v4 = find((v5) => v5.jointid === next.newjoint)(v3._1.invalidRoutes);
+          const v4 = find((v5) => v5.jointid === next.newjoint)(v.rails[nid].invalidRoutes);
           if (v4.tag === "Nothing") {
-            const v5 = find((v6) => v6.jointid === next.newjoint)(v3._1.signals);
+            const v5 = find((v6) => v6.jointid === next.newjoint)(v.rails[nid].signals);
             if (v5.tag === "Nothing") {
-              const v6 = find((c) => c.from === next.newjoint)(v3._1.connections);
+              const v6 = find((c) => c.from === next.newjoint)(v.rails[nid].connections);
               if (v6.tag === "Nothing") {
                 go$c = false;
                 go$r = { signal: Nothing, sections, distance };
@@ -1545,8 +1433,10 @@ var getNextSignal = (v) => (v1) => {
             go$r = { signal: Nothing, sections, distance };
             continue;
           }
+          fail();
         }
-        fail();
+        go$c = false;
+        go$r = { signal: Nothing, sections: sectionsold, distance: distanceold };
       }
       return go$r;
     };
@@ -1555,30 +1445,17 @@ var getNextSignal = (v) => (v1) => {
   fail();
 };
 var getJoints = (v) => (joint) => arrayBind(arrayApply(arrayApply(arrayMap((x) => (y) => (z) => {
-  const $0 = saIndex(z)(v.jointData);
-  const $1 = (() => {
-    if ($0.tag === "Just") {
-      const $12 = saIndex(x)($0._1);
-      if ($12.tag === "Just") {
-        return saIndex(y)($12._1);
+  const $0 = z - v.jointData.head | 0;
+  if ($0 >= 0 && $0 < v.jointData.arraydata.length) {
+    const $1 = x - v.jointData.arraydata[$0].head | 0;
+    if ($1 >= 0 && $1 < v.jointData.arraydata[$0].arraydata.length) {
+      const $2 = y - v.jointData.arraydata[$0].arraydata[$1].head | 0;
+      if ($2 >= 0 && $2 < v.jointData.arraydata[$0].arraydata[$1].arraydata.length) {
+        return v.jointData.arraydata[$0].arraydata[$1].arraydata[$2];
       }
-      if ($12.tag === "Nothing") {
-        return Nothing;
-      }
-      fail();
     }
-    if ($0.tag === "Nothing") {
-      return Nothing;
-    }
-    fail();
-  })();
-  if ($1.tag === "Nothing") {
-    return [];
   }
-  if ($1.tag === "Just") {
-    return $1._1;
-  }
-  fail();
+  return [];
 })((() => {
   const i = unsafeClamp(round(joint.coord.x));
   if (unsafeClamp(round(joint.coord.x - 0.1)) < i) {
@@ -1608,9 +1485,8 @@ var getJoints = (v) => (joint) => arrayBind(arrayApply(arrayApply(arrayMap((x) =
   return [i];
 })()))(identity);
 var getJointAbsPos = (v) => (nodeid) => (jointid) => {
-  const $0 = getRailNode(v)(nodeid);
-  if ($0.tag === "Just") {
-    return $Maybe("Just", toAbsPos($0._1.pos)($0._1.rail.getJointPos(jointid)));
+  if (nodeid >= 0 && nodeid < v.rails.length) {
+    return $Maybe("Just", toAbsPos(v.rails[nodeid].pos)(v.rails[nodeid].rail.getJointPos(jointid)));
   }
   return Nothing;
 };
@@ -1620,32 +1496,22 @@ var getNewRailPos = (v) => (v1) => {
     if (mposofzero.tag === "Nothing") {
       return $Maybe(
         "Just",
-        applyMaybe.apply((() => {
+        (() => {
           const $02 = getJointAbsPos(v)(v2.nodeid)(v2.jointid);
           if ($02.tag === "Just") {
-            return $Maybe("Just", toAbsPos({ ...$02._1, angle: $02._1.angle + 3.141592653589793 }));
+            return $Maybe(
+              "Just",
+              toAbsPos({ ...$02._1, angle: $02._1.angle + 3.141592653589793 })(convertRelPos(v1.rail.getJointPos(v2.from))(origin))
+            );
           }
           return Nothing;
-        })())($Maybe("Just", convertRelPos(v1.rail.getJointPos(v2.from))(origin)))
+        })()
       );
     }
     if (mposofzero.tag === "Just") {
       if ((() => {
-        const $02 = canJoin(toAbsPos(mposofzero._1)(v1.rail.getJointPos(v2.from)));
-        const $1 = (() => {
-          const $12 = getJointAbsPos(v)(v2.nodeid)(v2.jointid);
-          if ($12.tag === "Just") {
-            return $Maybe("Just", $02($12._1));
-          }
-          return Nothing;
-        })();
-        if ($1.tag === "Nothing") {
-          return false;
-        }
-        if ($1.tag === "Just") {
-          return $1._1;
-        }
-        fail();
+        const $02 = getJointAbsPos(v)(v2.nodeid)(v2.jointid);
+        return $02.tag === "Just" && canJoin(toAbsPos(mposofzero._1)(v1.rail.getJointPos(v2.from)))($02._1);
       })()) {
         return $Maybe("Just", mposofzero);
       }
@@ -1733,17 +1599,14 @@ var movefoward = (movefoward$a0$copy) => (movefoward$a1$copy) => (movefoward$a2$
       const jointexit = $2._1.railinstance.rail.getNewState($2._1.jointid)($2._1.railinstance.state).newjoint;
       const $3 = find((c) => c.from === jointexit)($2._1.railinstance.connections);
       if ($3.tag === "Just") {
-        const $4 = getRailNode(v)($3._1.nodeid);
+        const $4 = $3._1.nodeid >= 0 && $3._1.nodeid < v.rails.length ? $Maybe("Just", v.rails[$3._1.nodeid]) : Nothing;
         if ($4.tag === "Just") {
           const updatedroute = updateRailNode($4._1)($3._1.jointid);
           const newinstance = { ...updatedroute.instance, reserves: filterImpl((r1) => r1.jointid !== $3._1.jointid, updatedroute.instance.reserves) };
           const slength = sum(arrayMap(shapeLength)(updatedroute.shapes));
           movefoward$c = false;
           movefoward$r = {
-            newlayout: (() => {
-              const $5 = getRailNode(v)($3._1.nodeid);
-              return $5.tag === "Just" && $5._1.state === updatedroute.instance.state;
-            })() ? {
+            newlayout: $3._1.nodeid >= 0 && $3._1.nodeid < v.rails.length && v.rails[$3._1.nodeid].state === updatedroute.instance.state ? {
               ...v,
               rails: (() => {
                 const $5 = _updateAt(Just, Nothing, $3._1.nodeid, newinstance, v.rails);
@@ -1946,16 +1809,7 @@ var updateSignalIndication = (changeManualStop) => (v) => {
       signal: v2,
       routes: arrayMap((v3) => {
         const routecond = allImpl(
-          (v4) => {
-            const v5 = getRailNode(v)(v4.nodeid);
-            if (v5.tag === "Just") {
-              return v5._1.rail.getNewState(v4.jointenter)(v5._1.state).newjoint === v4.jointexit && v5._1.rail.isLegal(v4.jointenter)(v5._1.state);
-            }
-            if (v5.tag === "Nothing") {
-              return false;
-            }
-            fail();
-          },
+          (v4) => v4.nodeid >= 0 && v4.nodeid < v.rails.length && v.rails[v4.nodeid].rail.getNewState(v4.jointenter)(v.rails[v4.nodeid].state).newjoint === v4.jointexit && v.rails[v4.nodeid].rail.isLegal(v4.jointenter)(v.rails[v4.nodeid].state),
           v3.rails
         );
         return {
@@ -1964,87 +1818,46 @@ var updateSignalIndication = (changeManualStop) => (v) => {
           manualStop: v2.manualStop,
           restraint: v2.restraint,
           cond: routecond && allImpl(
-            (v4) => {
-              if ((() => {
-                const $0 = isRailClear(v)(v4.nodeid);
-                if ($0.tag === "Nothing") {
-                  return false;
-                }
-                return $0.tag === "Just" && $0._1;
-              })()) {
-                return true;
-              }
-              const v5 = getRailTraffic(v)(v4.nodeid);
-              if (v5.tag === "Just") {
-                const $0 = getRailNode(v)(v4.nodeid);
-                if ($0.tag === "Nothing") {
-                  return false;
-                }
-                if ($0.tag === "Just") {
-                  const state = $0._1.state;
-                  const rail = $0._1.rail;
-                  return allWithIndex((i) => (t) => t.length === 0 || !rail.isBlocked(i)(state)(v4.jointenter))(v5._1);
-                }
-                fail();
-              }
-              if (v5.tag === "Nothing") {
-                return false;
-              }
-              fail();
-            },
+            (v4) => v4.nodeid >= 0 && v4.nodeid < v.isclear.length && v.isclear[v4.nodeid] || v4.nodeid >= 0 && v4.nodeid < v.traffic.length && v4.nodeid >= 0 && v4.nodeid < v.rails.length && (() => {
+              const $0 = v.rails[v4.nodeid];
+              const state = $0.state;
+              const rail = $0.rail;
+              return allWithIndex((i) => (t) => t.length === 0 || !rail.isBlocked(i)(state)(v4.jointenter))(v.traffic[v4.nodeid]);
+            })(),
             v3.rails
           ) && (() => {
-            const v4 = last(v3.rails);
+            const $0 = v3.rails.length - 1 | 0;
+            const v4 = $0 >= 0 && $0 < v3.rails.length ? $Maybe("Just", v3.rails[$0]) : Nothing;
             if (v4.tag === "Just") {
-              const go = (nid) => (jid) => (cnt) => {
-                if (cnt > 120) {
-                  return true;
-                }
-                const v5 = getRailNode(v)(nid);
-                if (v5.tag === "Nothing") {
-                  return false;
-                }
-                if (v5.tag === "Just") {
-                  if (v5._1.rail.isSimple) {
-                    const jidexit = v5._1.rail.getNewState(jid)(v5._1.state).newjoint;
-                    if ((() => {
-                      const $02 = isRailClear(v)(nid);
-                      if ($02.tag === "Nothing") {
-                        return false;
-                      }
-                      return $02.tag === "Just" && $02._1;
-                    })()) {
-                      const v6 = find((c) => c.from === jidexit)(v5._1.connections);
-                      if (v6.tag === "Nothing") {
-                        return true;
-                      }
-                      if (v6.tag === "Just") {
-                        return go(v6._1.nodeid)(v6._1.jointid)(cnt + 1 | 0);
-                      }
-                      fail();
+              const go = (nid) => (jid) => (cnt) => cnt > 120 || nid >= 0 && nid < v.rails.length && (() => {
+                if (v.rails[nid].rail.isSimple) {
+                  const jidexit = v.rails[nid].rail.getNewState(jid)(v.rails[nid].state).newjoint;
+                  if (nid >= 0 && nid < v.isclear.length && v.isclear[nid]) {
+                    const v6 = find((c) => c.from === jidexit)(v.rails[nid].connections);
+                    if (v6.tag === "Nothing") {
+                      return true;
                     }
-                    const $0 = getRailTraffic(v)(nid);
-                    if ($0.tag === "Just") {
-                      return jidexit >= 0 && jidexit < $0._1.length && $0._1[jidexit].length === 0 && (() => {
-                        const v7 = find((c) => c.from === jidexit)(v5._1.connections);
-                        if (v7.tag === "Nothing") {
-                          return true;
-                        }
-                        if (v7.tag === "Just") {
-                          return go(v7._1.nodeid)(v7._1.jointid)(cnt + 1 | 0);
-                        }
-                        fail();
-                      })();
-                    }
-                    if ($0.tag === "Nothing") {
-                      return false;
+                    if (v6.tag === "Just") {
+                      return go(v6._1.nodeid)(v6._1.jointid)(cnt + 1 | 0);
                     }
                     fail();
                   }
-                  return true;
+                  return nid >= 0 && nid < v.traffic.length && (() => {
+                    const $1 = v.traffic[nid];
+                    return jidexit >= 0 && jidexit < $1.length && $1[jidexit].length === 0 && (() => {
+                      const v7 = find((c) => c.from === jidexit)(v.rails[nid].connections);
+                      if (v7.tag === "Nothing") {
+                        return true;
+                      }
+                      if (v7.tag === "Just") {
+                        return go(v7._1.nodeid)(v7._1.jointid)(cnt + 1 | 0);
+                      }
+                      fail();
+                    })();
+                  })();
                 }
-                fail();
-              };
+                return true;
+              })();
               return go(v4._1.nodeid)(v4._1.jointenter)(0);
             }
             if (v4.tag === "Nothing") {
@@ -2160,7 +1973,7 @@ var updateSignalIndication = (changeManualStop) => (v) => {
 };
 var layoutUpdate = (x) => updateSignalIndication(true)(updateReserves(updateTraffic(x)));
 var tryOpenRouteFor = (v) => (nodeid) => (jointid) => (routeid) => (reserver) => {
-  const $0 = getRailNode(v)(nodeid);
+  const $0 = nodeid >= 0 && nodeid < v.rails.length ? $Maybe("Just", v.rails[nodeid]) : Nothing;
   if ($0.tag === "Just") {
     const $1 = find((v2) => v2.jointid === jointid)($0._1.signals);
     if ($1.tag === "Just") {
@@ -2172,40 +1985,35 @@ var tryOpenRouteFor = (v) => (nodeid) => (jointid) => (routeid) => (reserver) =>
           let go$a0 = go$a0$copy, go$a1 = go$a1$copy, go$c = true, go$r;
           while (go$c) {
             const v4 = go$a0, rs = go$a1;
-            const $32 = getRailNode(v)(v4.nodeid);
-            const v5 = (() => {
-              if ($32.tag === "Just") {
-                return find((v7) => v7.jointid === v4.jointid)($32._1.signals);
-              }
-              if ($32.tag === "Nothing") {
-                return Nothing;
-              }
-              fail();
-            })();
-            if (v5.tag === "Nothing") {
-              go$c = false;
-              go$r = rs;
-              continue;
-            }
-            if (v5.tag === "Just") {
-              const v6 = unconsImpl((v$1) => Nothing, (x) => (xs) => $Maybe("Just", { head: x, tail: xs }), v5._1.routes);
-              if (v6.tag === "Nothing") {
+            if (v4.nodeid >= 0 && v4.nodeid < v.rails.length) {
+              const v5 = find((v7) => v7.jointid === v4.jointid)(v.rails[v4.nodeid].signals);
+              if (v5.tag === "Nothing") {
                 go$c = false;
                 go$r = rs;
                 continue;
               }
-              if (v6.tag === "Just") {
-                if (v6._1.tail.length > 0 || !v6._1.head.isSimple) {
+              if (v5.tag === "Just") {
+                const v6 = unconsImpl((v$1) => Nothing, (x) => (xs) => $Maybe("Just", { head: x, tail: xs }), v5._1.routes);
+                if (v6.tag === "Nothing") {
                   go$c = false;
                   go$r = rs;
                   continue;
                 }
-                go$a0 = v6._1.head.nextsignal;
-                go$a1 = [...rs, ...v6._1.head.rails];
-                continue;
+                if (v6.tag === "Just") {
+                  if (v6._1.tail.length > 0 || !v6._1.head.isSimple) {
+                    go$c = false;
+                    go$r = rs;
+                    continue;
+                  }
+                  go$a0 = v6._1.head.nextsignal;
+                  go$a1 = [...rs, ...v6._1.head.rails];
+                  continue;
+                }
               }
+              fail();
             }
-            fail();
+            go$c = false;
+            go$r = rs;
           }
           return go$r;
         };
@@ -2213,7 +2021,7 @@ var tryOpenRouteFor = (v) => (nodeid) => (jointid) => (routeid) => (reserver) =>
           const $32 = v4.newrails;
           const $4 = v4.traffic;
           return (v5) => {
-            const $5 = getRailNode(v)(v5.nodeid);
+            const $5 = v5.nodeid >= 0 && v5.nodeid < v.rails.length ? $Maybe("Just", v.rails[v5.nodeid]) : Nothing;
             if ($5.tag === "Just") {
               const traffic$p = $4 || hasTraffic(v)($5._1);
               const $6 = $5._1.rail.getRoute($5._1.state)(v5.jointenter)(v5.jointexit);
@@ -2332,14 +2140,14 @@ var addTrainset = (v) => (nodeid) => (jointid) => (types) => {
     let go$a0 = go$a0$copy, go$a1 = go$a1$copy, go$a2 = go$a2$copy, go$a3 = go$a3$copy, go$c = true, go$r;
     while (go$c) {
       const rs = go$a0, nid = go$a1, jid = go$a2, len = go$a3;
-      const $0 = getRailNode(v)(nid);
-      if ($0.tag === "Just") {
-        const info = getRouteInfo($0._1)(jid);
+      if (nid >= 0 && nid < v.rails.length) {
+        const $0 = v.rails[nid];
+        const info = getRouteInfo($0)(jid);
         const lenhere = sum(arrayMap(shapeLength)(info.shapes));
         if (lenhere < len) {
-          const $1 = find((c) => c.from === info.newjoint)($0._1.connections);
+          const $1 = find((c) => c.from === info.newjoint)($0.connections);
           if ($1.tag === "Just") {
-            go$a0 = [{ nodeid: nid, jointid: jid, railinstance: $0._1, shapes: info.shapes, length: lenhere }, ...rs];
+            go$a0 = [{ nodeid: nid, jointid: jid, railinstance: $0, shapes: info.shapes, length: lenhere }, ...rs];
             go$a1 = $1._1.nodeid;
             go$a2 = $1._1.jointid;
             go$a3 = len - lenhere;
@@ -2357,7 +2165,7 @@ var addTrainset = (v) => (nodeid) => (jointid) => (types) => {
           "Just",
           {
             types,
-            route: [{ nodeid: nid, jointid: jid, railinstance: $0._1, shapes: info.shapes, length: lenhere }, ...rs],
+            route: [{ nodeid: nid, jointid: jid, railinstance: $0, shapes: info.shapes, length: lenhere }, ...rs],
             distanceToNext: lenhere - len,
             distanceFromOldest: 0,
             speed: 0,
@@ -2374,12 +2182,8 @@ var addTrainset = (v) => (nodeid) => (jointid) => (types) => {
         );
         continue;
       }
-      if ($0.tag === "Nothing") {
-        go$c = false;
-        go$r = Nothing;
-        continue;
-      }
-      fail();
+      go$c = false;
+      go$r = Nothing;
     }
     return go$r;
   };
@@ -2415,9 +2219,9 @@ var addSignal = (v) => (nodeid) => (jointid) => {
     manualStop: false,
     restraint: false
   };
-  const $0 = getRailNode(v)(nodeid);
-  if ($0.tag === "Just") {
-    if (anyImpl((v2) => v2.jointid === jointid, $0._1.signals) || anyImpl((v2) => v2.jointid === jointid, $0._1.invalidRoutes)) {
+  if (nodeid >= 0 && nodeid < v.rails.length) {
+    const $0 = v.rails[nodeid];
+    if (anyImpl((v2) => v2.jointid === jointid, $0.signals) || anyImpl((v2) => v2.jointid === jointid, $0.invalidRoutes)) {
       return v;
     }
     const $1 = modifyAt(nodeid)((v2) => ({ ...v2, signals: [...v2.signals, signal] }))(v.rails);
@@ -2429,10 +2233,7 @@ var addSignal = (v) => (nodeid) => (jointid) => {
     }
     fail();
   }
-  if ($0.tag === "Nothing") {
-    return v;
-  }
-  fail();
+  return v;
 };
 var addRouteQueue = (l) => (n) => (j) => (r) => (t) => ({ ...l, routequeue: [...l.routequeue, { jointid: j, nodeid: n, routeid: r, time: l.time, retryafter: l.time, trainid: t }] });
 var addJoint = (v) => (pos) => (nodeid) => (jointid) => ({
@@ -2490,9 +2291,8 @@ var addRailWithPos = (v) => (v1) => (pos) => {
     ...newconnections
   ];
   if (foldlArray(boolConj)(true)(arrayMap((v2) => {
-    const $0 = getRailNode(v)(v2.jointData.nodeid);
-    if ($0.tag === "Just") {
-      return allImpl((c) => c.from !== v2.jointData.jointid, $0._1.connections);
+    if (v2.jointData.nodeid >= 0 && v2.jointData.nodeid < v.rails.length) {
+      return allImpl((c) => c.from !== v2.jointData.jointid, v.rails[v2.jointData.nodeid].connections);
     }
     return true;
   })(connections))) {
@@ -2583,9 +2383,9 @@ var fixBrokenConnections = (v) => foldlArray((l) => (v1) => {
   fail();
 })({ ...v, rails: [], jointData: saEmpty })(v.rails);
 var addInvalidRoute = (v) => (nodeid) => (jointid) => {
-  const $0 = getRailNode(v)(nodeid);
-  if ($0.tag === "Just") {
-    if (anyImpl((v2) => v2.jointid === jointid, $0._1.signals) || anyImpl((v2) => v2.jointid === jointid, $0._1.invalidRoutes)) {
+  if (nodeid >= 0 && nodeid < v.rails.length) {
+    const $0 = v.rails[nodeid];
+    if (anyImpl((v2) => v2.jointid === jointid, $0.signals) || anyImpl((v2) => v2.jointid === jointid, $0.invalidRoutes)) {
       return v;
     }
     const $1 = modifyAt(nodeid)((v2) => ({ ...v2, invalidRoutes: [...v2.invalidRoutes, { nodeid, jointid }] }))(v.rails);
@@ -2597,10 +2397,7 @@ var addInvalidRoute = (v) => (nodeid) => (jointid) => {
     }
     fail();
   }
-  if ($0.tag === "Nothing") {
-    return v;
-  }
-  fail();
+  return v;
 };
 var acceralate = (v) => (notch) => (dt) => ({ ...v, speed: max2(0)(v.speed + dt * calcAcceralation(notch)(v.speed)) });
 var trainTick = (v) => (v1) => (dt) => {
@@ -2623,9 +2420,8 @@ var trainTick = (v) => (v1) => (dt) => {
     return movefoward(v)({
       ...$1,
       route: mapMaybe((x) => x)(arrayMap((v7) => {
-        const $2 = getRailNode(v)(v7.nodeid);
-        if ($2.tag === "Just") {
-          return $Maybe("Just", { ...v7, railinstance: $2._1 });
+        if (v7.nodeid >= 0 && v7.nodeid < v.rails.length) {
+          return $Maybe("Just", { ...v7, railinstance: v.rails[v7.nodeid] });
         }
         return Nothing;
       })($1.route))
@@ -2694,9 +2490,8 @@ var trainTick = (v) => (v1) => (dt) => {
       return movefoward($12)({
         ...$3,
         route: mapMaybe((x) => x)(arrayMap((v7) => {
-          const $4 = getRailNode($12)(v7.nodeid);
-          if ($4.tag === "Just") {
-            return $Maybe("Just", { ...v7, railinstance: $4._1 });
+          if (v7.nodeid >= 0 && v7.nodeid < $12.rails.length) {
+            return $Maybe("Just", { ...v7, railinstance: $12.rails[v7.nodeid] });
           }
           return Nothing;
         })($3.route))
@@ -2766,9 +2561,8 @@ var trainTick = (v) => (v1) => (dt) => {
       return movefoward($12)({
         ...$3,
         route: mapMaybe((x) => x)(arrayMap((v7) => {
-          const $4 = getRailNode($12)(v7.nodeid);
-          if ($4.tag === "Just") {
-            return $Maybe("Just", { ...v7, railinstance: $4._1 });
+          if (v7.nodeid >= 0 && v7.nodeid < $12.rails.length) {
+            return $Maybe("Just", { ...v7, railinstance: $12.rails[v7.nodeid] });
           }
           return Nothing;
         })($3.route))
@@ -2791,9 +2585,8 @@ var trainTick = (v) => (v1) => (dt) => {
     return movefoward(v)({
       ...$1,
       route: mapMaybe((x) => x)(arrayMap((v7) => {
-        const $2 = getRailNode(v)(v7.nodeid);
-        if ($2.tag === "Just") {
-          return $Maybe("Just", { ...v7, railinstance: $2._1 });
+        if (v7.nodeid >= 0 && v7.nodeid < v.rails.length) {
+          return $Maybe("Just", { ...v7, railinstance: v.rails[v7.nodeid] });
         }
         return Nothing;
       })($1.route))
@@ -2836,30 +2629,7 @@ var intMod = function(x) {
   };
 };
 
-// output-es/Record/index.js
-var insert = (dictIsSymbol) => () => () => (l) => (a) => (r) => unsafeSet(dictIsSymbol.reflectSymbol(l))(a)(r);
-
 // output-es/Internal.Types.Serial/index.js
-var rowListSerializeNilRow = () => ({
-  rlfromSerial: (v) => (i) => {
-    if (0 <= i && i < 1) {
-      return $Maybe("Just", {});
-    }
-    return Nothing;
-  },
-  rltoSerial: (v) => (v1) => 0,
-  rllengthSerial: (v) => 1
-});
-var intSerializeNoArguments = {
-  fromSerial: (i) => {
-    if (0 <= i && i < 1) {
-      return $Maybe("Just", NoArguments);
-    }
-    return Nothing;
-  },
-  toSerial: (v) => 0,
-  lengthSerial: (v) => 1
-};
 var intSerializeBoolean = {
   fromSerial: (i) => {
     if (i === 0) {
@@ -2878,61 +2648,10 @@ var intSerializeBoolean = {
   },
   lengthSerial: (v) => 2
 };
-var intSerializeRecord = () => (dictRowListSerialize) => ({
-  fromSerial: dictRowListSerialize.rlfromSerial($$Proxy),
-  toSerial: dictRowListSerialize.rltoSerial($$Proxy),
-  lengthSerial: (() => {
-    const $0 = dictRowListSerialize.rllengthSerial($$Proxy);
-    return (v) => $0;
-  })()
-});
 var serialAll = (dictIntSerialize) => mapMaybe((x) => x)(arrayMap(dictIntSerialize.fromSerial)(rangeImpl(
   0,
   dictIntSerialize.lengthSerial($$Proxy) - 1 | 0
 )));
-var intSerialize = (dictGeneric) => (dictIntSerialize) => ({
-  fromSerial: (i) => {
-    const $0 = dictIntSerialize.fromSerial(i);
-    if ($0.tag === "Just") {
-      return $Maybe("Just", dictGeneric.to($0._1));
-    }
-    return Nothing;
-  },
-  toSerial: (x) => dictIntSerialize.toSerial(dictGeneric.from(x)),
-  lengthSerial: (v) => dictIntSerialize.lengthSerial($$Proxy)
-});
-var intSerializeArgument = (dictIntSerialize) => ({
-  fromSerial: (i) => {
-    if (0 <= i && i < dictIntSerialize.lengthSerial($$Proxy)) {
-      const $0 = dictIntSerialize.fromSerial(i);
-      if ($0.tag === "Just") {
-        return $Maybe("Just", $0._1);
-      }
-    }
-    return Nothing;
-  },
-  toSerial: (v) => dictIntSerialize.toSerial(v),
-  lengthSerial: (() => {
-    const $0 = dictIntSerialize.lengthSerial($$Proxy);
-    return (v) => $0;
-  })()
-});
-var intSerializeConstructor = (dictIntSerialize) => ({
-  fromSerial: (i) => {
-    if (0 <= i && i < dictIntSerialize.lengthSerial($$Proxy)) {
-      const $0 = dictIntSerialize.fromSerial(i);
-      if ($0.tag === "Just") {
-        return $Maybe("Just", $0._1);
-      }
-    }
-    return Nothing;
-  },
-  toSerial: (v) => dictIntSerialize.toSerial(v),
-  lengthSerial: (() => {
-    const $0 = dictIntSerialize.lengthSerial($$Proxy);
-    return (v) => $0;
-  })()
-});
 var intSerializeSum = (dictIntSerialize) => (dictIntSerialize1) => ({
   fromSerial: (i) => {
     const l2 = dictIntSerialize1.lengthSerial($$Proxy);
@@ -2970,13 +2689,13 @@ var rowListSerializeCons = () => (dictIsSymbol) => (dictIntSerialize) => (dictRo
   rlfromSerial: (v) => (i) => {
     const l1 = dictIntSerialize.lengthSerial($$Proxy);
     if (0 <= i && i < (l1 * dictRowListSerialize.rllengthSerial($$Proxy) | 0)) {
-      return applyMaybe.apply((() => {
-        const $0 = dictIntSerialize.fromSerial(intMod(i)(l1));
-        if ($0.tag === "Just") {
-          return $Maybe("Just", insert(dictIsSymbol)()()($$Proxy)($0._1));
+      const $0 = dictIntSerialize.fromSerial(intMod(i)(l1));
+      if ($0.tag === "Just") {
+        const $1 = dictRowListSerialize.rlfromSerial($$Proxy)(intDiv(i, l1));
+        if ($1.tag === "Just") {
+          return $Maybe("Just", unsafeSet(dictIsSymbol.reflectSymbol($$Proxy))($0._1)($1._1));
         }
-        return Nothing;
-      })())(dictRowListSerialize.rlfromSerial($$Proxy)(intDiv(i, l1)));
+      }
     }
     return Nothing;
   },
@@ -2995,12 +2714,30 @@ var $JointsSimple = (tag) => tag;
 var $StateDiamond = (tag) => tag;
 var $StateScissors = (tag) => tag;
 var $StatesSolid = () => ({ tag: "StateSolid" });
-var intSerializeConstructor2 = /* @__PURE__ */ intSerializeConstructor(intSerializeNoArguments);
-var intSerializeSum1 = /* @__PURE__ */ intSerializeSum(intSerializeConstructor2)(intSerializeConstructor2);
-var intSerializeSum2 = /* @__PURE__ */ intSerializeSum(intSerializeConstructor2)(intSerializeSum1);
-var rowListSerializeNilRow2 = /* @__PURE__ */ rowListSerializeNilRow();
-var rowListSerializeCons1 = /* @__PURE__ */ rowListSerializeCons()({ reflectSymbol: () => "turnout" })(intSerializeBoolean)(rowListSerializeNilRow2)()()();
-var intSerializeSum3 = /* @__PURE__ */ intSerializeSum(intSerializeConstructor2)(intSerializeSum2);
+var intSerializeConstructor = {
+  fromSerial: (i) => {
+    if (0 <= i && i < 1 && 0 <= i && i < 1) {
+      return $Maybe("Just", NoArguments);
+    }
+    return Nothing;
+  },
+  toSerial: (v) => 0,
+  lengthSerial: (v) => 1
+};
+var intSerializeSum1 = /* @__PURE__ */ intSerializeSum(intSerializeConstructor)(intSerializeConstructor);
+var intSerializeSum2 = /* @__PURE__ */ intSerializeSum(intSerializeConstructor)(intSerializeSum1);
+var rowListSerializeNilRow = {
+  rlfromSerial: (v) => (i) => {
+    if (0 <= i && i < 1) {
+      return $Maybe("Just", {});
+    }
+    return Nothing;
+  },
+  rltoSerial: (v) => (v1) => 0,
+  rllengthSerial: (v) => 1
+};
+var rowListSerializeCons1 = /* @__PURE__ */ rowListSerializeCons()({ reflectSymbol: () => "turnout" })(intSerializeBoolean)(rowListSerializeNilRow)()()();
+var intSerializeSum3 = /* @__PURE__ */ intSerializeSum(intSerializeConstructor)(intSerializeSum2);
 var StateSolid = /* @__PURE__ */ $StatesSolid();
 var StateSP_P = /* @__PURE__ */ $StateScissors("StateSP_P");
 var StateSP_S = /* @__PURE__ */ $StateScissors("StateSP_S");
@@ -3022,37 +2759,102 @@ var JointOuterBegin = /* @__PURE__ */ $JointsDouble("JointOuterBegin");
 var JointInnerEnd = /* @__PURE__ */ $JointsDouble("JointInnerEnd");
 var JointInnerBegin = /* @__PURE__ */ $JointsDouble("JointInnerBegin");
 var JointOuterEnd = /* @__PURE__ */ $JointsDouble("JointOuterEnd");
-var genericStatesSolid = { to: (x) => StateSolid, from: (x) => NoArguments };
-var intSerialize2 = /* @__PURE__ */ intSerialize(genericStatesSolid)(intSerializeConstructor2);
-var serialAll2 = /* @__PURE__ */ serialAll(intSerialize2);
-var genericStatesPoint = { to: (x) => x, from: (x) => x };
-var intSerialize1 = /* @__PURE__ */ intSerialize(genericStatesPoint)(/* @__PURE__ */ intSerializeConstructor(/* @__PURE__ */ intSerializeArgument(/* @__PURE__ */ intSerializeRecord()(rowListSerializeCons1))));
-var serialAll1 = /* @__PURE__ */ serialAll(intSerialize1);
-var genericStatesDoublePoint = { to: (x) => x, from: (x) => x };
-var intSerialize22 = /* @__PURE__ */ intSerialize(genericStatesDoublePoint)(/* @__PURE__ */ intSerializeConstructor(/* @__PURE__ */ intSerializeArgument(/* @__PURE__ */ intSerializeRecord()(/* @__PURE__ */ rowListSerializeCons()({
-  reflectSymbol: () => "innerturnout"
-})(intSerializeBoolean)(/* @__PURE__ */ rowListSerializeCons()({ reflectSymbol: () => "outerturnout" })(intSerializeBoolean)(rowListSerializeNilRow2)()()())()()()))));
-var serialAll22 = /* @__PURE__ */ serialAll(intSerialize22);
-var genericStatesAutoPoint = { to: (x) => x, from: (x) => x };
-var intSerialize3 = /* @__PURE__ */ intSerialize(genericStatesAutoPoint)(/* @__PURE__ */ intSerializeConstructor(/* @__PURE__ */ intSerializeArgument(/* @__PURE__ */ intSerializeRecord()(/* @__PURE__ */ rowListSerializeCons()({
-  reflectSymbol: () => "auto"
-})(intSerializeBoolean)(rowListSerializeCons1)()()()))));
-var genericStateScissors = {
-  to: (x) => {
-    if (x.tag === "Inl") {
-      return StateSP_P;
+var intSerialize = {
+  fromSerial: (i) => {
+    if (0 <= i && i < 1 && 0 <= i && i < 1) {
+      return $Maybe("Just", StateSolid);
     }
-    if (x.tag === "Inr") {
-      if (x._1.tag === "Inl") {
-        return StateSP_S;
-      }
-      if (x._1.tag === "Inr") {
-        return StateSP_N;
-      }
-    }
-    fail();
+    return Nothing;
   },
-  from: (x) => {
+  toSerial: (x) => 0,
+  lengthSerial: (v) => 1
+};
+var serialAll2 = /* @__PURE__ */ serialAll(intSerialize);
+var intSerialize1 = /* @__PURE__ */ (() => {
+  const $0 = rowListSerializeCons1.rlfromSerial($$Proxy);
+  const $1 = rowListSerializeCons1.rltoSerial($$Proxy);
+  const $2 = rowListSerializeCons1.rllengthSerial($$Proxy);
+  return {
+    fromSerial: (i) => {
+      if (0 <= i && i < $2 && 0 <= i && i < $2) {
+        const $3 = $0(i);
+        if ($3.tag === "Just") {
+          return $Maybe("Just", $3._1);
+        }
+      }
+      return Nothing;
+    },
+    toSerial: (x) => $1(x),
+    lengthSerial: (v) => $2
+  };
+})();
+var serialAll1 = /* @__PURE__ */ serialAll(intSerialize1);
+var intSerialize2 = /* @__PURE__ */ (() => {
+  const $0 = rowListSerializeCons()({ reflectSymbol: () => "innerturnout" })(intSerializeBoolean)(rowListSerializeCons()({
+    reflectSymbol: () => "outerturnout"
+  })(intSerializeBoolean)(rowListSerializeNilRow)()()())()()();
+  const $1 = $0.rlfromSerial($$Proxy);
+  const $2 = $0.rltoSerial($$Proxy);
+  const $3 = $0.rllengthSerial($$Proxy);
+  return {
+    fromSerial: (i) => {
+      if (0 <= i && i < $3 && 0 <= i && i < $3) {
+        const $4 = $1(i);
+        if ($4.tag === "Just") {
+          return $Maybe("Just", $4._1);
+        }
+      }
+      return Nothing;
+    },
+    toSerial: (x) => $2(x),
+    lengthSerial: (v) => $3
+  };
+})();
+var serialAll22 = /* @__PURE__ */ serialAll(intSerialize2);
+var intSerialize3 = /* @__PURE__ */ (() => {
+  const $0 = rowListSerializeCons()({ reflectSymbol: () => "auto" })(intSerializeBoolean)(rowListSerializeCons1)()()();
+  const $1 = $0.rlfromSerial($$Proxy);
+  const $2 = $0.rltoSerial($$Proxy);
+  const $3 = $0.rllengthSerial($$Proxy);
+  return {
+    fromSerial: (i) => {
+      if (0 <= i && i < $3 && 0 <= i && i < $3) {
+        const $4 = $1(i);
+        if ($4.tag === "Just") {
+          return $Maybe("Just", $4._1);
+        }
+      }
+      return Nothing;
+    },
+    toSerial: (x) => $2(x),
+    lengthSerial: (v) => $3
+  };
+})();
+var intSerialize4 = {
+  fromSerial: (i) => {
+    const $0 = intSerializeSum2.fromSerial(i);
+    if ($0.tag === "Just") {
+      return $Maybe(
+        "Just",
+        (() => {
+          if ($0._1.tag === "Inl") {
+            return StateSP_P;
+          }
+          if ($0._1.tag === "Inr") {
+            if ($0._1._1.tag === "Inl") {
+              return StateSP_S;
+            }
+            if ($0._1._1.tag === "Inr") {
+              return StateSP_N;
+            }
+          }
+          fail();
+        })()
+      );
+    }
+    return Nothing;
+  },
+  toSerial: (x) => intSerializeSum2.toSerial((() => {
     if (x === "StateSP_P") {
       return $Sum("Inl", NoArguments);
     }
@@ -3063,20 +2865,29 @@ var genericStateScissors = {
       return $Sum("Inr", $Sum("Inr", NoArguments));
     }
     fail();
-  }
+  })()),
+  lengthSerial: (v) => intSerializeSum2.lengthSerial($$Proxy)
 };
-var intSerialize4 = /* @__PURE__ */ intSerialize(genericStateScissors)(intSerializeSum2);
-var genericStateDiamond = {
-  to: (x) => {
-    if (x.tag === "Inl") {
-      return StateDM_P;
+var intSerialize5 = {
+  fromSerial: (i) => {
+    const $0 = intSerializeSum1.fromSerial(i);
+    if ($0.tag === "Just") {
+      return $Maybe(
+        "Just",
+        (() => {
+          if ($0._1.tag === "Inl") {
+            return StateDM_P;
+          }
+          if ($0._1.tag === "Inr") {
+            return StateDM_N;
+          }
+          fail();
+        })()
+      );
     }
-    if (x.tag === "Inr") {
-      return StateDM_N;
-    }
-    fail();
+    return Nothing;
   },
-  from: (x) => {
+  toSerial: (x) => intSerializeSum1.toSerial((() => {
     if (x === "StateDM_P") {
       return $Sum("Inl", NoArguments);
     }
@@ -3084,20 +2895,29 @@ var genericStateDiamond = {
       return $Sum("Inr", NoArguments);
     }
     fail();
-  }
+  })()),
+  lengthSerial: (v) => intSerializeSum1.lengthSerial($$Proxy)
 };
-var intSerialize5 = /* @__PURE__ */ intSerialize(genericStateDiamond)(intSerializeSum1);
-var genericJointsSimple = {
-  to: (x) => {
-    if (x.tag === "Inl") {
-      return JointBegin;
+var intSerialize6 = {
+  fromSerial: (i) => {
+    const $0 = intSerializeSum1.fromSerial(i);
+    if ($0.tag === "Just") {
+      return $Maybe(
+        "Just",
+        (() => {
+          if ($0._1.tag === "Inl") {
+            return JointBegin;
+          }
+          if ($0._1.tag === "Inr") {
+            return JointEnd;
+          }
+          fail();
+        })()
+      );
     }
-    if (x.tag === "Inr") {
-      return JointEnd;
-    }
-    fail();
+    return Nothing;
   },
-  from: (x) => {
+  toSerial: (x) => intSerializeSum1.toSerial((() => {
     if (x === "JointBegin") {
       return $Sum("Inl", NoArguments);
     }
@@ -3105,16 +2925,59 @@ var genericJointsSimple = {
       return $Sum("Inr", NoArguments);
     }
     fail();
-  }
+  })()),
+  lengthSerial: (v) => intSerializeSum1.lengthSerial($$Proxy)
 };
-var intSerialize6 = /* @__PURE__ */ intSerialize(genericJointsSimple)(intSerializeSum1);
 var serialAll3 = /* @__PURE__ */ serialAll(intSerialize6);
 var halfRail = /* @__PURE__ */ (() => {
   const pe = { coord: { x: 0.5, y: 0, z: 0 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: true };
   const pb = { coord: { x: 0, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
   const r0 = [{ start: pb, end: pe, length: partLength(pb)(pe) }];
-  return memorizeRail(toRail_(intSerialize6)(intSerialize2)({
+  return memorizeRail(toRail_(intSerialize6)(intSerialize)({
     name: "half",
+    flipped: false,
+    opposed: false,
+    getDrawInfo: (v) => ({ rails: arrayMap(blueRail)(r0), additionals: [] }),
+    defaultState: StateSolid,
+    getJoints: serialAll3,
+    getStates: serialAll2,
+    getOrigin: JointBegin,
+    getJointPos: (j) => {
+      if (j === "JointBegin") {
+        return pb;
+      }
+      if (j === "JointEnd") {
+        return pe;
+      }
+      fail();
+    },
+    getNewState: (j) => (s) => {
+      if (j === "JointBegin") {
+        return { newjoint: JointEnd, newstate: s, shape: r0 };
+      }
+      if (j === "JointEnd") {
+        return { newjoint: JointBegin, newstate: s, shape: reverseShapes(r0) };
+      }
+      fail();
+    },
+    getRoute: (s) => (f) => (t) => {
+      if (f === "JointBegin" ? t !== "JointBegin" : !(f === "JointEnd" && t === "JointEnd")) {
+        return $Maybe("Just", s);
+      }
+      return Nothing;
+    },
+    isLegal: (j) => (s) => true,
+    lockedBy: (s) => (s$p) => [],
+    isBlocked: (j) => (s) => (j$p) => true,
+    isSimple: true
+  }));
+})();
+var halfSlopeRail = /* @__PURE__ */ (() => {
+  const pe = { coord: { x: 1, y: 0, z: 0.5 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: true };
+  const pb = { coord: { x: 0, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
+  const r0 = [{ start: pb, end: pe, length: partLength(pb)(pe) }];
+  return memorizeRail(toRail_(intSerialize6)(intSerialize)({
+    name: "halfslope",
     flipped: false,
     opposed: false,
     getDrawInfo: (v) => ({ rails: arrayMap(blueRail)(r0), additionals: [] }),
@@ -3156,7 +3019,7 @@ var longRail = /* @__PURE__ */ (() => {
   const pe = { coord: { x: 2, y: 0, z: 0 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: true };
   const pb = { coord: { x: 0, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
   const r0 = [{ start: pb, end: pe, length: partLength(pb)(pe) }];
-  return memorizeRail(toRail_(intSerialize6)(intSerialize2)({
+  return memorizeRail(toRail_(intSerialize6)(intSerialize)({
     name: "long",
     flipped: false,
     opposed: false,
@@ -3199,8 +3062,51 @@ var quarterRail = /* @__PURE__ */ (() => {
   const pe = { coord: { x: 0.25, y: 0, z: 0 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: true };
   const pb = { coord: { x: 0, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
   const r0 = [{ start: pb, end: pe, length: partLength(pb)(pe) }];
-  return memorizeRail(toRail_(intSerialize6)(intSerialize2)({
+  return memorizeRail(toRail_(intSerialize6)(intSerialize)({
     name: "quarter",
+    flipped: false,
+    opposed: false,
+    getDrawInfo: (v) => ({ rails: arrayMap(blueRail)(r0), additionals: [] }),
+    defaultState: StateSolid,
+    getJoints: serialAll3,
+    getStates: serialAll2,
+    getOrigin: JointBegin,
+    getJointPos: (j) => {
+      if (j === "JointBegin") {
+        return pb;
+      }
+      if (j === "JointEnd") {
+        return pe;
+      }
+      fail();
+    },
+    getNewState: (j) => (s) => {
+      if (j === "JointBegin") {
+        return { newjoint: JointEnd, newstate: s, shape: r0 };
+      }
+      if (j === "JointEnd") {
+        return { newjoint: JointBegin, newstate: s, shape: reverseShapes(r0) };
+      }
+      fail();
+    },
+    getRoute: (s) => (f) => (t) => {
+      if (f === "JointBegin" ? t !== "JointBegin" : !(f === "JointEnd" && t === "JointEnd")) {
+        return $Maybe("Just", s);
+      }
+      return Nothing;
+    },
+    isLegal: (j) => (s) => true,
+    lockedBy: (s) => (s$p) => [],
+    isBlocked: (j) => (s) => (j$p) => true,
+    isSimple: true
+  }));
+})();
+var quaterSlopeRail = /* @__PURE__ */ (() => {
+  const pe = { coord: { x: 1, y: 0, z: 0.25 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: true };
+  const pb = { coord: { x: 0, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
+  const r0 = [{ start: pb, end: pe, length: partLength(pb)(pe) }];
+  return memorizeRail(toRail_(intSerialize6)(intSerialize)({
+    name: "quaterslope",
     flipped: false,
     opposed: false,
     getDrawInfo: (v) => ({ rails: arrayMap(blueRail)(r0), additionals: [] }),
@@ -3242,7 +3148,7 @@ var slopeCurveLRail = /* @__PURE__ */ (() => {
   const pe = { coord: { x: sqrt(0.5), y: 1 - sqrt(0.5), z: 0.25 }, angle: toNumber(1) * 6.283185307179586 / toNumber(8), isPlus: true };
   const pb = { coord: { x: 0, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
   const r0 = [{ start: pb, end: pe, length: partLength(pb)(pe) }];
-  return memorizeRail(toRail_(intSerialize6)(intSerialize2)({
+  return memorizeRail(toRail_(intSerialize6)(intSerialize)({
     name: "slopecurve",
     flipped: false,
     opposed: false,
@@ -3286,7 +3192,7 @@ var slopeRail = /* @__PURE__ */ (() => {
   const pe = { coord: { x: 2, y: 0, z: 1 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: true };
   const pb = { coord: { x: 0, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
   const r0 = [{ start: pb, end: pe, length: partLength(pb)(pe) }];
-  return memorizeRail(toRail_(intSerialize6)(intSerialize2)({
+  return memorizeRail(toRail_(intSerialize6)(intSerialize)({
     name: "slope",
     flipped: false,
     opposed: false,
@@ -3329,7 +3235,7 @@ var straightRail = /* @__PURE__ */ (() => {
   const pe = { coord: { x: 1, y: 0, z: 0 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: true };
   const pb = { coord: { x: 0, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
   const r0 = [{ start: pb, end: pe, length: partLength(pb)(pe) }];
-  return memorizeRail(toRail_(intSerialize6)(intSerialize2)({
+  return memorizeRail(toRail_(intSerialize6)(intSerialize)({
     name: "straight",
     flipped: false,
     opposed: false,
@@ -3368,22 +3274,31 @@ var straightRail = /* @__PURE__ */ (() => {
     isSimple: true
   }));
 })();
-var genericJointsPoint = {
-  to: (x) => {
-    if (x.tag === "Inl") {
-      return JointEnter;
+var intSerialize7 = {
+  fromSerial: (i) => {
+    const $0 = intSerializeSum2.fromSerial(i);
+    if ($0.tag === "Just") {
+      return $Maybe(
+        "Just",
+        (() => {
+          if ($0._1.tag === "Inl") {
+            return JointEnter;
+          }
+          if ($0._1.tag === "Inr") {
+            if ($0._1._1.tag === "Inl") {
+              return JointMain;
+            }
+            if ($0._1._1.tag === "Inr") {
+              return JointSub;
+            }
+          }
+          fail();
+        })()
+      );
     }
-    if (x.tag === "Inr") {
-      if (x._1.tag === "Inl") {
-        return JointMain;
-      }
-      if (x._1.tag === "Inr") {
-        return JointSub;
-      }
-    }
-    fail();
+    return Nothing;
   },
-  from: (x) => {
+  toSerial: (x) => intSerializeSum2.toSerial((() => {
     if (x === "JointEnter") {
       return $Sum("Inl", NoArguments);
     }
@@ -3394,9 +3309,9 @@ var genericJointsPoint = {
       return $Sum("Inr", $Sum("Inr", NoArguments));
     }
     fail();
-  }
+  })()),
+  lengthSerial: (v) => intSerializeSum2.lengthSerial($$Proxy)
 };
-var intSerialize7 = /* @__PURE__ */ intSerialize(genericJointsPoint)(intSerializeSum2);
 var serialAll4 = /* @__PURE__ */ serialAll(intSerialize7);
 var turnOutLPlusRail = /* @__PURE__ */ (() => {
   const ps = { coord: { x: sqrt(0.5), y: 1 - sqrt(0.5), z: 0 }, angle: toNumber(1) * 6.283185307179586 / toNumber(8), isPlus: true };
@@ -3512,87 +3427,108 @@ var turnOutLPlusRail = /* @__PURE__ */ (() => {
   }));
 })();
 var turnOutRPlusRail = /* @__PURE__ */ memorizeRail(/* @__PURE__ */ flipRail_(turnOutLPlusRail));
-var genericJointsDoublePoint = {
-  to: (x) => {
-    if (x.tag === "Inl") {
-      return JointOuterEnter;
-    }
-    if (x.tag === "Inr") {
-      if (x._1.tag === "Inl") {
-        return JointInnerEnter;
-      }
-      if (x._1.tag === "Inr") {
-        if (x._1._1.tag === "Inl") {
-          return JointInnerMain;
-        }
-        if (x._1._1.tag === "Inr") {
-          if (x._1._1._1.tag === "Inl") {
-            return JointOuterMain;
-          }
-          if (x._1._1._1.tag === "Inr") {
-            if (x._1._1._1._1.tag === "Inl") {
-              return JointInnerSub;
+var intSerialize8 = /* @__PURE__ */ (() => {
+  const $0 = intSerializeSum(intSerializeConstructor)(intSerializeSum(intSerializeConstructor)(intSerializeSum3));
+  return {
+    fromSerial: (i) => {
+      const $1 = $0.fromSerial(i);
+      if ($1.tag === "Just") {
+        return $Maybe(
+          "Just",
+          (() => {
+            if ($1._1.tag === "Inl") {
+              return JointOuterEnter;
             }
-            if (x._1._1._1._1.tag === "Inr") {
-              return JointOuterSub;
+            if ($1._1.tag === "Inr") {
+              if ($1._1._1.tag === "Inl") {
+                return JointInnerEnter;
+              }
+              if ($1._1._1.tag === "Inr") {
+                if ($1._1._1._1.tag === "Inl") {
+                  return JointInnerMain;
+                }
+                if ($1._1._1._1.tag === "Inr") {
+                  if ($1._1._1._1._1.tag === "Inl") {
+                    return JointOuterMain;
+                  }
+                  if ($1._1._1._1._1.tag === "Inr") {
+                    if ($1._1._1._1._1._1.tag === "Inl") {
+                      return JointInnerSub;
+                    }
+                    if ($1._1._1._1._1._1.tag === "Inr") {
+                      return JointOuterSub;
+                    }
+                  }
+                }
+              }
             }
-          }
-        }
+            fail();
+          })()
+        );
       }
-    }
-    fail();
-  },
-  from: (x) => {
-    if (x === "JointOuterEnter") {
-      return $Sum("Inl", NoArguments);
-    }
-    if (x === "JointInnerEnter") {
-      return $Sum("Inr", $Sum("Inl", NoArguments));
-    }
-    if (x === "JointInnerMain") {
-      return $Sum("Inr", $Sum("Inr", $Sum("Inl", NoArguments)));
-    }
-    if (x === "JointOuterMain") {
-      return $Sum("Inr", $Sum("Inr", $Sum("Inr", $Sum("Inl", NoArguments))));
-    }
-    if (x === "JointInnerSub") {
-      return $Sum(
-        "Inr",
-        $Sum("Inr", $Sum("Inr", $Sum("Inr", $Sum("Inl", NoArguments))))
-      );
-    }
-    if (x === "JointOuterSub") {
-      return $Sum(
-        "Inr",
-        $Sum("Inr", $Sum("Inr", $Sum("Inr", $Sum("Inr", NoArguments))))
-      );
-    }
-    fail();
-  }
-};
-var intSerialize8 = /* @__PURE__ */ intSerialize(genericJointsDoublePoint)(/* @__PURE__ */ intSerializeSum(intSerializeConstructor2)(/* @__PURE__ */ intSerializeSum(intSerializeConstructor2)(intSerializeSum3)));
+      return Nothing;
+    },
+    toSerial: (x) => $0.toSerial((() => {
+      if (x === "JointOuterEnter") {
+        return $Sum("Inl", NoArguments);
+      }
+      if (x === "JointInnerEnter") {
+        return $Sum("Inr", $Sum("Inl", NoArguments));
+      }
+      if (x === "JointInnerMain") {
+        return $Sum("Inr", $Sum("Inr", $Sum("Inl", NoArguments)));
+      }
+      if (x === "JointOuterMain") {
+        return $Sum("Inr", $Sum("Inr", $Sum("Inr", $Sum("Inl", NoArguments))));
+      }
+      if (x === "JointInnerSub") {
+        return $Sum(
+          "Inr",
+          $Sum("Inr", $Sum("Inr", $Sum("Inr", $Sum("Inl", NoArguments))))
+        );
+      }
+      if (x === "JointOuterSub") {
+        return $Sum(
+          "Inr",
+          $Sum("Inr", $Sum("Inr", $Sum("Inr", $Sum("Inr", NoArguments))))
+        );
+      }
+      fail();
+    })()),
+    lengthSerial: (v) => $0.lengthSerial($$Proxy)
+  };
+})();
 var serialAll5 = /* @__PURE__ */ serialAll(intSerialize8);
-var genericJointsDouble = {
-  to: (x) => {
-    if (x.tag === "Inl") {
-      return JointOuterBegin;
+var intSerialize9 = {
+  fromSerial: (i) => {
+    const $0 = intSerializeSum3.fromSerial(i);
+    if ($0.tag === "Just") {
+      return $Maybe(
+        "Just",
+        (() => {
+          if ($0._1.tag === "Inl") {
+            return JointOuterBegin;
+          }
+          if ($0._1.tag === "Inr") {
+            if ($0._1._1.tag === "Inl") {
+              return JointInnerEnd;
+            }
+            if ($0._1._1.tag === "Inr") {
+              if ($0._1._1._1.tag === "Inl") {
+                return JointInnerBegin;
+              }
+              if ($0._1._1._1.tag === "Inr") {
+                return JointOuterEnd;
+              }
+            }
+          }
+          fail();
+        })()
+      );
     }
-    if (x.tag === "Inr") {
-      if (x._1.tag === "Inl") {
-        return JointInnerEnd;
-      }
-      if (x._1.tag === "Inr") {
-        if (x._1._1.tag === "Inl") {
-          return JointInnerBegin;
-        }
-        if (x._1._1.tag === "Inr") {
-          return JointOuterEnd;
-        }
-      }
-    }
-    fail();
+    return Nothing;
   },
-  from: (x) => {
+  toSerial: (x) => intSerializeSum3.toSerial((() => {
     if (x === "JointOuterBegin") {
       return $Sum("Inl", NoArguments);
     }
@@ -3606,9 +3542,9 @@ var genericJointsDouble = {
       return $Sum("Inr", $Sum("Inr", $Sum("Inr", NoArguments)));
     }
     fail();
-  }
+  })()),
+  lengthSerial: (v) => intSerializeSum3.lengthSerial($$Proxy)
 };
-var intSerialize9 = /* @__PURE__ */ intSerialize(genericJointsDouble)(intSerializeSum3);
 var serialAll6 = /* @__PURE__ */ serialAll(intSerialize9);
 var doubleTurnoutLPlusRail = /* @__PURE__ */ (() => {
   const pos = { coord: { x: sqrt(0.5), y: 1 - sqrt(0.5), z: 0 }, angle: toNumber(1) * 6.283185307179586 / toNumber(8), isPlus: true };
@@ -3625,7 +3561,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ (() => {
   const pie = { coord: { x: 0, y: -0.28037383177570097, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
   const rim = [{ start: pie, end: pim, length: partLength(pie)(pim) }];
   const ris = [{ start: pie, end: pis, length: partLength(pie)(pis) }];
-  return memorizeRail(toRail_(intSerialize8)(intSerialize22)({
+  return memorizeRail(toRail_(intSerialize8)(intSerialize2)({
     name: "doubleTurnout",
     flipped: false,
     opposed: false,
@@ -4020,7 +3956,7 @@ var outerCurveLRail = /* @__PURE__ */ (() => {
   };
   const pb = { coord: { x: 0, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
   const r0 = [{ start: pb, end: pe, length: partLength(pb)(pe) }];
-  return memorizeRail(toRail_(intSerialize6)(intSerialize2)({
+  return memorizeRail(toRail_(intSerialize6)(intSerialize)({
     name: "outercurve",
     flipped: false,
     opposed: false,
@@ -4432,7 +4368,7 @@ var curveLRail = /* @__PURE__ */ (() => {
   const pe = { coord: { x: sqrt(0.5), y: 1 - sqrt(0.5), z: 0 }, angle: toNumber(1) * 6.283185307179586 / toNumber(8), isPlus: true };
   const pb = { coord: { x: 0, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
   const r0 = [{ start: pb, end: pe, length: partLength(pb)(pe) }];
-  return memorizeRail(toRail_(intSerialize6)(intSerialize2)({
+  return memorizeRail(toRail_(intSerialize6)(intSerialize)({
     name: "curve",
     flipped: false,
     opposed: false,
@@ -4480,7 +4416,7 @@ var crossoverLRail = /* @__PURE__ */ (() => {
   const rn = slipShapes()({ start: pie, end: poe });
   const pib = { coord: { x: 1, y: -0.28037383177570097, z: 0 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: false };
   const ri = [{ start: pib, end: pie, length: partLength(pib)(pie) }];
-  return memorizeRail(toRail_(intSerialize9)(intSerialize22)({
+  return memorizeRail(toRail_(intSerialize9)(intSerialize2)({
     name: "crossover",
     flipped: false,
     opposed: false,
@@ -4712,7 +4648,7 @@ var converterRail = /* @__PURE__ */ (() => {
   const pe = { coord: { x: 0.25, y: 0, z: 0 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: false };
   const pb = { coord: { x: 0, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
   const r0 = [{ start: pb, end: pe, length: partLength(pb)(pe) }];
-  return memorizeRail(toRail_(intSerialize6)(intSerialize2)({
+  return memorizeRail(toRail_(intSerialize6)(intSerialize)({
     name: "converter",
     flipped: false,
     opposed: false,
@@ -4759,7 +4695,7 @@ var doubleToWideLRail = /* @__PURE__ */ (() => {
   const rn = slipShapes()({ start: pie, end: poe });
   const pib = { coord: { x: 1.25, y: -0.28037383177570097, z: 0 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: false };
   const ri = [{ start: pib, end: pie, length: partLength(pib)(pie) }];
-  return memorizeRail(toRail_(intSerialize9)(intSerialize22)({
+  return memorizeRail(toRail_(intSerialize9)(intSerialize2)({
     name: "doubletowide",
     flipped: false,
     opposed: false,
@@ -4991,7 +4927,7 @@ var doubleWidthSLRail = /* @__PURE__ */ (() => {
   const ps = { coord: { x: 1, y: 0.28037383177570097, z: 0 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: true };
   const pe = { coord: { x: 0, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
   const r1 = slipShapes()({ start: pe, end: ps });
-  return memorizeRail(toRail_(intSerialize6)(intSerialize2)({
+  return memorizeRail(toRail_(intSerialize6)(intSerialize)({
     name: "doublewidths",
     flipped: false,
     opposed: false,
@@ -5379,7 +5315,9 @@ var rails = [
   longRail,
   doubleWidthSLRail,
   crossoverLRail,
-  diamondRail
+  diamondRail,
+  halfSlopeRail,
+  quaterSlopeRail
 ];
 var isArc = (shape) => !eqAngle.eq(shape.start.angle + 3.141592653589793)(shape.end.angle);
 var encodeTrainRoute = (v) => ({ nodeid: v.nodeid, jointid: v.jointid, railinstance: v.railinstance.instanceid, shapes: v.shapes, length: v.length });
@@ -5507,198 +5445,208 @@ var decodeTrainset = (rs) => (v) => ({
 var decodeSignalRule = (rule) => {
   const spl = split(" ")(replace2(unsafeRegex("\\s+")(global))(" ")(rule.trimStart()));
   const v = 0 < spl.length ? $Maybe("Just", spl[0]) : Nothing;
-  const $0 = (() => {
-    if (v.tag === "Just") {
-      if (v._1 === "c") {
-        return $Maybe(
-          "Just",
-          $SignalRule("RuleComplex", replace2(unsafeRegex("^\\s*.")(noFlags))("")(rule))
-        );
-      }
-      if (v._1 === "m") {
-        return applyMaybe.apply(applyMaybe.apply((() => {
-          if (1 < spl.length) {
-            const $02 = regex(spl[1])(noFlags);
-            if ($02.tag === "Left") {
-              return Nothing;
-            }
-            if ($02.tag === "Right") {
-              return $Maybe("Just", RuleSpeed($02._1));
-            }
-            fail();
-          }
-          return Nothing;
-        })())(2 < spl.length ? fromString(spl[2]) : Nothing))($Maybe(
-          "Just",
-          replace2(unsafeRegex("^\\s*.\\s+\\S*\\s+\\S*")(noFlags))("")(rule)
-        ));
-      }
-      if (v._1 === "o") {
-        return applyMaybe.apply(applyMaybe.apply((() => {
-          if (1 < spl.length) {
-            const $02 = regex(spl[1])(noFlags);
-            if ($02.tag === "Left") {
-              return Nothing;
-            }
-            if ($02.tag === "Right") {
-              return $Maybe("Just", RuleOpen($02._1));
-            }
-            fail();
-          }
-          return Nothing;
-        })())(2 < spl.length ? fromString(spl[2]) : Nothing))($Maybe(
-          "Just",
-          replace2(unsafeRegex("^\\s*.\\s+\\S*\\s+\\S*")(noFlags))("")(rule)
-        ));
-      }
-      if (v._1 === "u") {
-        return applyMaybe.apply(applyMaybe.apply(applyMaybe.apply((() => {
-          if (1 < spl.length) {
-            const $02 = regex(spl[1])(noFlags);
-            if ($02.tag === "Left") {
-              return Nothing;
-            }
-            if ($02.tag === "Right") {
-              return $Maybe("Just", RuleUpdate($02._1));
-            }
-            fail();
-          }
-          return Nothing;
-        })())((() => {
-          if (2 < spl.length) {
-            const $02 = regex(spl[2])(noFlags);
-            if ($02.tag === "Left") {
-              return Nothing;
-            }
-            if ($02.tag === "Right") {
-              return $Maybe("Just", $02._1);
-            }
-            fail();
-          }
-          return Nothing;
-        })()))(3 < spl.length ? $Maybe("Just", spl[3]) : Nothing))($Maybe(
-          "Just",
-          replace2(unsafeRegex("^\\s*.\\s+\\S*\\s+\\S*\\s+\\S*")(noFlags))("")(rule)
-        ));
-      }
-      if (v._1 === "s") {
-        return applyMaybe.apply((() => {
-          if (1 < spl.length) {
-            const $02 = regex(spl[1])(noFlags);
-            if ($02.tag === "Left") {
-              return Nothing;
-            }
-            if ($02.tag === "Right") {
-              return $Maybe("Just", RuleStop($02._1));
-            }
-            fail();
-          }
-          return Nothing;
-        })())($Maybe("Just", replace2(unsafeRegex("^\\s*.\\s+\\S*")(noFlags))("")(rule)));
-      }
-      if (v._1 === "O") {
-        return applyMaybe.apply(applyMaybe.apply((() => {
-          if (1 < spl.length) {
-            const $02 = regex(spl[1])(noFlags);
-            if ($02.tag === "Left") {
-              return Nothing;
-            }
-            if ($02.tag === "Right") {
-              return $Maybe("Just", RuleStopOpen($02._1));
-            }
-            fail();
-          }
-          return Nothing;
-        })())(2 < spl.length ? fromString(spl[2]) : Nothing))($Maybe(
-          "Just",
-          replace2(unsafeRegex("^\\s*.\\s+\\S*\\s+\\S*")(noFlags))("")(rule)
-        ));
-      }
-      if (v._1 === "U") {
-        return applyMaybe.apply(applyMaybe.apply(applyMaybe.apply((() => {
-          if (1 < spl.length) {
-            const $02 = regex(spl[1])(noFlags);
-            if ($02.tag === "Left") {
-              return Nothing;
-            }
-            if ($02.tag === "Right") {
-              return $Maybe("Just", RuleStopUpdate($02._1));
-            }
-            fail();
-          }
-          return Nothing;
-        })())((() => {
-          if (2 < spl.length) {
-            const $02 = regex(spl[2])(noFlags);
-            if ($02.tag === "Left") {
-              return Nothing;
-            }
-            if ($02.tag === "Right") {
-              return $Maybe("Just", $02._1);
-            }
-            fail();
-          }
-          return Nothing;
-        })()))(3 < spl.length ? $Maybe("Just", spl[3]) : Nothing))($Maybe(
-          "Just",
-          replace2(unsafeRegex("^\\s*.\\s+\\S*\\s+\\S*\\s+\\S*")(noFlags))("")(rule)
-        ));
-      }
-      if (v._1 === "r") {
-        return applyMaybe.apply((() => {
-          if (1 < spl.length) {
-            const $02 = regex(spl[1])(noFlags);
-            if ($02.tag === "Left") {
-              return Nothing;
-            }
-            if ($02.tag === "Right") {
-              return $Maybe("Just", RuleReverse($02._1));
-            }
-            fail();
-          }
-          return Nothing;
-        })())($Maybe("Just", replace2(unsafeRegex("^\\s*.\\s+\\S*")(noFlags))("")(rule)));
-      }
-      if (v._1 === "R") {
-        return applyMaybe.apply(applyMaybe.apply(applyMaybe.apply((() => {
-          if (1 < spl.length) {
-            const $02 = regex(spl[1])(noFlags);
-            if ($02.tag === "Left") {
-              return Nothing;
-            }
-            if ($02.tag === "Right") {
-              return $Maybe("Just", RuleReverseUpdate($02._1));
-            }
-            fail();
-          }
-          return Nothing;
-        })())((() => {
-          if (2 < spl.length) {
-            const $02 = regex(spl[2])(noFlags);
-            if ($02.tag === "Left") {
-              return Nothing;
-            }
-            if ($02.tag === "Right") {
-              return $Maybe("Just", $02._1);
-            }
-            fail();
-          }
-          return Nothing;
-        })()))(3 < spl.length ? $Maybe("Just", spl[3]) : Nothing))($Maybe(
-          "Just",
-          replace2(unsafeRegex("^\\s*.\\s+\\S*\\s+\\S*\\s+\\S*")(noFlags))("")(rule)
-        ));
-      }
+  if (v.tag === "Just") {
+    if (v._1 === "c") {
+      return $SignalRule(
+        "RuleComplex",
+        replace2(unsafeRegex("^\\s*.")(noFlags))("")(rule)
+      );
     }
-    return Nothing;
-  })();
-  if ($0.tag === "Nothing") {
-    return $SignalRule("RuleComment", rule);
+    if (v._1 === "m") {
+      if (1 < spl.length) {
+        const $0 = regex(spl[1])(noFlags);
+        if ($0.tag === "Left") {
+          return $SignalRule("RuleComment", rule);
+        }
+        if ($0.tag === "Right") {
+          const $1 = 2 < spl.length ? fromString(spl[2]) : Nothing;
+          if ($1.tag === "Just") {
+            return $SignalRule(
+              "RuleSpeed",
+              $0._1,
+              $1._1,
+              replace2(unsafeRegex("^\\s*.\\s+\\S*\\s+\\S*")(noFlags))("")(rule)
+            );
+          }
+          return $SignalRule("RuleComment", rule);
+        }
+        fail();
+      }
+      return $SignalRule("RuleComment", rule);
+    }
+    if (v._1 === "o") {
+      if (1 < spl.length) {
+        const $0 = regex(spl[1])(noFlags);
+        if ($0.tag === "Left") {
+          return $SignalRule("RuleComment", rule);
+        }
+        if ($0.tag === "Right") {
+          const $1 = 2 < spl.length ? fromString(spl[2]) : Nothing;
+          if ($1.tag === "Just") {
+            return $SignalRule(
+              "RuleOpen",
+              $0._1,
+              $1._1,
+              replace2(unsafeRegex("^\\s*.\\s+\\S*\\s+\\S*")(noFlags))("")(rule)
+            );
+          }
+          return $SignalRule("RuleComment", rule);
+        }
+        fail();
+      }
+      return $SignalRule("RuleComment", rule);
+    }
+    if (v._1 === "u") {
+      if (1 < spl.length) {
+        const $0 = regex(spl[1])(noFlags);
+        if ($0.tag === "Left") {
+          return $SignalRule("RuleComment", rule);
+        }
+        if ($0.tag === "Right") {
+          if (2 < spl.length) {
+            const $1 = regex(spl[2])(noFlags);
+            if ($1.tag === "Left") {
+              return $SignalRule("RuleComment", rule);
+            }
+            if ($1.tag === "Right") {
+              if (3 < spl.length) {
+                return $SignalRule(
+                  "RuleUpdate",
+                  $0._1,
+                  $1._1,
+                  spl[3],
+                  replace2(unsafeRegex("^\\s*.\\s+\\S*\\s+\\S*\\s+\\S*")(noFlags))("")(rule)
+                );
+              }
+              return $SignalRule("RuleComment", rule);
+            }
+            fail();
+          }
+          return $SignalRule("RuleComment", rule);
+        }
+        fail();
+      }
+      return $SignalRule("RuleComment", rule);
+    }
+    if (v._1 === "s") {
+      if (1 < spl.length) {
+        const $0 = regex(spl[1])(noFlags);
+        if ($0.tag === "Left") {
+          return $SignalRule("RuleComment", rule);
+        }
+        if ($0.tag === "Right") {
+          return $SignalRule(
+            "RuleStop",
+            $0._1,
+            replace2(unsafeRegex("^\\s*.\\s+\\S*")(noFlags))("")(rule)
+          );
+        }
+        fail();
+      }
+      return $SignalRule("RuleComment", rule);
+    }
+    if (v._1 === "O") {
+      if (1 < spl.length) {
+        const $0 = regex(spl[1])(noFlags);
+        if ($0.tag === "Left") {
+          return $SignalRule("RuleComment", rule);
+        }
+        if ($0.tag === "Right") {
+          const $1 = 2 < spl.length ? fromString(spl[2]) : Nothing;
+          if ($1.tag === "Just") {
+            return $SignalRule(
+              "RuleStopOpen",
+              $0._1,
+              $1._1,
+              replace2(unsafeRegex("^\\s*.\\s+\\S*\\s+\\S*")(noFlags))("")(rule)
+            );
+          }
+          return $SignalRule("RuleComment", rule);
+        }
+        fail();
+      }
+      return $SignalRule("RuleComment", rule);
+    }
+    if (v._1 === "U") {
+      if (1 < spl.length) {
+        const $0 = regex(spl[1])(noFlags);
+        if ($0.tag === "Left") {
+          return $SignalRule("RuleComment", rule);
+        }
+        if ($0.tag === "Right") {
+          if (2 < spl.length) {
+            const $1 = regex(spl[2])(noFlags);
+            if ($1.tag === "Left") {
+              return $SignalRule("RuleComment", rule);
+            }
+            if ($1.tag === "Right") {
+              if (3 < spl.length) {
+                return $SignalRule(
+                  "RuleStopUpdate",
+                  $0._1,
+                  $1._1,
+                  spl[3],
+                  replace2(unsafeRegex("^\\s*.\\s+\\S*\\s+\\S*\\s+\\S*")(noFlags))("")(rule)
+                );
+              }
+              return $SignalRule("RuleComment", rule);
+            }
+            fail();
+          }
+          return $SignalRule("RuleComment", rule);
+        }
+        fail();
+      }
+      return $SignalRule("RuleComment", rule);
+    }
+    if (v._1 === "r") {
+      if (1 < spl.length) {
+        const $0 = regex(spl[1])(noFlags);
+        if ($0.tag === "Left") {
+          return $SignalRule("RuleComment", rule);
+        }
+        if ($0.tag === "Right") {
+          return $SignalRule(
+            "RuleReverse",
+            $0._1,
+            replace2(unsafeRegex("^\\s*.\\s+\\S*")(noFlags))("")(rule)
+          );
+        }
+        fail();
+      }
+      return $SignalRule("RuleComment", rule);
+    }
+    if (v._1 === "R" && 1 < spl.length) {
+      const $0 = regex(spl[1])(noFlags);
+      if ($0.tag === "Left") {
+        return $SignalRule("RuleComment", rule);
+      }
+      if ($0.tag === "Right") {
+        if (2 < spl.length) {
+          const $1 = regex(spl[2])(noFlags);
+          if ($1.tag === "Left") {
+            return $SignalRule("RuleComment", rule);
+          }
+          if ($1.tag === "Right") {
+            if (3 < spl.length) {
+              return $SignalRule(
+                "RuleReverseUpdate",
+                $0._1,
+                $1._1,
+                spl[3],
+                replace2(unsafeRegex("^\\s*.\\s+\\S*\\s+\\S*\\s+\\S*")(noFlags))("")(rule)
+              );
+            }
+            return $SignalRule("RuleComment", rule);
+          }
+          fail();
+        }
+        return $SignalRule("RuleComment", rule);
+      }
+      fail();
+    }
   }
-  if ($0.tag === "Just") {
-    return $0._1;
-  }
-  fail();
+  return $SignalRule("RuleComment", rule);
 };
 var decodeSignalRules = (rules) => arrayMap((r) => decodeSignalRule(isUndefined(r) || isNull(r) ? "" : r))(rules);
 var decodeSignal = (v) => ({
@@ -5876,6 +5824,7 @@ var shapeLength2 = shapeLength;
 var scissorsRail2 = scissorsRail;
 var removeSignal2 = removeSignal;
 var removeRail2 = removeRail;
+var quaterSlopeRail2 = quaterSlopeRail;
 var quarterRail2 = quarterRail;
 var poszero2 = poszero;
 var outerCurveRRail2 = outerCurveRRail;
@@ -5886,6 +5835,7 @@ var layoutUpdate2 = layoutUpdate;
 var layoutTick2 = layoutTick;
 var layoutDrawInfo2 = layoutDrawInfo;
 var isArc2 = isArc;
+var halfSlopeRail2 = halfSlopeRail;
 var halfRail2 = halfRail;
 var getNextSignal2 = getNextSignal;
 var getNewRailPos2 = getNewRailPos;
@@ -5967,6 +5917,7 @@ export {
   getNewRailPos2 as getNewRailPos,
   getNextSignal2 as getNextSignal,
   halfRail2 as halfRail,
+  halfSlopeRail2 as halfSlopeRail,
   isArc2 as isArc,
   layoutDrawInfo2 as layoutDrawInfo,
   layoutTick2 as layoutTick,
@@ -5977,6 +5928,7 @@ export {
   outerCurveRRail2 as outerCurveRRail,
   poszero2 as poszero,
   quarterRail2 as quarterRail,
+  quaterSlopeRail2 as quaterSlopeRail,
   removeRail2 as removeRail,
   removeSignal2 as removeSignal,
   scissorsRail2 as scissorsRail,

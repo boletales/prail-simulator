@@ -1,49 +1,22 @@
-module Main (
-    decodeLayout
-  , decodeSignalRules
-  , defaultLayout
-  , encodeLayout
-  , encodeSignalRules
-  , isArc
-  , shapeToData
-  , splitSize
-  
-  -- Internal.Layout
-  , addInvalidRoute
+module Main
+  ( addInvalidRoute
   , addJoint
   , addRail
   , addSignal
   , addTrainset
   , autoAdd
-  , brakePattern
-  , fixBrokenConnections
-  , flipTrain
-  , forceUpdate
-  , getJointAbsPos
-  , getJoints
-  , getMaxNotch
-  , getNewRailPos
-  , getNextSignal
-  , getMarginFromBrakePattern
-  , layoutDrawInfo
-  , layoutTick
-  , layoutUpdate
-  , layoutUpdate_NoManualStop
-  , removeRail
-  , removeSignal
-  , speedScale
-  , trainsetDrawInfo
-  , trainsetLength
-  , tryOpenRouteFor_ffi
-
-  -- Internal.Rails
   , autoTurnOutLPlusRail
   , autoTurnOutRPlusRail
+  , brakePattern
+  , canJoin
   , converterRail
   , crossoverLRail
   , crossoverRRail
   , curveLRail
   , curveRRail
+  , decodeLayout
+  , decodeSignalRules
+  , defaultLayout
   , diamondRail
   , doubleToWideLRail
   , doubleToWideRRail
@@ -51,30 +24,54 @@ module Main (
   , doubleTurnoutRPlusRail
   , doubleWidthSLRail
   , doubleWidthSRRail
+  , encodeLayout
+  , encodeSignalRules
+  , fixBrokenConnections
+  , flipRail
+  , flipTrain
+  , forceUpdate
+  , fromJust
+  , getDividingPoint_rel
+  , getJointAbsPos
+  , getJoints
+  , getMarginFromBrakePattern
+  , getMaxNotch
+  , getNewRailPos
+  , getNextSignal
   , halfRail
+  , halfSlopeRail
+  , isArc
+  , layoutDrawInfo
+  , layoutTick
+  , layoutUpdate
+  , layoutUpdate_NoManualStop
   , longRail
   , outerCurveLRail
   , outerCurveRRail
+  , poszero
   , quarterRail
+  , quaterSlopeRail
+  , removeRail
+  , removeSignal
   , scissorsRail
+  , shapeLength
+  , shapeToData
+  , slipShapes
   , slopeCurveLRail
   , slopeCurveRRail
   , slopeRail
+  , speedScale
+  , splitSize
   , straightRail
   , toDoubleLPlusRail
   , toDoubleRPlusRail
+  , trainsetDrawInfo
+  , trainsetLength
+  , tryOpenRouteFor_ffi
   , turnOutLPlusRail
   , turnOutRPlusRail
-
-  -- Internal.Types
-  , canJoin
-  , flipRail
-  , getDividingPoint_rel
-  , poszero
-  , shapeLength
-  , slipShapes
-  
-  , fromJust) where
+  )
+  where
 
 import Data.Maybe as Ex
 import Internal.JSON as Ex
@@ -150,6 +147,8 @@ toDoubleLPlusRail         = Ex.toDoubleLPlusRail
 toDoubleRPlusRail         = Ex.toDoubleRPlusRail         
 turnOutLPlusRail          = Ex.turnOutLPlusRail          
 turnOutRPlusRail          = Ex.turnOutRPlusRail          
+halfSlopeRail             = Ex.halfSlopeRail
+quaterSlopeRail          = Ex.quaterSlopeRail
 
 -- Internal.Types         = Ex.-- Internal.Types         
 canJoin                   = Ex.canJoin                   

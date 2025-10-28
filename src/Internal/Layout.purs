@@ -48,6 +48,7 @@ module Internal.Layout
   , removeRail
   , removeSignal
   , saEmpty
+  , setRailColor
   , signalRulePhase_fired
   , signalRulePhase_stoppedFired
   , signalRulePhase_unfired
@@ -62,8 +63,7 @@ module Internal.Layout
   )
   where
 
-import Data.Array
-import Data.Either
+import Data.Array hiding (foldM)
 import Data.Int
 import Data.Maybe
 import Data.Newtype
@@ -74,11 +74,13 @@ import Prelude
 import Data.Foldable (foldM, maximum, sum)
 import Data.FoldableWithIndex (allWithIndex, findWithIndex)
 import Data.Function (on)
+import Data.Lazy (force)
 import Data.Number (infinity)
 import Data.String.Regex as Re
 import Data.String.Regex.Flags as Re
 import Data.String.Regex.Unsafe as Re
-import Internal.Types.Rail (brokenDrawInfo, default)
+import Internal.Types.Pos (reverseRelPos)
+import Internal.Types.Rail (ColorOption(..), RealColor, applyColorOption, brokenDrawInfo)
 
 newtype SectionArray a = SectionArray {
     arraydata :: Array a,
@@ -138,7 +140,8 @@ newtype RailNode_ x = RailNode {
     reserves :: Array ({reserveid :: IntReserve, jointid :: IntJoint}),
     pos  :: Pos,
     note :: String,
-    drawinfos :: Array (DrawInfo Pos)
+    color :: Array ColorOption,
+    drawinfos :: Array (DrawInfo Pos RealColor)
   }
 derive instance Newtype (RailNode_ x) _
 
@@ -187,18 +190,21 @@ newtype Layout = Layout {
   }
 derive instance Newtype Layout _
 
-instanceDrawInfo :: RailNode -> DrawInfo Pos
-instanceDrawInfo (RailNode node) =
-  fromMaybe brokenDrawInfo $ node.drawinfos !! (unwrap node.state)
 
-instanceDrawInfos :: RailNode -> Array (DrawInfo Pos)
+instanceDrawInfos :: RailNode -> Array (DrawInfo Pos RealColor)
 instanceDrawInfos (RailNode node) =
-  absDrawInfo node.pos <$> (unwrap node.rail).getDrawInfo <$> (unwrap node.rail).getStates
+  ((unwrap node.rail).getDrawInfo
+    >>> applyColorOption (node.color) 
+    >>> absDrawInfo node.pos
+  ) <$> (unwrap node.rail).getStates
 
 recalcInstanceDrawInfo :: RailNode -> RailNode
 recalcInstanceDrawInfo (RailNode node) =
   RailNode $ node {drawinfos = instanceDrawInfos (RailNode node)}
 
+instanceDrawInfo :: RailNode -> DrawInfo Pos RealColor
+instanceDrawInfo (RailNode node) =
+  fromMaybe brokenDrawInfo $ node.drawinfos !! (unwrap node.state)
 
 carLength ∷ Number
 carLength = 10.0 / 21.4
@@ -300,7 +306,7 @@ addTrainset (Layout layout) nodeid jointid types =
       )
 
 layoutDrawInfo :: Layout -> {
-      rails :: Array {rails :: Array (DrawRail Pos), additionals :: Array (DrawAdditional Pos), joints :: Array Pos, instance :: RailNode}
+      rails :: Array {rails :: Array (DrawRail Pos RealColor), additionals :: Array (DrawAdditional Pos), joints :: Array Pos, instance :: RailNode}
     , signals :: Array (Array {indication :: Array Int, pos :: Pos, signal :: Signal})
     , invalidRoutes :: Array (Array {pos :: Pos, signal :: InvalidRoute})
     , trains ::  Array TrainsetDrawInfo
@@ -377,9 +383,8 @@ getJoints (Layout layout) joint =
 
 getNewRailPos :: Layout -> RailNode -> Maybe Pos
 getNewRailPos (Layout layout) (RailNode node) = 
-  let origin = (unwrap node.rail).getJointPos (unwrap node.rail).getOrigin
-      jrel i = (unwrap node.rail).getJointPos i
-      conv i = convertRelPos ((unwrap node.rail).getJointPos i) origin
+  let jrel i = (unwrap node.rail).getJointPos i
+      conv i = convertRelPos ((unwrap node.rail).getJointPos i) (reverseRelPos (RelPos poszero))
   in  join $ foldM (\mposofzero {from : i, nodeid : nodeid, jointid : jointid} -> 
           case mposofzero of
             Nothing -> Just (
@@ -481,7 +486,8 @@ autoAdd (Layout layout) selectednode selectedjoint rail from =
               reserves : [],
               pos : poszero,
               drawinfos : [],
-              note : ""
+              note : "",
+              color : []
             }
       addRail (Layout layout) node
     )
@@ -525,6 +531,13 @@ removeRail (Layout layout) nodeid =
           trains = shiftRailIndex_Train nodeid <$> layout'.trains
           -- TODO: shift signalrule queue
         }
+
+
+setRailColor :: Layout -> IntNode -> Array ColorOption -> Layout
+setRailColor (Layout layout) nodeid coloroption = forceUpdate $
+    Layout $ layout {
+        rails = (fromMaybe layout.rails $ modifyAt (unwrap nodeid) (\(RailNode ri) -> recalcInstanceDrawInfo $ RailNode $ ri {color = coloroption}) layout.rails)
+      }
 
 
 type TrainRoute = TrainRoute_ RailNode

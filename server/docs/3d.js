@@ -65,6 +65,7 @@ L.setOnTrainSelect((tid) => {
 document.getElementById("trainid").onchange = (e => L.selectTrainById(document.getElementById("trainid").value));
 
 let meshrailmemo = [];
+let railcolormemo = [];
 let geometryrailmemo = [];
 let meshtrainmemo = [];
 let materialmemo = [];
@@ -123,6 +124,7 @@ export function clearCache() {
   trainnotespritememo.forEach(o=>scene.remove(o));
   floormeshmemo.forEach(o=>scene.remove(o));
   meshrailmemo = [];
+  railcolormemo = [];
   geometryrailmemo = [];
   meshtrainmemo = [];
   staticgeometrymemo = [];
@@ -257,11 +259,23 @@ function draw(layout){
     staticgeometrymemo.forEach(g => {g.dispose(); });
     staticgeometrymemo = [];
     let railexists = Array(layout.instancecount).fill(false);
-    layout.rails.forEach(r=>railexists[r.nodeid] = true);
+    layout.rails.forEach(r=>railexists[r.instanceid] = true);
     railexists.forEach((e,i) => {if(!e && meshrailmemo[i] !== undefined) meshrailmemo[i].forEach(d => {
       Object.keys(d.geometry).forEach(c => d.geometry[c].forEach(g => g.dispose()));
       d.mesh.forEach(m => m.geometry.dispose());
     })});
+    layout.rails.forEach(r => {
+      let colorstr = JSON.stringify(r.color);
+      if(railcolormemo[r.instanceid] !== colorstr){
+        railcolormemo[r.instanceid] = colorstr;
+        if(meshrailmemo[r.instanceid] !== undefined) meshrailmemo[r.instanceid].forEach(d => {
+          Object.keys(d.geometry).forEach(c => d.geometry[c].forEach(g => g.dispose()));
+          Object.keys(d.geometryshadow).forEach(c => d.geometryshadow[c].forEach(g => g.dispose()));
+          d.mesh.forEach(m => {scene.remove(m); m.geometry.dispose();});
+        });
+        meshrailmemo[r.instanceid] = [];
+      }
+    });
     staticmeshmemo.forEach(m => {scene.remove(m); });
     staticmeshmemo = [];
     let data = mergeMeshData(ldi.rails.map(updateRailGeometory));
@@ -399,6 +413,8 @@ function draw(layout){
   if(L.layout.rails[L.selectedJoint.nodeid] !== undefined){
     document.getElementById("railnote").value   = L.layout.rails[L.selectedJoint.nodeid].note;
     document.getElementById("railnote").oninput      = ()=> L.onkey({key: L.keycontrols.signal.keys.editRailNote.key[0]}, {note: document.getElementById("railnote").value});
+    document.getElementById("railcolor").value = (c => c ? c.color : "")(L.layout.rails[L.selectedJoint.nodeid].color.find(e => e.colortype == "active"));
+    document.getElementById("railcolor").oninput = ()=> L.onkey({key: L.keycontrols.control.keys.setRailColor.key[0]}, {color: document.getElementById("railcolor").value});
     let signal = L.layout.rails[L.selectedJoint.nodeid].signals.find(s => s.jointid == L.selectedJoint.jointid);
     if(signal !== undefined){
       document.getElementById("signalrules").value   = P.encodeSignalRules(signal.rules).join("\n");

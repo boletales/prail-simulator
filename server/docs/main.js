@@ -729,7 +729,7 @@ var convertRelPos = (v) => (v1) => ({
     z: v1.coord.z - v.coord.z
   },
   angle: v1.angle - (v.angle + 3.141592653589793),
-  isPlus: v.isPlus
+  isPlus: v.isPlus === v1.isPlus
 });
 var toAbsPos = (v) => (v1) => ({
   coord: {
@@ -784,12 +784,18 @@ var partLength = (v) => (v1) => {
 };
 
 // output-es/Internal.Types.Rail/index.js
+var $ColorType = (tag) => tag;
+var ColorActive = /* @__PURE__ */ $ColorType("ColorActive");
+var ColorPassive = /* @__PURE__ */ $ColorType("ColorPassive");
+var ColorAuto = /* @__PURE__ */ $ColorType("ColorAuto");
+var ColorFixed = /* @__PURE__ */ $ColorType("ColorFixed");
 var eqIntJoint = { eq: (x) => (y) => x === y };
 var shapeLength = (v) => partLength(v.start)(v.end);
 var reverseShapes = /* @__PURE__ */ (() => {
   const $0 = arrayMap((v) => ({ start: v.end, end: v.start, length: v.length }));
   return (x) => $0(reverse(x));
 })();
+var passiveRail = (s) => ({ color: ColorPassive, shape: s });
 var opposeDrawRail = (v) => ({ color: v.color, shape: { start: { ...v.shape.start, isPlus: !v.shape.start.isPlus }, end: { ...v.shape.end, isPlus: !v.shape.end.isPlus }, length: v.shape.length } });
 var opposeAdditional = (v) => ({ parttype: v.parttype, pos: { ...v.pos, isPlus: !v.pos.isPlus } });
 var opposeRail_ = (v) => ({
@@ -804,8 +810,7 @@ var opposeRail_ = (v) => ({
     return { rails: arrayMap(opposeDrawRail)($0.rails), additionals: arrayMap(opposeAdditional)($0.additionals) };
   }
 });
-var newtate_fallback = { newjoint: 0, newstate: 0, shape: [] };
-var grayRail = (s) => ({ color: "#668", shape: s });
+var newstate_fallback = { newjoint: 0, newstate: 0, shape: [] };
 var flipShape = (v) => ({
   start: { coord: { x: v.start.coord.x, y: -v.start.coord.y, z: v.start.coord.z }, angle: -v.start.angle, isPlus: v.start.isPlus },
   end: { coord: { x: v.end.coord.x, y: -v.end.coord.y, z: v.end.coord.z }, angle: -v.end.angle, isPlus: v.end.isPlus },
@@ -836,6 +841,41 @@ var flipRail_ = (v) => ({
     return { rails: arrayMap(flipDrawRail)($0.rails), additionals: arrayMap(flipAdditional)($0.additionals) };
   }
 });
+var toRealColor = (opts) => (ct) => {
+  const m = find((v) => {
+    if (ct === "ColorActive") {
+      return v.colortype === "active";
+    }
+    if (ct === "ColorPassive") {
+      return v.colortype === "passive";
+    }
+    if (ct === "ColorAuto") {
+      return v.colortype === "auto";
+    }
+    if (ct === "ColorFixed") {
+      return v.colortype === "fixed";
+    }
+    fail();
+  })(opts);
+  if (m.tag === "Just") {
+    return m._1.color;
+  }
+  if (m.tag === "Nothing") {
+    if (ct === "ColorActive") {
+      return "#37d";
+    }
+    if (ct === "ColorPassive") {
+      return "#668";
+    }
+    if (ct === "ColorAuto") {
+      return "#33a";
+    }
+    if (ct === "ColorFixed") {
+      return "#866";
+    }
+  }
+  fail();
+};
 var calcMidAngle = (x) => (y) => asin(x / ((pow(y)(2) + pow(x)(2)) / (2 * y)));
 var slipShapes = () => (v) => {
   const pp = {
@@ -873,7 +913,7 @@ var memorizeRail = (v) => {
     defaultState: v.defaultState,
     getJoints: v.getJoints,
     getStates: v.getStates,
-    getOrigin: v.getOrigin,
+    origin: v.origin,
     getJointPos: (v1) => {
       if (v1 < getJointPos_memo.length) {
         return getJointPos_memo[v1];
@@ -884,7 +924,7 @@ var memorizeRail = (v) => {
       if (v1 < getNewState_memo.length && v2 < getNewState_memo[v1].length) {
         return getNewState_memo[v1][v2];
       }
-      return newtate_fallback;
+      return newstate_fallback;
     },
     getDrawInfo: (v1) => {
       if (v1 < getDrawInfo_memo.length) {
@@ -918,7 +958,7 @@ var toRail_ = (dictIntSerialize) => (dictIntSerialize1) => (v) => ({
   defaultState: dictIntSerialize1.toSerial(v.defaultState),
   getJoints: arrayMap((x) => dictIntSerialize.toSerial(x))(v.getJoints),
   getStates: arrayMap((x) => dictIntSerialize1.toSerial(x))(v.getStates),
-  getOrigin: dictIntSerialize.toSerial(v.getOrigin),
+  origin: dictIntSerialize.toSerial(v.origin),
   getJointPos: (v1) => {
     const $0 = dictIntSerialize.fromSerial(v1);
     if ($0.tag === "Just") {
@@ -989,7 +1029,8 @@ var toRail_ = (dictIntSerialize) => (dictIntSerialize1) => (v) => ({
   },
   isSimple: v.isSimple
 });
-var blueRail = (s) => ({ color: "#37d", shape: s });
+var applyColorOption = (opts) => (v) => ({ rails: arrayMap((v1) => ({ color: toRealColor(opts)(v1.color), shape: v1.shape }))(v.rails), additionals: v.additionals });
+var activeRail = (s) => ({ color: ColorActive, shape: s });
 var absShape = (p) => (v) => ({ start: toAbsPos(p)(v.start), end: toAbsPos(p)(v.end), length: v.length });
 var absParts = (p) => (v) => ({ color: v.color, shape: absShape(p)(v.shape) });
 var absAdditional = (p) => (v) => ({ parttype: v.parttype, pos: toAbsPos(p)(v.pos) });
@@ -1157,7 +1198,7 @@ var saModifyAt = (i) => (d) => (f) => (v) => {
   };
 };
 var saEmpty = { arraydata: [], head: 0, end: 0 };
-var instanceDrawInfos = (v) => arrayMap((x) => absDrawInfo(v.pos)(v.rail.getDrawInfo(x)))(v.rail.getStates);
+var instanceDrawInfos = (v) => arrayMap((x) => absDrawInfo(v.pos)(applyColorOption(v.color)(v.rail.getDrawInfo(x))))(v.rail.getStates);
 var instanceDrawInfo = (v) => {
   if (v.state >= 0 && v.state < v.drawinfos.length) {
     return v.drawinfos[v.state];
@@ -1491,7 +1532,6 @@ var getJointAbsPos = (v) => (nodeid) => (jointid) => {
   return Nothing;
 };
 var getNewRailPos = (v) => (v1) => {
-  const origin = v1.rail.getJointPos(v1.rail.getOrigin);
   const $0 = foldM((mposofzero) => (v2) => {
     if (mposofzero.tag === "Nothing") {
       return $Maybe(
@@ -1501,7 +1541,10 @@ var getNewRailPos = (v) => (v1) => {
           if ($02.tag === "Just") {
             return $Maybe(
               "Just",
-              toAbsPos({ ...$02._1, angle: $02._1.angle + 3.141592653589793 })(convertRelPos(v1.rail.getJointPos(v2.from))(origin))
+              toAbsPos({ ...$02._1, angle: $02._1.angle + 3.141592653589793 })(convertRelPos(v1.rail.getJointPos(v2.from))({
+                ...poszero,
+                angle: 3.141592653589793
+              }))
             );
           }
           return Nothing;
@@ -1528,6 +1571,23 @@ var getNewRailPos = (v) => (v1) => {
   fail();
 };
 var forceUpdate = (v) => ({ ...v, updatecount: v.updatecount + 1 | 0 });
+var setRailColor = (v) => (nodeid) => (coloroption) => ({
+  ...v,
+  rails: (() => {
+    const $0 = modifyAt(nodeid)((v2) => {
+      const $02 = { ...v2, color: coloroption };
+      return { ...$02, drawinfos: instanceDrawInfos($02) };
+    })(v.rails);
+    if ($0.tag === "Nothing") {
+      return v.rails;
+    }
+    if ($0.tag === "Just") {
+      return $0._1;
+    }
+    fail();
+  })(),
+  updatecount: v.updatecount + 1 | 0
+});
 var flipTrain = (v) => ({
   ...v,
   route: reverse(arrayMap((v2) => ({ ...v2, jointid: v2.railinstance.rail.getNewState(v2.jointid)(v2.railinstance.state).newjoint, shapes: reverseShapes(v2.shapes) }))(v.route)),
@@ -2357,7 +2417,8 @@ var autoAdd = (v) => (selectednode) => (selectedjoint) => (rail) => (from) => {
         reserves: [],
         pos: poszero,
         drawinfos: [],
-        note: ""
+        note: "",
+        color: []
       });
     }
     if ($0.tag === "Nothing") {
@@ -2938,11 +2999,11 @@ var halfRail = /* @__PURE__ */ (() => {
     name: "half",
     flipped: false,
     opposed: false,
-    getDrawInfo: (v) => ({ rails: arrayMap(blueRail)(r0), additionals: [] }),
+    getDrawInfo: (v) => ({ rails: arrayMap(activeRail)(r0), additionals: [] }),
     defaultState: StateSolid,
     getJoints: serialAll3,
     getStates: serialAll2,
-    getOrigin: JointBegin,
+    origin: JointBegin,
     getJointPos: (j) => {
       if (j === "JointBegin") {
         return pb;
@@ -2981,11 +3042,11 @@ var halfSlopeRail = /* @__PURE__ */ (() => {
     name: "halfslope",
     flipped: false,
     opposed: false,
-    getDrawInfo: (v) => ({ rails: arrayMap(blueRail)(r0), additionals: [] }),
+    getDrawInfo: (v) => ({ rails: arrayMap(activeRail)(r0), additionals: [] }),
     defaultState: StateSolid,
     getJoints: serialAll3,
     getStates: serialAll2,
-    getOrigin: JointBegin,
+    origin: JointBegin,
     getJointPos: (j) => {
       if (j === "JointBegin") {
         return pb;
@@ -3024,11 +3085,11 @@ var longRail = /* @__PURE__ */ (() => {
     name: "long",
     flipped: false,
     opposed: false,
-    getDrawInfo: (v) => ({ rails: arrayMap(blueRail)(r0), additionals: [] }),
+    getDrawInfo: (v) => ({ rails: arrayMap(activeRail)(r0), additionals: [] }),
     defaultState: StateSolid,
     getJoints: serialAll3,
     getStates: serialAll2,
-    getOrigin: JointBegin,
+    origin: JointBegin,
     getJointPos: (j) => {
       if (j === "JointBegin") {
         return pb;
@@ -3067,11 +3128,11 @@ var quarterRail = /* @__PURE__ */ (() => {
     name: "quarter",
     flipped: false,
     opposed: false,
-    getDrawInfo: (v) => ({ rails: arrayMap(blueRail)(r0), additionals: [] }),
+    getDrawInfo: (v) => ({ rails: arrayMap(activeRail)(r0), additionals: [] }),
     defaultState: StateSolid,
     getJoints: serialAll3,
     getStates: serialAll2,
-    getOrigin: JointBegin,
+    origin: JointBegin,
     getJointPos: (j) => {
       if (j === "JointBegin") {
         return pb;
@@ -3110,11 +3171,11 @@ var quarterSlopeRail = /* @__PURE__ */ (() => {
     name: "quaterslope",
     flipped: false,
     opposed: false,
-    getDrawInfo: (v) => ({ rails: arrayMap(blueRail)(r0), additionals: [] }),
+    getDrawInfo: (v) => ({ rails: arrayMap(activeRail)(r0), additionals: [] }),
     defaultState: StateSolid,
     getJoints: serialAll3,
     getStates: serialAll2,
-    getOrigin: JointBegin,
+    origin: JointBegin,
     getJointPos: (j) => {
       if (j === "JointBegin") {
         return pb;
@@ -3153,11 +3214,11 @@ var slopeCurveLRail = /* @__PURE__ */ (() => {
     name: "slopecurve",
     flipped: false,
     opposed: false,
-    getDrawInfo: (v) => ({ rails: arrayMap(blueRail)(r0), additionals: [] }),
+    getDrawInfo: (v) => ({ rails: arrayMap(activeRail)(r0), additionals: [] }),
     defaultState: StateSolid,
     getJoints: serialAll3,
     getStates: serialAll2,
-    getOrigin: JointBegin,
+    origin: JointBegin,
     getJointPos: (j) => {
       if (j === "JointBegin") {
         return pb;
@@ -3197,11 +3258,11 @@ var slopeRail = /* @__PURE__ */ (() => {
     name: "slope",
     flipped: false,
     opposed: false,
-    getDrawInfo: (v) => ({ rails: arrayMap(blueRail)(r0), additionals: [] }),
+    getDrawInfo: (v) => ({ rails: arrayMap(activeRail)(r0), additionals: [] }),
     defaultState: StateSolid,
     getJoints: serialAll3,
     getStates: serialAll2,
-    getOrigin: JointBegin,
+    origin: JointBegin,
     getJointPos: (j) => {
       if (j === "JointBegin") {
         return pb;
@@ -3240,11 +3301,11 @@ var straightRail = /* @__PURE__ */ (() => {
     name: "straight",
     flipped: false,
     opposed: false,
-    getDrawInfo: (v) => ({ rails: arrayMap(blueRail)(r0), additionals: [] }),
+    getDrawInfo: (v) => ({ rails: arrayMap(activeRail)(r0), additionals: [] }),
     defaultState: StateSolid,
     getJoints: serialAll3,
     getStates: serialAll2,
-    getOrigin: JointBegin,
+    origin: JointBegin,
     getJointPos: (j) => {
       if (j === "JointBegin") {
         return pb;
@@ -3327,19 +3388,19 @@ var turnOutLPlusRail = /* @__PURE__ */ (() => {
     getDrawInfo: (v) => {
       if (v.turnout) {
         return {
-          rails: arrayBind([arrayMap(grayRail)(r0), arrayMap(blueRail)(r1)])(identity),
+          rails: arrayBind([arrayMap(passiveRail)(r0), arrayMap(activeRail)(r1)])(identity),
           additionals: []
         };
       }
       return {
-        rails: arrayBind([arrayMap(grayRail)(r1), arrayMap(blueRail)(r0)])(identity),
+        rails: arrayBind([arrayMap(passiveRail)(r1), arrayMap(activeRail)(r0)])(identity),
         additionals: []
       };
     },
     defaultState: { turnout: false },
     getJoints: serialAll4,
     getStates: serialAll1,
-    getOrigin: JointEnter,
+    origin: JointEnter,
     getJointPos: (j) => {
       if (j === "JointEnter") {
         return pe;
@@ -3571,20 +3632,20 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ (() => {
         if (v.innerturnout) {
           return {
             rails: [
-              ...arrayMap(grayRail)(rom),
-              ...arrayMap(grayRail)(rim),
-              ...arrayMap(blueRail)(ros),
-              ...arrayMap(blueRail)(ris)
+              ...arrayMap(passiveRail)(rom),
+              ...arrayMap(passiveRail)(rim),
+              ...arrayMap(activeRail)(ros),
+              ...arrayMap(activeRail)(ris)
             ],
             additionals: []
           };
         }
         return {
           rails: [
-            ...arrayMap(grayRail)(rom),
-            ...arrayMap(grayRail)(ris),
-            ...arrayMap(blueRail)(ros),
-            ...arrayMap(blueRail)(rim)
+            ...arrayMap(passiveRail)(rom),
+            ...arrayMap(passiveRail)(ris),
+            ...arrayMap(activeRail)(ros),
+            ...arrayMap(activeRail)(rim)
           ],
           additionals: []
         };
@@ -3592,20 +3653,20 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ (() => {
       if (v.innerturnout) {
         return {
           rails: [
-            ...arrayMap(grayRail)(ros),
-            ...arrayMap(grayRail)(rim),
-            ...arrayMap(blueRail)(rom),
-            ...arrayMap(blueRail)(ris)
+            ...arrayMap(passiveRail)(ros),
+            ...arrayMap(passiveRail)(rim),
+            ...arrayMap(activeRail)(rom),
+            ...arrayMap(activeRail)(ris)
           ],
           additionals: []
         };
       }
       return {
         rails: [
-          ...arrayMap(grayRail)(ros),
-          ...arrayMap(grayRail)(ris),
-          ...arrayMap(blueRail)(rom),
-          ...arrayMap(blueRail)(rim)
+          ...arrayMap(passiveRail)(ros),
+          ...arrayMap(passiveRail)(ris),
+          ...arrayMap(activeRail)(rom),
+          ...arrayMap(activeRail)(rim)
         ],
         additionals: []
       };
@@ -3613,7 +3674,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ (() => {
     defaultState: { innerturnout: false, outerturnout: false },
     getJoints: serialAll5,
     getStates: serialAll22,
-    getOrigin: JointOuterEnter,
+    origin: JointOuterEnter,
     getJointPos: (j) => {
       if (j === "JointOuterEnter") {
         return poe;
@@ -3961,11 +4022,11 @@ var outerCurveLRail = /* @__PURE__ */ (() => {
     name: "outercurve",
     flipped: false,
     opposed: false,
-    getDrawInfo: (v) => ({ rails: arrayMap(blueRail)(r0), additionals: [] }),
+    getDrawInfo: (v) => ({ rails: arrayMap(activeRail)(r0), additionals: [] }),
     defaultState: StateSolid,
     getJoints: serialAll3,
     getStates: serialAll2,
-    getOrigin: JointBegin,
+    origin: JointBegin,
     getJointPos: (j) => {
       if (j === "JointBegin") {
         return pb;
@@ -4014,10 +4075,10 @@ var scissorsRail = /* @__PURE__ */ (() => {
       if (s === "StateSP_P") {
         return {
           rails: [
-            ...arrayMap(grayRail)(ri),
-            ...arrayMap(grayRail)(ro),
-            ...arrayMap(grayRail)(rn),
-            ...arrayMap(blueRail)(rp)
+            ...arrayMap(passiveRail)(ri),
+            ...arrayMap(passiveRail)(ro),
+            ...arrayMap(passiveRail)(rn),
+            ...arrayMap(activeRail)(rp)
           ],
           additionals: []
         };
@@ -4025,10 +4086,10 @@ var scissorsRail = /* @__PURE__ */ (() => {
       if (s === "StateSP_S") {
         return {
           rails: [
-            ...arrayMap(grayRail)(rn),
-            ...arrayMap(grayRail)(rp),
-            ...arrayMap(blueRail)(ri),
-            ...arrayMap(blueRail)(ro)
+            ...arrayMap(passiveRail)(rn),
+            ...arrayMap(passiveRail)(rp),
+            ...arrayMap(activeRail)(ri),
+            ...arrayMap(activeRail)(ro)
           ],
           additionals: []
         };
@@ -4036,10 +4097,10 @@ var scissorsRail = /* @__PURE__ */ (() => {
       if (s === "StateSP_N") {
         return {
           rails: [
-            ...arrayMap(grayRail)(ri),
-            ...arrayMap(grayRail)(ro),
-            ...arrayMap(grayRail)(rp),
-            ...arrayMap(blueRail)(rn)
+            ...arrayMap(passiveRail)(ri),
+            ...arrayMap(passiveRail)(ro),
+            ...arrayMap(passiveRail)(rp),
+            ...arrayMap(activeRail)(rn)
           ],
           additionals: []
         };
@@ -4049,7 +4110,7 @@ var scissorsRail = /* @__PURE__ */ (() => {
     defaultState: StateSP_S,
     getJoints: serialAll6,
     getStates: serialAll(intSerialize4),
-    getOrigin: JointOuterBegin,
+    origin: JointOuterBegin,
     getJointPos: (j) => {
       if (j === "JointOuterBegin") {
         return pob;
@@ -4237,17 +4298,17 @@ var diamondRail = /* @__PURE__ */ (() => {
     opposed: false,
     getDrawInfo: (s) => {
       if (s === "StateDM_P") {
-        return { rails: [...arrayMap(grayRail)(rn), ...arrayMap(blueRail)(rp)], additionals: [] };
+        return { rails: [...arrayMap(passiveRail)(rn), ...arrayMap(activeRail)(rp)], additionals: [] };
       }
       if (s === "StateDM_N") {
-        return { rails: [...arrayMap(grayRail)(rp), ...arrayMap(blueRail)(rn)], additionals: [] };
+        return { rails: [...arrayMap(passiveRail)(rp), ...arrayMap(activeRail)(rn)], additionals: [] };
       }
       fail();
     },
     defaultState: StateDM_P,
     getJoints: serialAll6,
     getStates: serialAll(intSerialize5),
-    getOrigin: JointOuterBegin,
+    origin: JointOuterBegin,
     getJointPos: (j) => {
       if (j === "JointOuterBegin") {
         return pob;
@@ -4373,11 +4434,11 @@ var curveLRail = /* @__PURE__ */ (() => {
     name: "curve",
     flipped: false,
     opposed: false,
-    getDrawInfo: (v) => ({ rails: arrayMap(blueRail)(r0), additionals: [] }),
+    getDrawInfo: (v) => ({ rails: arrayMap(activeRail)(r0), additionals: [] }),
     defaultState: StateSolid,
     getJoints: serialAll3,
     getStates: serialAll2,
-    getOrigin: JointBegin,
+    origin: JointBegin,
     getJointPos: (j) => {
       if (j === "JointBegin") {
         return pb;
@@ -4426,18 +4487,18 @@ var crossoverLRail = /* @__PURE__ */ (() => {
         if (v.innerturnout) {
           return {
             rails: [
-              ...arrayMap(grayRail)(ri),
-              ...arrayMap(grayRail)(ro),
-              ...arrayMap(blueRail)(rn)
+              ...arrayMap(passiveRail)(ri),
+              ...arrayMap(passiveRail)(ro),
+              ...arrayMap(activeRail)(rn)
             ],
             additionals: []
           };
         }
         return {
           rails: [
-            ...arrayMap(grayRail)(ro),
-            ...arrayMap(blueRail)(ri),
-            ...arrayMap(blueRail)(rn)
+            ...arrayMap(passiveRail)(ro),
+            ...arrayMap(activeRail)(ri),
+            ...arrayMap(activeRail)(rn)
           ],
           additionals: []
         };
@@ -4445,18 +4506,18 @@ var crossoverLRail = /* @__PURE__ */ (() => {
       if (v.innerturnout) {
         return {
           rails: [
-            ...arrayMap(grayRail)(ri),
-            ...arrayMap(blueRail)(ro),
-            ...arrayMap(blueRail)(rn)
+            ...arrayMap(passiveRail)(ri),
+            ...arrayMap(activeRail)(ro),
+            ...arrayMap(activeRail)(rn)
           ],
           additionals: []
         };
       }
       return {
         rails: [
-          ...arrayMap(grayRail)(rn),
-          ...arrayMap(blueRail)(ri),
-          ...arrayMap(blueRail)(ro)
+          ...arrayMap(passiveRail)(rn),
+          ...arrayMap(activeRail)(ri),
+          ...arrayMap(activeRail)(ro)
         ],
         additionals: []
       };
@@ -4464,7 +4525,7 @@ var crossoverLRail = /* @__PURE__ */ (() => {
     defaultState: { innerturnout: false, outerturnout: false },
     getJoints: serialAll6,
     getStates: serialAll22,
-    getOrigin: JointOuterBegin,
+    origin: JointInnerEnd,
     getJointPos: (j) => {
       if (j === "JointOuterBegin") {
         return pob;
@@ -4653,11 +4714,11 @@ var converterRail = /* @__PURE__ */ (() => {
     name: "converter",
     flipped: false,
     opposed: false,
-    getDrawInfo: (v) => ({ rails: arrayMap(blueRail)(r0), additionals: [] }),
+    getDrawInfo: (v) => ({ rails: arrayMap(activeRail)(r0), additionals: [] }),
     defaultState: StateSolid,
     getJoints: serialAll3,
     getStates: serialAll2,
-    getOrigin: JointBegin,
+    origin: JointBegin,
     getJointPos: (j) => {
       if (j === "JointBegin") {
         return pb;
@@ -4705,18 +4766,18 @@ var doubleToWideLRail = /* @__PURE__ */ (() => {
         if (v.innerturnout) {
           return {
             rails: [
-              ...arrayMap(grayRail)(ri),
-              ...arrayMap(grayRail)(ro),
-              ...arrayMap(blueRail)(rn)
+              ...arrayMap(passiveRail)(ri),
+              ...arrayMap(passiveRail)(ro),
+              ...arrayMap(activeRail)(rn)
             ],
             additionals: []
           };
         }
         return {
           rails: [
-            ...arrayMap(grayRail)(ro),
-            ...arrayMap(blueRail)(ri),
-            ...arrayMap(blueRail)(rn)
+            ...arrayMap(passiveRail)(ro),
+            ...arrayMap(activeRail)(ri),
+            ...arrayMap(activeRail)(rn)
           ],
           additionals: []
         };
@@ -4724,18 +4785,18 @@ var doubleToWideLRail = /* @__PURE__ */ (() => {
       if (v.innerturnout) {
         return {
           rails: [
-            ...arrayMap(grayRail)(ri),
-            ...arrayMap(blueRail)(ro),
-            ...arrayMap(blueRail)(rn)
+            ...arrayMap(passiveRail)(ri),
+            ...arrayMap(activeRail)(ro),
+            ...arrayMap(activeRail)(rn)
           ],
           additionals: []
         };
       }
       return {
         rails: [
-          ...arrayMap(grayRail)(rn),
-          ...arrayMap(blueRail)(ri),
-          ...arrayMap(blueRail)(ro)
+          ...arrayMap(passiveRail)(rn),
+          ...arrayMap(activeRail)(ri),
+          ...arrayMap(activeRail)(ro)
         ],
         additionals: []
       };
@@ -4743,7 +4804,7 @@ var doubleToWideLRail = /* @__PURE__ */ (() => {
     defaultState: { innerturnout: false, outerturnout: false },
     getJoints: serialAll6,
     getStates: serialAll22,
-    getOrigin: JointOuterBegin,
+    origin: JointOuterBegin,
     getJointPos: (j) => {
       if (j === "JointOuterBegin") {
         return pob;
@@ -4932,11 +4993,11 @@ var doubleWidthSLRail = /* @__PURE__ */ (() => {
     name: "doublewidths",
     flipped: false,
     opposed: false,
-    getDrawInfo: (v) => ({ rails: arrayMap(blueRail)(r1), additionals: [] }),
+    getDrawInfo: (v) => ({ rails: arrayMap(activeRail)(r1), additionals: [] }),
     defaultState: StateSolid,
     getJoints: serialAll3,
     getStates: serialAll2,
-    getOrigin: JointBegin,
+    origin: JointBegin,
     getJointPos: (j) => {
       if (j === "JointBegin") {
         return pe;
@@ -4995,19 +5056,19 @@ var toDoubleLPlusRail = /* @__PURE__ */ (() => {
     getDrawInfo: (v) => {
       if (v.turnout) {
         return {
-          rails: arrayBind([arrayMap(grayRail)(r0), arrayMap(blueRail)(r1)])(identity),
+          rails: arrayBind([arrayMap(passiveRail)(r0), arrayMap(activeRail)(r1)])(identity),
           additionals: []
         };
       }
       return {
-        rails: arrayBind([arrayMap(grayRail)(r1), arrayMap(blueRail)(r0)])(identity),
+        rails: arrayBind([arrayMap(passiveRail)(r1), arrayMap(activeRail)(r0)])(identity),
         additionals: []
       };
     },
     defaultState: { turnout: false },
     getJoints: serialAll4,
     getStates: serialAll1,
-    getOrigin: JointEnter,
+    origin: JointEnter,
     getJointPos: (j) => {
       if (j === "JointEnter") {
         return pe;
@@ -5095,6 +5156,7 @@ var toDoubleLPlusRail = /* @__PURE__ */ (() => {
     isSimple: false
   }));
 })();
+var toDoubleRPlusRail = /* @__PURE__ */ memorizeRail(/* @__PURE__ */ flipRail_(toDoubleLPlusRail));
 var autoTurnOutLPlusRail = /* @__PURE__ */ (() => {
   const ps = {
     coord: { x: 0.5 + sqrt(0.5), y: 1 - sqrt(0.5), z: 0 },
@@ -5121,18 +5183,18 @@ var autoTurnOutLPlusRail = /* @__PURE__ */ (() => {
         if (v.turnout) {
           return {
             rails: arrayBind([
-              arrayMap((sh) => ({ color: "#33a", shape: sh }))(r0),
-              arrayMap(blueRail)(r_),
-              arrayMap(blueRail)(r1)
+              arrayMap((sh) => ({ color: ColorAuto, shape: sh }))(r0),
+              arrayMap(activeRail)(r_),
+              arrayMap(activeRail)(r1)
             ])(identity),
             additionals: []
           };
         }
         return {
           rails: arrayBind([
-            arrayMap((sh) => ({ color: "#33a", shape: sh }))(r1),
-            arrayMap(blueRail)(r_),
-            arrayMap(blueRail)(r0)
+            arrayMap((sh) => ({ color: ColorAuto, shape: sh }))(r1),
+            arrayMap(activeRail)(r_),
+            arrayMap(activeRail)(r0)
           ])(identity),
           additionals: []
         };
@@ -5140,18 +5202,18 @@ var autoTurnOutLPlusRail = /* @__PURE__ */ (() => {
       if (v.turnout) {
         return {
           rails: arrayBind([
-            arrayMap((sh) => ({ color: "#866", shape: sh }))(r0),
-            arrayMap(blueRail)(r_),
-            arrayMap(blueRail)(r1)
+            arrayMap((sh) => ({ color: ColorFixed, shape: sh }))(r0),
+            arrayMap(activeRail)(r_),
+            arrayMap(activeRail)(r1)
           ])(identity),
           additionals: []
         };
       }
       return {
         rails: arrayBind([
-          arrayMap((sh) => ({ color: "#866", shape: sh }))(r1),
-          arrayMap(blueRail)(r_),
-          arrayMap(blueRail)(r0)
+          arrayMap((sh) => ({ color: ColorFixed, shape: sh }))(r1),
+          arrayMap(activeRail)(r_),
+          arrayMap(activeRail)(r0)
         ])(identity),
         additionals: []
       };
@@ -5159,7 +5221,7 @@ var autoTurnOutLPlusRail = /* @__PURE__ */ (() => {
     defaultState: { turnout: false, auto: true },
     getJoints: serialAll4,
     getStates: serialAll(intSerialize3),
-    getOrigin: JointEnter,
+    origin: JointEnter,
     getJointPos: (j) => {
       if (j === "JointEnter") {
         return pe;
@@ -5382,7 +5444,8 @@ var encodeRailNode = (v) => ({
   invalidRoutes: v.invalidRoutes,
   reserves: v.reserves,
   pos: roundPos(v.pos),
-  note: v.note
+  note: v.note,
+  color: v.color
 });
 var encodeLayout = (v) => ({
   rails: arrayMap(encodeRailNode)(v.rails),
@@ -5405,7 +5468,8 @@ var defaultnode = {
   reserves: [],
   drawinfos: [],
   pos: { ...poszero, angle: 3.141592653589793 },
-  note: ""
+  note: "",
+  color: []
 };
 var defaultLayout = /* @__PURE__ */ (() => foldlArray((l$p) => (j) => addJoint(l$p)(straightRail.getJointPos(j))(0)(j))({
   instancecount: 1,
@@ -5688,7 +5752,8 @@ var decodeRailNode = (v) => {
           reserves: isUndefined(v.reserves) || isNull(v.reserves) ? [] : v.reserves,
           pos: v.pos,
           note: isUndefined(v.note) || isNull(v.note) ? "" : v.note,
-          drawinfos: []
+          drawinfos: [],
+          color: isUndefined(v.color) || isNull(v.color) ? [] : v.color
         };
         return { ...$1, drawinfos: instanceDrawInfos($1) };
       })()
@@ -5713,7 +5778,8 @@ var decodeRailNode_v1 = (v) => {
           reserves: isUndefined(v.reserves) || isNull(v.reserves) ? [] : v.reserves,
           pos: poszero,
           drawinfos: [],
-          note: isUndefined(v.note) || isNull(v.note) ? "" : v.note
+          note: isUndefined(v.note) || isNull(v.note) ? "" : v.note,
+          color: isUndefined(v.color) || isNull(v.color) ? [] : v.color
         };
         return { ...$1, drawinfos: instanceDrawInfos($1) };
       })()
@@ -5810,6 +5876,7 @@ var turnOutLPlusRail2 = turnOutLPlusRail;
 var tryOpenRouteFor_ffi2 = tryOpenRouteFor_ffi;
 var trainsetLength2 = trainsetLength;
 var trainsetDrawInfo2 = trainsetDrawInfo;
+var toDoubleRPlusRail2 = toDoubleRPlusRail;
 var toDoubleLPlusRail2 = toDoubleLPlusRail;
 var straightRail2 = straightRail;
 var splitSize2 = splitSize;
@@ -5820,6 +5887,7 @@ var slopeCurveLRail2 = slopeCurveLRail;
 var slipShapes2 = slipShapes;
 var shapeToData2 = shapeToData;
 var shapeLength2 = shapeLength;
+var setRailColor2 = setRailColor;
 var scissorsRail2 = scissorsRail;
 var removeSignal2 = removeSignal;
 var removeRail2 = removeRail;
@@ -5931,6 +5999,7 @@ export {
   removeRail2 as removeRail,
   removeSignal2 as removeSignal,
   scissorsRail2 as scissorsRail,
+  setRailColor2 as setRailColor,
   shapeLength2 as shapeLength,
   shapeToData2 as shapeToData,
   slipShapes2 as slipShapes,
@@ -5941,6 +6010,7 @@ export {
   splitSize2 as splitSize,
   straightRail2 as straightRail,
   toDoubleLPlusRail2 as toDoubleLPlusRail,
+  toDoubleRPlusRail2 as toDoubleRPlusRail,
   trainsetDrawInfo2 as trainsetDrawInfo,
   trainsetLength2 as trainsetLength,
   tryOpenRouteFor_ffi2 as tryOpenRouteFor_ffi,

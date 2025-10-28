@@ -1,46 +1,77 @@
 module Internal.Types.Rail where
 
-import Data.Generic.Rep
 import Data.Maybe
 import Data.Newtype
 import Data.Number
 import Internal.Types.Pos
 import Internal.Types.Serial
 import Prelude
-import Type.Proxy
 
 
 import Partial.Unsafe
-import Data.Array (reverse, any)
-import Data.Symbol (class IsSymbol)
-import Data.Traversable (scanl)
-import Record as R
-import Type.Row as R
-import Type.RowList as RL
-
 import Data.Array
-import Data.Functor
 
 
 
 
-newtype DrawRail p = 
-  DrawRail {color :: Color, shape :: RailShape p}
+newtype DrawRail p c = 
+  DrawRail {color :: c, shape :: RailShape p}
 newtype DrawAdditional p = 
   DrawAdditional {parttype :: String, pos :: p}
 
-newtype DrawInfo p = DrawInfo {rails :: Array (DrawRail p), additionals :: Array (DrawAdditional p)}
+newtype DrawInfo p c = DrawInfo {rails :: Array (DrawRail p c), additionals :: Array (DrawAdditional p)}
 
-brokenDrawInfo :: forall p. DrawInfo p
+applyColorOption :: forall p. Array ColorOption -> DrawInfo p ColorType -> DrawInfo p RealColor
+applyColorOption opts (DrawInfo de) = 
+  DrawInfo {
+    rails : (\(DrawRail {color : ct, shape : s}) -> DrawRail {color : toRealColor opts ct, shape : s}) <$> de.rails,
+    additionals : de.additionals
+  }
+
+brokenDrawInfo :: forall p c. DrawInfo p c
 brokenDrawInfo = DrawInfo {rails : [], additionals : []}
 
-type Color = String
+type RealColor = String
+data ColorType =
+    ColorActive
+  | ColorPassive
+  | ColorAuto
+  | ColorFixed
+derive instance Eq ColorType
 
-blue = "#37d"
-blueRail s = DrawRail {color : blue, shape : s}
+defaultColor :: ColorType -> RealColor
+defaultColor ct = case ct of
+  ColorActive   -> "#37d"
+  ColorPassive  -> "#668"
+  ColorAuto     -> "#33a"
+  ColorFixed    -> "#866"
 
-gray = "#668"
-grayRail s = DrawRail {color : gray, shape : s}
+instance Show ColorType where
+  show ct = case ct of
+    ColorActive   -> "active"
+    ColorPassive  -> "passive"
+    ColorAuto     -> "auto"
+    ColorFixed    -> "fixed"
+newtype ColorOption = ColorOption {
+    colortype :: String,
+    color :: RealColor
+  }
+
+derive instance Newtype ColorOption _
+
+toRealColor :: Array ColorOption -> ColorType -> RealColor
+toRealColor opts ct = 
+  let m = find (\(ColorOption o) -> o.colortype == show ct) opts
+  in case m of
+    Just (ColorOption o) -> o.color
+    Nothing -> defaultColor ct
+
+
+activeRail ∷ ∀ (p806 ∷ Type). RailShape p806 → DrawRail p806 ColorType
+activeRail s = DrawRail {color : ColorActive, shape : s}
+
+passiveRail ∷ ∀ (p259 ∷ Type). RailShape p259 → DrawRail p259 ColorType
+passiveRail s = DrawRail {color : ColorPassive, shape : s}
 
 
 newtype RailShape p =
@@ -53,6 +84,7 @@ railShape ∷ forall x. Newtype x Pos => { end ∷ x , start ∷ x } → RailSha
 railShape {start : p1, end : p2} = RailShape {start : p1, end : p2, length : partLength (unwrap p1) (unwrap p2)}
 
 
+calcMidAngle ∷ Number → Number → Number
 calcMidAngle x y =
   let r = (y `pow` 2.0 + x `pow`2.0) / (2.0*y)
   in  asin (x/r)
@@ -77,13 +109,13 @@ shapeLength (RailShape s) = partLength s.start s.end
 absShape :: Pos -> RailShape RelPos -> RailShape Pos
 absShape p (RailShape {start : s, end : e, length:l}) = RailShape {start : toAbsPos p s, end : toAbsPos p e, length:l}           
 
-absParts :: Pos -> DrawRail RelPos -> DrawRail Pos
+absParts :: forall c. Pos -> DrawRail RelPos c -> DrawRail Pos c
 absParts p (DrawRail {color : c, shape : s}) = DrawRail {color : c, shape : (absShape p s)} 
 
 absAdditional :: Pos -> DrawAdditional RelPos -> DrawAdditional Pos
 absAdditional p (DrawAdditional {parttype : t, pos : r}) = DrawAdditional {parttype : t, pos : toAbsPos p r} 
 
-absDrawInfo :: Pos -> DrawInfo RelPos -> DrawInfo Pos
+absDrawInfo :: forall c. Pos -> DrawInfo RelPos c -> DrawInfo Pos c
 absDrawInfo p (DrawInfo {rails : ps, additionals : as}) = DrawInfo {rails : absParts p <$> ps, additionals : absAdditional p <$> as}
 
 newtype RailGen joint state = RailGen {
@@ -93,10 +125,10 @@ newtype RailGen joint state = RailGen {
     defaultState :: state,
     getJoints    :: Array joint,
     getStates    :: Array state,
-    getOrigin    :: joint,
+    origin    :: joint,
     getJointPos  :: joint -> RelPos,
     getNewState  :: joint -> state -> {newjoint :: joint, newstate :: state, shape :: Array (RailShape RelPos)},
-    getDrawInfo  :: state -> (DrawInfo RelPos),
+    getDrawInfo  :: state -> (DrawInfo RelPos ColorType),
     getRoute     :: state -> joint -> joint -> Maybe state,
     isLegal      :: joint -> state -> Boolean,
     lockedBy     :: state -> state -> Array joint,
@@ -159,10 +191,10 @@ fallbackindex3 e a1 x y z =
         else e
   else e
 
-flipDrawInfo :: DrawInfo RelPos → DrawInfo RelPos
+flipDrawInfo :: forall c. DrawInfo RelPos c → DrawInfo RelPos c
 flipDrawInfo   (DrawInfo de) = DrawInfo {rails: flipDrawRail   <$> de.rails, additionals : flipAdditional   <$> de.additionals}
 
-opposeDrawInfo :: DrawInfo RelPos → DrawInfo RelPos
+opposeDrawInfo :: forall c. DrawInfo RelPos c → DrawInfo RelPos c
 opposeDrawInfo (DrawInfo de) = DrawInfo {rails: opposeDrawRail <$> de.rails, additionals : opposeAdditional <$> de.additionals}
 
 toRail:: forall joint state.
@@ -183,7 +215,7 @@ toRail_ (RailGen rgen) =
     defaultState: toSerialS (rgen.defaultState :: state),
     getJoints   : getJoints,
     getStates   : getStates,
-    getOrigin   : toSerialJ (rgen.getOrigin :: joint),
+    origin   : toSerialJ (rgen.origin :: joint),
     getJointPos: \(IntJoint j)                            -> fromMaybe (RelPos poszero)                                        $  rgen.getJointPos <$> (fromSerial j)                                       ,
     getNewState: \(IntJoint j) (IntState s)               -> fromMaybe {newjoint: IntJoint j, newstate: IntState s, shape: []} $ (rgen.getNewState <$> (fromSerial j) <*> (fromSerial s)) <#> (\ns -> {newjoint: toSerialJ ns.newjoint, newstate: toSerialS ns.newstate, shape: ns.shape})                    ,
     getDrawInfo: \(IntState s)                            -> fromMaybe brokenDrawInfo                                          $  rgen.getDrawInfo <$> (fromSerial s)                                       ,
@@ -194,7 +226,8 @@ toRail_ (RailGen rgen) =
     isSimple   : rgen.isSimple
   }
 
-newtate_fallback = {newjoint: IntJoint 0, newstate: IntState 0, shape: []}
+newstate_fallback ∷ ∀ (t255 ∷ Type). { newjoint ∷ IntJoint , newstate ∷ IntState , shape ∷ Array t255 }
+newstate_fallback = {newjoint: IntJoint 0, newstate: IntState 0, shape: []}
 memorizeRail :: Rail -> Rail
 memorizeRail (RailGen rgen) = 
   let getJoints = rgen.getJoints
@@ -213,9 +246,9 @@ memorizeRail (RailGen rgen) =
     defaultState: rgen.defaultState,
     getJoints   : getJoints,
     getStates   : getStates,
-    getOrigin   : rgen.getOrigin,
+    origin   : rgen.origin,
     getJointPos: \(IntJoint j)                            -> fallbackindex1 (RelPos poszero) getJointPos_memo j,
-    getNewState: \(IntJoint j) (IntState s)               -> fallbackindex2 newtate_fallback getNewState_memo j s,
+    getNewState: \(IntJoint j) (IntState s)               -> fallbackindex2 newstate_fallback getNewState_memo j s,
     getDrawInfo: \(IntState s)                            -> fallbackindex1 brokenDrawInfo   getDrawInfo_memo s,
     getRoute   : \(IntState s) (IntJoint f) (IntJoint t)  -> fallbackindex3 Nothing          getRoute_memo s f t,
     isLegal    : \(IntJoint j) (IntState s)               -> fallbackindex2 false            isLegal_memo   j s    ,
@@ -242,7 +275,7 @@ flipRail (RailGen rgen) =
     defaultState: rgen.defaultState,
     getJoints   : getJoints,
     getStates   : getStates,
-    getOrigin   : rgen.getOrigin,
+    origin   : rgen.origin,
     getJointPos: \(IntJoint j)   -> fromMaybe (RelPos poszero) (getJointPos_memo !! j),
 
     getNewState: \(IntJoint j) (IntState s) -> fromMaybe {newjoint: IntJoint j, newstate: IntState s, shape: []} ((getNewState_memo !! j) >>= (_ !! s)),
@@ -274,7 +307,7 @@ opposeRail (RailGen rgen) =
     defaultState: rgen.defaultState,
     getJoints   : getJoints,
     getStates   : getStates,
-    getOrigin   : rgen.getOrigin,
+    origin   : rgen.origin,
     getJointPos: \(IntJoint j)   -> fromMaybe (RelPos poszero) (getJointPos_memo !! j),
 
     getNewState: \(IntJoint j) (IntState s) -> fromMaybe {newjoint: IntJoint j, newstate: IntState s, shape: []} ((getNewState_memo !! j) >>= (_ !! s)),
@@ -296,7 +329,7 @@ fromRail :: forall joint state.
 fromRail (RailGen rail) = RailGen {
     name: rail.name,
     defaultState: fromMaybe default (fromSerial rail.defaultState),
-    getOrigin   : fromMaybe default (fromSerial rail.getOrigin),
+    origin   : fromMaybe default (fromSerial rail.origin),
     getJointPos: \j   -> (rail.getJointPos (toSerial j)),
 
     getNewState: \j s -> fromMaybe
@@ -314,15 +347,21 @@ fromRail (RailGen rail) = RailGen {
 
 
 
+flipShape ∷ RailShape RelPos → RailShape RelPos
 flipShape (RailShape {start:s, end:e, length:l}) = RailShape {start:flipRelPos s, end:flipRelPos e, length:l}
 
+flipDrawRail ∷ forall c. DrawRail RelPos c → DrawRail RelPos c
 flipDrawRail (DrawRail {color : c, shape : s}) = DrawRail {color : c, shape : flipShape s}
+flipAdditional ∷ DrawAdditional RelPos → DrawAdditional RelPos
 flipAdditional (DrawAdditional {parttype: s, pos : p}) = DrawAdditional {parttype: s, pos : flipRelPos p}
 
 
+opposeShape ∷ RailShape RelPos → RailShape RelPos
 opposeShape (RailShape {start:s, end:e, length:l}) = RailShape {start:opposeRelPos s, end:opposeRelPos e, length:l}
 
+opposeDrawRail ∷ forall c. DrawRail RelPos c → DrawRail RelPos c
 opposeDrawRail (DrawRail {color : c, shape : s}) = DrawRail {color : c, shape : opposeShape s}
+opposeAdditional ∷ DrawAdditional RelPos → DrawAdditional RelPos
 opposeAdditional (DrawAdditional {parttype: s, pos : p}) = DrawAdditional {parttype: s, pos : opposeRelPos p}
 
 flipRelCoord ∷ Coord → Coord

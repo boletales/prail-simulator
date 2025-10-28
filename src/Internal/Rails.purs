@@ -123,7 +123,7 @@ derive instance Eq JointsDoublePoint
 derive instance genericJointsDoublePoint:: Generic JointsDoublePoint _
 
 
-noAdditionals :: forall x. Array (DrawRail x) -> DrawInfo x
+noAdditionals :: forall x c. Array (DrawRail x c) -> DrawInfo x c
 noAdditionals x =  DrawInfo {rails: x, additionals: []}
 
 straightRail :: Rail
@@ -136,11 +136,11 @@ straightRail =
       ,flipped : false
       ,opposed : false
       ,getDrawInfo : \_ ->
-         noAdditionals $ blueRail <$> r0
+         noAdditionals $ activeRail <$> r0
       ,defaultState : StateSolid
       ,getJoints    : serialAll
       ,getStates    : serialAll
-      ,getOrigin    : JointBegin
+      ,origin       : JointBegin
       ,getJointPos : \j -> case j of
         JointBegin -> pb
         JointEnd   -> pe
@@ -165,11 +165,11 @@ longRail =
       ,flipped : false
       ,opposed : false
       ,getDrawInfo : \_ ->
-         noAdditionals $ blueRail <$> r0
+         noAdditionals $ activeRail <$> r0
       ,defaultState : StateSolid
       ,getJoints    : serialAll
       ,getStates    : serialAll
-      ,getOrigin    : JointBegin
+      ,origin       : JointBegin
       ,getJointPos : \j -> case j of
         JointBegin -> pb
         JointEnd   -> pe
@@ -194,11 +194,11 @@ halfRail =
       ,flipped : false
       ,opposed : false
       ,getDrawInfo : \_ ->
-         noAdditionals $ blueRail <$> r0
+         noAdditionals $ activeRail <$> r0
       ,defaultState : StateSolid
       ,getJoints    : serialAll
       ,getStates    : serialAll
-      ,getOrigin    : JointBegin
+      ,origin       : JointBegin
       ,getJointPos : \j -> case j of
         JointBegin -> pb
         JointEnd   -> pe
@@ -223,11 +223,11 @@ quarterRail =
       ,flipped : false
       ,opposed : false
       ,getDrawInfo : \_ ->
-         noAdditionals $ blueRail <$> r0
+         noAdditionals $ activeRail <$> r0
       ,defaultState : StateSolid
       ,getJoints    : serialAll
       ,getStates    : serialAll
-      ,getOrigin    : JointBegin
+      ,origin       : JointBegin
       ,getJointPos : \j -> case j of
         JointBegin -> pb
         JointEnd   -> pe
@@ -251,11 +251,11 @@ converterRail =
       ,flipped : false
       ,opposed : false
       ,getDrawInfo : \_ ->
-         noAdditionals $ blueRail <$> r0
+         noAdditionals $ activeRail <$> r0
       ,defaultState : StateSolid
       ,getJoints    : serialAll
       ,getStates    : serialAll
-      ,getOrigin    : JointBegin
+      ,origin       : JointBegin
       ,getJointPos : \j -> case j of
         JointBegin -> pb
         JointEnd   -> pe
@@ -279,11 +279,11 @@ slopeRail =
       ,flipped : false
       ,opposed : false
       ,getDrawInfo : \_ ->
-        noAdditionals $ blueRail <$> r0
+        noAdditionals $ activeRail <$> r0
       ,defaultState : StateSolid
       ,getJoints    : serialAll
       ,getStates    : serialAll
-      ,getOrigin    : JointBegin
+      ,origin       : JointBegin
       ,getJointPos : \j -> case j of
         JointBegin -> pb
         JointEnd   -> pe
@@ -308,11 +308,11 @@ curveLRail =
     ,flipped : false
     ,opposed : false
     ,getDrawInfo : \_ ->
-      noAdditionals $ blueRail <$> r0
+      noAdditionals $ activeRail <$> r0
     ,defaultState : StateSolid
     ,getJoints    : serialAll
     ,getStates    : serialAll
-    ,getOrigin    : JointBegin
+    ,origin       : JointBegin
     ,getJointPos : \j -> case j of
       JointBegin -> pb
       JointEnd   -> pe
@@ -340,11 +340,11 @@ slopeCurveLRail =
     ,flipped : false
     ,opposed : false
     ,getDrawInfo : \_ ->
-      noAdditionals $ blueRail <$> r0
+      noAdditionals $ activeRail <$> r0
     ,defaultState : StateSolid
     ,getJoints    : serialAll
     ,getStates    : serialAll
-    ,getOrigin    : JointBegin
+    ,origin       : JointBegin
     ,getJointPos : \j -> case j of
       JointBegin -> pb
       JointEnd   -> pe
@@ -372,11 +372,11 @@ outerCurveLRail =
     ,flipped : false
     ,opposed : false
     ,getDrawInfo : \_ ->
-      noAdditionals $ blueRail <$> r0
+      noAdditionals $ activeRail <$> r0
     ,defaultState : StateSolid
     ,getJoints    : serialAll
     ,getStates    : serialAll
-    ,getOrigin    : JointBegin
+    ,origin       : JointBegin
     ,getJointPos : \j -> case j of
       JointBegin -> pb
       JointEnd   -> pe
@@ -405,11 +405,11 @@ doubleWidthSLRail =
       ,flipped : false
       ,opposed : false
       ,getDrawInfo : \_ ->
-        noAdditionals $ blueRail <$> r1
+        noAdditionals $ activeRail <$> r1
       ,defaultState : StateSolid
       ,getJoints    : serialAll
       ,getStates    : serialAll
-      ,getOrigin    : JointBegin
+      ,origin       : JointBegin
       ,getJointPos : \j -> case j of
         JointBegin -> pe
         JointEnd   -> ps
@@ -450,12 +450,12 @@ turnOutLPlusRail =
       ,opposed : false
       ,getDrawInfo : \(StatePoint s) ->
         if s.turnout
-        then noAdditionals $ join [grayRail <$> r0, blueRail <$> r1]
-        else noAdditionals $ join [grayRail <$> r1, blueRail <$> r0]
+        then noAdditionals $ join [passiveRail <$> r0, activeRail <$> r1]
+        else noAdditionals $ join [passiveRail <$> r1, activeRail <$> r0]
       ,defaultState : StatePoint {turnout: false}
       ,getJoints    : serialAll
       ,getStates    : serialAll
-      ,getOrigin    : JointEnter
+      ,origin       : JointEnter
       ,getJointPos : \j -> case j of
         JointEnter -> pe
         JointMain  -> pm
@@ -516,16 +516,16 @@ autoTurnOutLPlusRail =
         if s.auto
         then
           if s.turnout
-          then noAdditionals $ join [(\sh -> DrawRail {color : "#33a", shape : sh}) <$> r0, blueRail <$> r_, blueRail <$> r1]
-          else noAdditionals $ join [(\sh -> DrawRail {color : "#33a", shape : sh}) <$> r1, blueRail <$> r_, blueRail <$> r0]
+          then noAdditionals $ join [(\sh -> DrawRail {color : ColorAuto, shape : sh}) <$> r0, activeRail <$> r_, activeRail <$> r1]
+          else noAdditionals $ join [(\sh -> DrawRail {color : ColorAuto, shape : sh}) <$> r1, activeRail <$> r_, activeRail <$> r0]
         else
           if s.turnout
-          then noAdditionals $ join [(\sh -> DrawRail {color : "#866", shape : sh}) <$> r0, blueRail <$> r_, blueRail <$> r1]
-          else noAdditionals $ join [(\sh -> DrawRail {color : "#866", shape : sh}) <$> r1, blueRail <$> r_, blueRail <$> r0]
+          then noAdditionals $ join [(\sh -> DrawRail {color : ColorFixed, shape : sh}) <$> r0, activeRail <$> r_, activeRail <$> r1]
+          else noAdditionals $ join [(\sh -> DrawRail {color : ColorFixed, shape : sh}) <$> r1, activeRail <$> r_, activeRail <$> r0]
     ,defaultState : StateAP {turnout: false, auto: true}
     ,getJoints    : serialAll
     ,getStates    : serialAll
-    ,getOrigin    : JointEnter
+    ,origin       : JointEnter
     ,getJointPos : \j -> case j of
       JointEnter -> pe
       JointMain  -> pm
@@ -599,12 +599,12 @@ toDoubleLPlusRail =
       ,opposed : false
       ,getDrawInfo : \(StatePoint s) ->
         if s.turnout
-        then noAdditionals $ join [grayRail <$> r0, blueRail <$> r1]
-        else noAdditionals $ join [grayRail <$> r1, blueRail <$> r0]
+        then noAdditionals $ join [passiveRail <$> r0, activeRail <$> r1]
+        else noAdditionals $ join [passiveRail <$> r1, activeRail <$> r0]
       ,defaultState : StatePoint {turnout: false}
       ,getJoints    : serialAll
       ,getStates    : serialAll
-      ,getOrigin    : JointEnter
+      ,origin       : JointEnter
       ,getJointPos : \j -> case j of
         JointEnter -> pe
         JointMain  -> pm
@@ -669,25 +669,25 @@ scissorsRail =
     ,getDrawInfo : \s ->
       case s of
         StateSP_P -> noAdditionals $ 
-                         (grayRail <$> ri) 
-                      <> (grayRail <$> ro)
-                      <> (grayRail <$> rn)
-                      <> (blueRail <$> rp)
+                         (passiveRail <$> ri) 
+                      <> (passiveRail <$> ro)
+                      <> (passiveRail <$> rn)
+                      <> (activeRail <$> rp)
         StateSP_S -> noAdditionals $ 
-                         (grayRail <$> rn)
-                      <> (grayRail <$> rp)
-                      <> (blueRail <$> ri) 
-                      <> (blueRail <$> ro)
+                         (passiveRail <$> rn)
+                      <> (passiveRail <$> rp)
+                      <> (activeRail <$> ri) 
+                      <> (activeRail <$> ro)
         StateSP_N -> noAdditionals $ 
-                         (grayRail <$> ri) 
-                      <> (grayRail <$> ro)
-                      <> (grayRail <$> rp)
-                      <> (blueRail <$> rn)
+                         (passiveRail <$> ri) 
+                      <> (passiveRail <$> ro)
+                      <> (passiveRail <$> rp)
+                      <> (activeRail <$> rn)
       
     ,defaultState : StateSP_S
     ,getJoints    : serialAll
     ,getStates    : serialAll
-    ,getOrigin    : JointOuterBegin
+    ,origin       : JointOuterBegin
     ,getJointPos : \j -> case j of
       JointOuterBegin -> pob
       JointOuterEnd   -> poe
@@ -780,32 +780,32 @@ doubleTurnoutLPlusRail =
       then
         if s.innerturnout
         then noAdditionals $ 
-                 (grayRail <$> rom)
-              <> (grayRail <$> rim)
-              <> (blueRail <$> ros)
-              <> (blueRail <$> ris)
+                 (passiveRail <$> rom)
+              <> (passiveRail <$> rim)
+              <> (activeRail <$> ros)
+              <> (activeRail <$> ris)
         else noAdditionals $ 
-                 (grayRail <$> rom)
-              <> (grayRail <$> ris)
-              <> (blueRail <$> ros)
-              <> (blueRail <$> rim)
+                 (passiveRail <$> rom)
+              <> (passiveRail <$> ris)
+              <> (activeRail <$> ros)
+              <> (activeRail <$> rim)
       else
         if s.innerturnout
         then noAdditionals $ 
-                 (grayRail <$> ros)
-              <> (grayRail <$> rim)
-              <> (blueRail <$> rom)
-              <> (blueRail <$> ris)
+                 (passiveRail <$> ros)
+              <> (passiveRail <$> rim)
+              <> (activeRail <$> rom)
+              <> (activeRail <$> ris)
         else noAdditionals $ 
-                 (grayRail <$> ros)
-              <> (grayRail <$> ris)
-              <> (blueRail <$> rom)
-              <> (blueRail <$> rim)
+                 (passiveRail <$> ros)
+              <> (passiveRail <$> ris)
+              <> (activeRail <$> rom)
+              <> (activeRail <$> rim)
       
     ,defaultState : StateDP {innerturnout: false, outerturnout: false}
     ,getJoints    : serialAll
     ,getStates    : serialAll
-    ,getOrigin    : JointOuterEnter
+    ,origin       : JointOuterEnter
     ,getJointPos : \j -> case j of
       JointOuterEnter -> poe
       JointOuterMain  -> pom
@@ -983,28 +983,28 @@ doubleToWideLRail =
       then
         if s.innerturnout
         then noAdditionals $ 
-                 (grayRail <$> ri)
-              <> (grayRail <$> ro)
-              <> (blueRail <$> rn)
+                 (passiveRail <$> ri)
+              <> (passiveRail <$> ro)
+              <> (activeRail <$> rn)
         else noAdditionals $ 
-                 (grayRail <$> ro)
-              <> (blueRail <$> ri)
-              <> (blueRail <$> rn)
+                 (passiveRail <$> ro)
+              <> (activeRail <$> ri)
+              <> (activeRail <$> rn)
       else
         if s.innerturnout
         then noAdditionals $ 
-                 (grayRail <$> ri)
-              <> (blueRail <$> ro)
-              <> (blueRail <$> rn)
+                 (passiveRail <$> ri)
+              <> (activeRail <$> ro)
+              <> (activeRail <$> rn)
         else noAdditionals $ 
-                 (grayRail <$> rn)
-              <> (blueRail <$> ri)
-              <> (blueRail <$> ro)
+                 (passiveRail <$> rn)
+              <> (activeRail <$> ri)
+              <> (activeRail <$> ro)
       
     ,defaultState : StateDP {innerturnout: false, outerturnout: false}
     ,getJoints    : serialAll
     ,getStates    : serialAll
-    ,getOrigin    : JointOuterBegin
+    ,origin       : JointOuterBegin
     ,getJointPos : \j -> case j of
       JointOuterBegin -> pob
       JointOuterEnd   -> poe
@@ -1106,28 +1106,28 @@ crossoverLRail =
       then
         if s.innerturnout
         then noAdditionals $ 
-                 (grayRail <$> ri)
-              <> (grayRail <$> ro)
-              <> (blueRail <$> rn)
+                 (passiveRail <$> ri)
+              <> (passiveRail <$> ro)
+              <> (activeRail <$> rn)
         else noAdditionals $ 
-                 (grayRail <$> ro)
-              <> (blueRail <$> ri)
-              <> (blueRail <$> rn)
+                 (passiveRail <$> ro)
+              <> (activeRail <$> ri)
+              <> (activeRail <$> rn)
       else
         if s.innerturnout
         then noAdditionals $ 
-                 (grayRail <$> ri)
-              <> (blueRail <$> ro)
-              <> (blueRail <$> rn)
+                 (passiveRail <$> ri)
+              <> (activeRail <$> ro)
+              <> (activeRail <$> rn)
         else noAdditionals $ 
-                 (grayRail <$> rn)
-              <> (blueRail <$> ri)
-              <> (blueRail <$> ro)
+                 (passiveRail <$> rn)
+              <> (activeRail <$> ri)
+              <> (activeRail <$> ro)
       
     ,defaultState : StateDP {innerturnout: false, outerturnout: false}
     ,getJoints    : serialAll
     ,getStates    : serialAll
-    ,getOrigin    : JointOuterBegin
+    ,origin       : JointInnerEnd
     ,getJointPos : \j -> case j of
       JointOuterBegin -> pob
       JointOuterEnd   -> poe
@@ -1225,16 +1225,16 @@ diamondRail =
     ,getDrawInfo : \s ->
       case s of
         StateDM_P -> noAdditionals $ 
-                         (grayRail <$> rn)
-                      <> (blueRail <$> rp)
+                         (passiveRail <$> rn)
+                      <> (activeRail <$> rp)
         StateDM_N -> noAdditionals $ 
-                         (grayRail <$> rp)
-                      <> (blueRail <$> rn)
+                         (passiveRail <$> rp)
+                      <> (activeRail <$> rn)
       
     ,defaultState : StateDM_P
     ,getJoints    : serialAll
     ,getStates    : serialAll
-    ,getOrigin    : JointOuterBegin
+    ,origin       : JointOuterBegin
     ,getJointPos : \j -> case j of
       JointOuterBegin -> pob
       JointOuterEnd   -> poe
@@ -1295,11 +1295,11 @@ halfSlopeRail =
       ,flipped : false
       ,opposed : false
       ,getDrawInfo : \_ ->
-        noAdditionals $ blueRail <$> r0
+        noAdditionals $ activeRail <$> r0
       ,defaultState : StateSolid
       ,getJoints    : serialAll
       ,getStates    : serialAll
-      ,getOrigin    : JointBegin
+      ,origin       : JointBegin
       ,getJointPos : \j -> case j of
         JointBegin -> pb
         JointEnd   -> pe
@@ -1324,11 +1324,11 @@ quarterSlopeRail =
       ,flipped : false
       ,opposed : false
       ,getDrawInfo : \_ ->
-        noAdditionals $ blueRail <$> r0
+        noAdditionals $ activeRail <$> r0
       ,defaultState : StateSolid
       ,getJoints    : serialAll
       ,getStates    : serialAll
-      ,getOrigin    : JointBegin
+      ,origin       : JointBegin
       ,getJointPos : \j -> case j of
         JointBegin -> pb
         JointEnd   -> pe

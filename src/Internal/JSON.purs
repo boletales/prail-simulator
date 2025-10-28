@@ -33,7 +33,7 @@ import Data.String.Regex.Unsafe (unsafeRegex) as Re
 import Data.String.Utils as St
 import Foreign (Foreign, ForeignError, isArray, isNull, isUndefined, readNumber, unsafeFromForeign, unsafeToForeign)
 import Internal.Layout (FloorData(..), IntNode(..), IntReserve, InvalidRoute, Layout(..), RailNode, RailNode_(..), RouteQueueElement, Signal(..), SignalRule(..), TrainRoute, TrainRoute_(..), Trainset, Trainset_(..), addJoint, getJointAbsPos, recalcInstanceDrawInfo, removeRail, saEmpty, signalRulePhase_unfired, updateSignalRoutes)
-import Internal.Types (Coord(..), IntJoint, IntState(..), Pos(..), Rail, RailGen(..), RailShape(..), flipRail, fromRadian, opposeRail, poszero, reverseAngle, reversePos, toRadian)
+import Internal.Types (Coord(..), IntJoint, IntState(..), Pos(..), Rail, RailGen(..), RailShape(..), flipRail, fromRadian, opposeRail, poszero, reverseAngle, reversePos, toRadian, ColorOption)
 import Prelude as Prelude
 
 
@@ -56,7 +56,8 @@ defaultnode = RailNode {
             reserves : [],
             drawinfos : [],
             pos : reversePos poszero,
-            note: ""
+            note: "",
+            color: []
           }
 
 defaultLayout ∷ Layout
@@ -114,7 +115,7 @@ rails = [
 type EncodedSignalRule = String
 type EncodedSignal = { signalname :: String, nodeid :: IntNode, jointid :: IntJoint, manualStop :: Boolean, restraint :: Boolean, rules :: Array EncodedSignalRule}
 type EncodedRail = {name :: String, flipped :: Boolean, opposed :: Boolean}
-type EncodedRailNode = {nodeid :: IntNode, instanceid :: Int, rail :: EncodedRail, state :: IntState, signals :: Array EncodedSignal, invalidRoutes :: Array (InvalidRoute), connections :: Array ({from :: IntJoint, nodeid :: IntNode, jointid :: IntJoint}), reserves :: Array ({reserveid :: IntReserve, jointid :: IntJoint}), pos  :: Pos, note :: String}
+type EncodedRailNode = {nodeid :: IntNode, instanceid :: Int, rail :: EncodedRail, state :: IntState, signals :: Array EncodedSignal, invalidRoutes :: Array (InvalidRoute), connections :: Array ({from :: IntJoint, nodeid :: IntNode, jointid :: IntJoint}), reserves :: Array ({reserveid :: IntReserve, jointid :: IntJoint}), pos  :: Pos, note :: String, color :: Array ColorOption}
 type EncodedLayout = {floor :: FloorData , rails :: Array EncodedRailNode, trains :: Array EncodedTrainset, time :: Number, speed :: Number, version :: Int, routequeue :: Array RouteQueueElement, activeReserves :: Array {reserveid :: IntReserve, reserver :: Int}}
 type EncodedTrainset = Trainset_ Int
 type EncodedRoute = TrainRoute_ Int
@@ -148,6 +149,7 @@ encodeRailNode (RailNode {
     , reserves
     , pos
     , note
+    , color
   }) = {
       nodeid
     , instanceid
@@ -159,6 +161,7 @@ encodeRailNode (RailNode {
     , reserves
     , pos: roundPos pos
     , note
+    , color
   }
 
 encodeTrainset :: Trainset -> EncodedTrainset
@@ -276,6 +279,7 @@ decodeRailNode ({
     , reserves
     , pos
     , note
+    , color
   }) = recalcInstanceDrawInfo <$> RailNode <$> {
       nodeid
     , instanceid
@@ -288,6 +292,7 @@ decodeRailNode ({
     , pos: pos
     , note: ifUndefinedDefault "" note
     , drawinfos: []
+    , color: ifUndefinedDefault [] color
   } <$> decodeRail rail
 
 decodeRailNode_v1 :: RailNode_ EncodedRail -> Maybe RailNode
@@ -301,6 +306,7 @@ decodeRailNode_v1 (RailNode {
     , invalidRoutes
     , reserves
     , note
+    , color
   }) = recalcInstanceDrawInfo <$> RailNode <$> {
       nodeid
     , instanceid
@@ -313,6 +319,7 @@ decodeRailNode_v1 (RailNode {
     , pos: poszero
     , drawinfos: []
     , note: ifUndefinedDefault "" note
+    , color: ifUndefinedDefault [] color
   } <$> decodeRail rail
 
 decodeRailInstance :: RailInstance_ EncodedRail -> Maybe RailNode

@@ -13,6 +13,7 @@ class Layout {
     this.from = 0;
     this.savetimer = 0;
     this.savecooldown = 2000;
+    this.copiedColor = [];
     this.keycontrols = {
       control : {
         name: "操作",
@@ -58,6 +59,25 @@ class Layout {
             , text_ja: "左の接合点を選択"
             , softkey: "←"
             , key    : ["ArrowLeft"]
+          },
+          copyColor: {
+              onkey: ()=>{this.copyColor()}
+            , text_ja: "レールの色設定をコピー"
+            , softkey: "~"
+            , key    : ["~"]
+          },
+          pasteColor: {
+              onkey: ()=>{this.pasteColor()}
+            , text_ja: "レールの色設定を貼り付け"
+            , softkey: "^"
+            , key    : ["^"]
+          },
+          setRailColor: {
+              onkey: (data)=>{this.setRailColor(data.color)}
+            , text_ja: "レールの色設定を変更"
+            , softkey: "extra_setrailcolor"
+            , key    : ["extra_setrailcolor"]
+            , skip   : true
           },
           spotRail: {
               onkey: ()=>this.focusJoint()
@@ -237,7 +257,7 @@ class Layout {
             , softkey: "extra_setsignaltag"
             , key    : ["extra_setsignaltag"]
             , skip   : true
-          },
+          }
         },
       },
       basic : {
@@ -556,8 +576,8 @@ class Layout {
     }
   }
   
-  addRail(rail, _f = 0){
-    this.from = _f;
+  addRail(rail, _f){
+    this.from = _f === undefined ? rail.origin : _f;
     this.layout = P.autoAdd(this.layout)(this.selectedJoint.nodeid)(this.selectedJoint.jointid)(rail)(this.from);
     this.selectNewestRail(this.layout);
     this.selectedJoint.jointid = (this.from+1) % this.layout.rails[this.selectedJoint.nodeid].rail.getJoints.length;
@@ -599,6 +619,7 @@ class Layout {
     }
   }
   
+
   flipRail(){
     if(this.layout.rails.length>1){
       let r = this.layout.rails[this.selectedJoint.nodeid];
@@ -668,6 +689,31 @@ class Layout {
     this.layout.trains.forEach(e => e.respectSignals = this.respectSignals);
   }
   
+  copyColor(){
+    if(this.layout.rails[this.selectedJoint.nodeid] !== undefined){
+      this.copiedColor = Object.assign([], this.layout.rails[this.selectedJoint.nodeid].color);
+    }
+  }
+  pasteColor(){
+    if(this.layout.rails[this.selectedJoint.nodeid] !== undefined){
+      this.layout = P.setRailColor(this.layout)(this.selectedJoint.nodeid)(this.copiedColor);
+      this.requestSave();
+    }
+  }
+  setRailColor(color){
+    if(this.layout.rails[this.selectedJoint.nodeid] !== undefined){
+      let coloroption = [];
+      if (color !== "") {
+        coloroption = [{
+          "colortype": "active",
+          "color": color
+        }];
+      }
+      this.layout = P.setRailColor(this.layout)(this.selectedJoint.nodeid)(coloroption);
+      this.requestSave();
+    }
+  }
+
   addTrain(){
     if(this.layout.rails[this.selectedJoint.nodeid] !== undefined){
       this.layout = P.addTrainset(this.layout)(this.selectedJoint.nodeid)(this.selectedJoint.jointid)([{type:"313_Mc", flipped:false}, {type:"313_T", flipped:false}, {type:"312_Tc", flipped:false}]);
@@ -760,7 +806,7 @@ class Layout {
   requestSave(){
     let time = new Date().getTime();
     this.savetimer = time;
-    setTimeout(this.trySave, this.savecooldown + 500);
+    setTimeout((() => this.trySave()), this.savecooldown + 500);
   }
   trySave(){
     let time = new Date().getTime();

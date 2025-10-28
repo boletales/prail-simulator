@@ -23,7 +23,8 @@ import Internal.Types.Rail   (
       class Default
     , RailGen (..)
     , Rail
-    , Color
+    , ColorType (..)
+    , ColorOption
     , RailShape (..)
     , DrawAdditional (..)
     , DrawRail (..)
@@ -32,10 +33,8 @@ import Internal.Types.Rail   (
     , flipRail
     , opposeRail
     , toRail
-    , blue
-    , gray
-    , blueRail
-    , grayRail
+    , activeRail
+    , passiveRail
     , absParts
     , absShape
     , absDrawInfo

@@ -54,6 +54,7 @@ module Main
   , removeRail
   , removeSignal
   , scissorsRail
+  , setRailColor
   , shapeLength
   , shapeToData
   , slipShapes
@@ -114,6 +115,7 @@ layoutUpdate_NoManualStop = Ex.layoutUpdate_NoManualStop
 removeRail                = Ex.removeRail                
 removeSignal              = Ex.removeSignal              
 speedScale                = Ex.speedScale                
+setRailColor              = Ex.setRailColor
 trainsetDrawInfo          = Ex.trainsetDrawInfo          
 trainsetLength            = Ex.trainsetLength            
 tryOpenRouteFor_ffi       = Ex.tryOpenRouteFor_ffi       

@@ -81,6 +81,9 @@ derive instance Newtype RelPos _
 reversePos :: Pos -> Pos
 reversePos (Pos p) = Pos $ p {angle = reverseAngle p.angle}
 
+reverseRelPos :: RelPos -> RelPos
+reverseRelPos (RelPos x) = RelPos $ reversePos x
+
 toAbsPos :: Pos -> RelPos -> Pos
 toAbsPos (Pos {coord: Coord c1, angle: a1, isPlus:_}) (RelPos (Pos {coord: Coord c2, angle: a2, isPlus:p2})) = Pos {
       coord: Coord {
@@ -100,7 +103,7 @@ convertRelPos (RelPos (Pos {coord: Coord c1, angle: a1, isPlus:p1})) (RelPos (Po
           , z:c2.z - c1.z
         }
     , angle: over2 Angle sub a2 (reverseAngle a1)
-    , isPlus: p1
+    , isPlus: p1 == p2
   }
 
 

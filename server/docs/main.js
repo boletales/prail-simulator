@@ -1712,7 +1712,7 @@ var movefoward = (movefoward$a0$copy) => (movefoward$a1$copy) => (movefoward$a2$
           continue;
         }
         if ($4.tag === "Nothing") {
-          if ($1.distanceToNext === 0) {
+          if ($1.distanceToNext <= 0) {
             movefoward$c = false;
             movefoward$r = { newlayout: v, newtrainset: v1 };
             continue;
@@ -1725,7 +1725,7 @@ var movefoward = (movefoward$a0$copy) => (movefoward$a1$copy) => (movefoward$a2$
         fail();
       }
       if ($3.tag === "Nothing") {
-        if ($1.distanceToNext === 0) {
+        if ($1.distanceToNext <= 0) {
           movefoward$c = false;
           movefoward$r = { newlayout: v, newtrainset: v1 };
           continue;
@@ -1738,7 +1738,7 @@ var movefoward = (movefoward$a0$copy) => (movefoward$a1$copy) => (movefoward$a2$
       fail();
     }
     if ($2.tag === "Nothing") {
-      if ($1.distanceToNext === 0) {
+      if ($1.distanceToNext <= 0) {
         movefoward$c = false;
         movefoward$r = { newlayout: v, newtrainset: v1 };
         continue;

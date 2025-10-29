@@ -825,7 +825,7 @@ movefoward (Layout layout) (Trainset t0) dt =
               ) of
             Just x -> x
             Nothing -> 
-              if t2.distanceToNext == 0.0 then {newlayout : Layout layout, newtrainset : Trainset t0} else movefoward (Layout layout) (Trainset t0) (t0.distanceToNext / t0.speed * 0.9)
+              if t2.distanceToNext <= 0.0 then {newlayout : Layout layout, newtrainset : Trainset t0} else movefoward (Layout layout) (Trainset t0) (t0.distanceToNext / t0.speed * 0.9)
 
 getNextSignal :: Layout -> Trainset -> {signal :: Maybe Signal, sections :: Int, distance :: Number}
 getNextSignal (Layout layout) (Trainset trainset) =

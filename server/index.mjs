@@ -41,7 +41,7 @@ class OnlineControler {
   startLoop(){
     this.loop = setInterval(()=>{
       this.L.tick(4.0);
-
+ 
       this.count++;
       if(this.count >= this.COUNTMAX){
         this.sync();

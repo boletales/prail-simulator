@@ -30,6 +30,8 @@ class OnlineControler {
 
     this.L.refreshKeybinds();
 
+    this.L.save = () => {};
+
     this.count = 0;
     this.COUNTMAX = 120/4;
 

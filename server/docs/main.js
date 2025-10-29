@@ -2033,21 +2033,21 @@ var updateSignalIndication = (changeManualStop) => (v) => {
   };
 };
 var layoutUpdate = (x) => updateSignalIndication(true)(updateReserves(updateTraffic(x)));
-var tryOpenRouteFor = (v) => (nodeid) => (jointid) => (routeid) => (reserver) => {
-  const $0 = nodeid >= 0 && nodeid < v.rails.length ? $Maybe("Just", v.rails[nodeid]) : Nothing;
+var tryOpenRouteFor = (v) => (nodeidHere) => (jointidHere) => (routeid) => (reserver) => {
+  const $0 = nodeidHere >= 0 && nodeidHere < v.rails.length ? $Maybe("Just", v.rails[nodeidHere]) : Nothing;
   if ($0.tag === "Just") {
-    const $1 = find((v2) => v2.jointid === jointid)($0._1.signals);
+    const $1 = find((v2) => v2.jointid === jointidHere)($0._1.signals);
     if ($1.tag === "Just") {
       const $2 = routeid >= 0 && routeid < $1._1.routes.length ? $Maybe("Just", $1._1.routes[routeid]) : Nothing;
       if ($2.tag === "Just") {
-        const reserveid = v.updatecount + 1 | 0;
+        const reserveidHere = v.updatecount + 1 | 0;
         const programmedroute = reserver !== -1;
         const go = (go$a0$copy) => (go$a1$copy) => {
           let go$a0 = go$a0$copy, go$a1 = go$a1$copy, go$c = true, go$r;
           while (go$c) {
             const v4 = go$a0, rs = go$a1;
-            if (nodeid >= 0 && nodeid < v.rails.length) {
-              const v5 = find((v7) => v7.jointid === jointid)(v.rails[nodeid].signals);
+            if (v4.nodeid >= 0 && v4.nodeid < v.rails.length) {
+              const v5 = find((v7) => v7.jointid === v4.jointid)(v.rails[v4.nodeid].signals);
               if (v5.tag === "Nothing") {
                 go$c = false;
                 go$r = rs;
@@ -2082,7 +2082,7 @@ var tryOpenRouteFor = (v) => (nodeid) => (jointid) => (routeid) => (reserver) =>
           const $32 = v4.newrails;
           const $4 = v4.traffic;
           return (v5) => {
-            const $5 = nodeid >= 0 && nodeid < v.rails.length ? $Maybe("Just", v.rails[nodeid]) : Nothing;
+            const $5 = v5.nodeid >= 0 && v5.nodeid < v.rails.length ? $Maybe("Just", v.rails[v5.nodeid]) : Nothing;
             if ($5.tag === "Just") {
               const traffic$p = $4 || hasTraffic(v)($5._1);
               const $6 = $5._1.rail.getRoute($5._1.state)(v5.jointenter)(v5.jointexit);
@@ -2090,16 +2090,16 @@ var tryOpenRouteFor = (v) => (nodeid) => (jointid) => (routeid) => (reserver) =>
                 const $7 = _updateAt(
                   Just,
                   Nothing,
-                  nodeid,
-                  { ...$5._1, state: $6._1, reserves: [...$5._1.reserves, { jointid: v5.jointenter, reserveid }] },
+                  v5.nodeid,
+                  { ...$5._1, state: $6._1, reserves: [...$5._1.reserves, { jointid: v5.jointenter, reserveid: reserveidHere }] },
                   $32
                 );
                 if ($7.tag === "Just") {
                   if ($6._1 !== $5._1.state && traffic$p || programmedroute && ($1._1.restraint || anyImpl(
-                    (v7) => v5.jointenter !== jointid && ($5._1.rail.isBlocked(v5.jointenter)($5._1.state)(jointid) || $5._1.rail.isBlocked(v5.jointenter)($6._1)(jointid)) && anyImpl(
-                      (a) => a.reserveid === reserveid,
-                      v.activeReserves
-                    ),
+                    (v7) => {
+                      const $8 = v7.reserveid;
+                      return v5.jointenter !== v7.jointid && ($5._1.rail.isBlocked(v5.jointenter)($5._1.state)(v7.jointid) || $5._1.rail.isBlocked(v5.jointenter)($6._1)(v7.jointid)) && anyImpl((a) => a.reserveid === $8, v.activeReserves);
+                    },
                     $5._1.reserves
                   ))) {
                     return Nothing;
@@ -2124,11 +2124,11 @@ var tryOpenRouteFor = (v) => (nodeid) => (jointid) => (routeid) => (reserver) =>
         })({
           traffic: false,
           newrails: programmedroute ? v.rails : arrayMap((v4) => {
-            if (v4.nodeid === nodeid) {
+            if (v4.nodeid === nodeidHere) {
               return {
                 ...v4,
                 signals: arrayMap((v6) => {
-                  if (v6.jointid === jointid) {
+                  if (v6.jointid === jointidHere) {
                     return { ...v6, manualStop: true };
                   }
                   return v6;
@@ -2144,9 +2144,9 @@ var tryOpenRouteFor = (v) => (nodeid) => (jointid) => (routeid) => (reserver) =>
             {
               layout: (() => {
                 const $4 = updateSignalIndication(true)(updateReserves(updateTraffic({ ...v, rails: $3._1.newrails, updatecount: v.updatecount + 1 | 0 })));
-                return { ...$4, activeReserves: [{ reserveid, reserver }, ...$4.activeReserves] };
+                return { ...$4, activeReserves: [{ reserveid: reserveidHere, reserver }, ...$4.activeReserves] };
               })(),
-              reserveid
+              reserveid: reserveidHere
             }
           );
         }

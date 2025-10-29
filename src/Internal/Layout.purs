@@ -1238,37 +1238,36 @@ setManualStop (Layout layout) nodeid jointid stop = fromMaybe (Layout layout) do
 
 -- reserveは無効化した
 tryOpenRouteFor :: Layout -> IntNode -> IntJoint -> Int -> Int -> Maybe {layout :: Layout, reserveid :: IntReserve}
-tryOpenRouteFor (Layout layout) nodeid jointid routeid reserver = do
-  (RailNode ri) <- getRailNode (Layout layout) nodeid
-  (Signal s) <- find (\(Signal s) -> s.jointid == jointid) ri.signals
-  (SignalRoute r) <- s.routes !! routeid
-  let reserveid = IntReserve $ layout.updatecount + 1
+tryOpenRouteFor (Layout layout) nodeidHere jointidHere routeid reserver = do
+  (RailNode riHere) <- getRailNode (Layout layout) nodeidHere
+  (Signal sigHere) <- find (\(Signal s) -> s.jointid == jointidHere) riHere.signals
+  (SignalRoute routeHere) <- sigHere.routes !! routeid
+  let reserveidHere = IntReserve $ layout.updatecount + 1
   let programmedroute = reserver /= -1
 
-  let go {nodeid:_, jointid:_} rs = -- 開通させる進路の先、シンプルな信号機がつづくかぎりたどる
-        case getRailNode (Layout layout) nodeid >>= (\(RailNode ri') -> find (\(Signal s') -> s'.jointid == jointid) ri'.signals) of
+  let go {nodeid, jointid} rs = -- 開通させる進路の先、シンプルな信号機がつづくかぎりたどる
+        case getRailNode (Layout layout) nodeid >>= (\(RailNode ri) -> find (\(Signal s) -> s.jointid == jointid) ri.signals) of
           Nothing -> rs
-          Just (Signal s') -> 
-            case uncons s'.routes of
+          Just (Signal s) -> 
+            case uncons s.routes of
               Nothing -> rs
               Just {head: (SignalRoute x), tail: xs} ->
                 if length xs > 0 || not x.isSimple
                 then rs
                 else go (x.nextsignal) (rs <> x.rails)
-  let target = go r.nextsignal r.rails -- 操作した信号機から次のシンプルでない信号機までの進路
+  let target = go routeHere.nextsignal routeHere.rails -- 操作した信号機から次のシンプルでない信号機までの進路
 
-  {traffic:_, newrails} <- foldM (\{traffic, newrails} {nodeid:_, jointenter, jointexit} -> do
-    (RailNode ri') <- getRailNode (Layout layout) nodeid
-    let traffic' = traffic || hasTraffic (Layout layout) (RailNode ri')
-    newstate <- (unwrap ri'.rail).getRoute ri'.state jointenter jointexit
-    newrails' <- updateAt (unwrap nodeid) (RailNode $ ri' {state = newstate, reserves = ri'.reserves <> [{jointid : jointenter, reserveid}]}) newrails
-    if (newstate /= ri'.state && traffic') || programmedroute && (s.restraint || any (\{jointid:_, reserveid:_} -> jointenter /= jointid && ((unwrap ri'.rail).isBlocked jointenter ri'.state jointid || (unwrap ri'.rail).isBlocked jointenter newstate jointid) && any (\a -> a.reserveid == reserveid) layout.activeReserves) ri'.reserves)
+  {traffic:_, newrails} <- foldM (\{traffic, newrails} {nodeid, jointenter, jointexit} -> do
+    (RailNode ri) <- getRailNode (Layout layout) nodeid
+    let traffic' = traffic || hasTraffic (Layout layout) (RailNode ri)
+    newstate <- (unwrap ri.rail).getRoute ri.state jointenter jointexit
+    newrails' <- updateAt (unwrap nodeid) (RailNode $ ri {state = newstate, reserves = ri.reserves <> [{jointid : jointenter, reserveid: reserveidHere}]}) newrails
+    if (newstate /= ri.state && traffic') || programmedroute && (sigHere.restraint || any (\{jointid, reserveid} -> jointenter /= jointid && ((unwrap ri.rail).isBlocked jointenter ri.state jointid || (unwrap ri.rail).isBlocked jointenter newstate jointid) && any (\a -> a.reserveid == reserveid) layout.activeReserves) ri.reserves)
     then Nothing
     else Just {traffic: traffic', newrails: newrails'}
-  ) {traffic: false, newrails: if programmedroute then layout.rails else map (\(RailNode r') -> if r'.nodeid == nodeid then RailNode $ r' {signals = map (\(Signal s') -> if s'.jointid == jointid then Signal $ s' {manualStop = true} else (Signal s')) r'.signals} else (RailNode r')) layout.rails } target
+  ) {traffic: false, newrails: if programmedroute then layout.rails else map (\(RailNode r) -> if r.nodeid == nodeidHere then RailNode $ r {signals = map (\(Signal s) -> if s.jointid == jointidHere then Signal $ s {manualStop = true} else (Signal s)) r.signals} else (RailNode r)) layout.rails } target
 
-
-  pure $ {layout: (forceUpdate >>> layoutUpdate >>> newreserve reserver reserveid) (Layout $ layout {rails = newrails}), reserveid}
+  pure $ {layout: (forceUpdate >>> layoutUpdate >>> newreserve reserver reserveidHere) (Layout $ layout {rails = newrails}), reserveid: reserveidHere}
 
 tryOpenRouteFor_ffi ∷ Layout → IntNode → IntJoint → Int → { layout ∷ Layout , result ∷ Boolean }
 tryOpenRouteFor_ffi (Layout layout) nodeid jointid routeid = maybe {layout : (Layout layout), result: false} (\l -> {layout: l.layout, result:true}) (tryOpenRouteFor (Layout layout) nodeid jointid routeid (-1))

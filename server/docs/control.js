@@ -182,77 +182,77 @@ class Layout {
             , skip   : true
           },
           editTrainNote: {
-              onkey: (data)=>{this.editTrainNote(data.note); return data;}
+              onkey: (data)=>{this.editTrainNote(data.note); }
             , text_ja: "列車注釈"
             , softkey: "extra_edittrainote"
             , key    : ["extra_edittrainote"]
             , skip   : true
           },
           editRailNote: {
-              onkey: (data)=>{this.editRailNote(data.note); return data;}
+              onkey: (data)=>{this.editRailNote(data.note); }
             , text_ja: "線路注釈"
             , softkey: "extra_editrailnote"
             , key    : ["extra_editrailnote"]
             , skip   : true
           },
           removeTrainS: {
-              onkey: (data)=>{ this.layout.trains = L.layout.trains.filter(t => t.trainid != data.trainid); return data;}
+              onkey: (data)=>{ this.layout.trains = L.layout.trains.filter(t => t.trainid != data.trainid); }
             , text_ja: "選択列車削除"
             , softkey: "extra_removetrain"
             , key    : ["extra_removetrain"]
             , skip   : true
           },
           flipTrainS: {
-              onkey: (data)=>{ this.layout.trains = this.layout.trains.map(c => {if(c.trainid == data.trainid && c.speed < 0.01){return P.flipTrain(c)}else{return c;}}); return data;}
+              onkey: (data)=>{ this.layout.trains = this.layout.trains.map(c => {if(c.trainid == data.trainid && c.speed < 0.01){return P.flipTrain(c)}else{return c;}}); }
             , text_ja: "選択列車反転"
             , softkey: "extra_reverse"
             , key    : ["extra_reverse", "l"]
             , skip   : true
           },
           setNotchS: {
-              onkey: (data)=>{ this.layout.trains.forEach(c => {if(c.trainid == data.trainid){c.notch = data.notch}}); return data;}
+              onkey: (data)=>{ this.layout.trains.forEach(c => {if(c.trainid == data.trainid){c.notch = data.notch}}); }
             , text_ja: "ノッチ変更"
             , softkey: "extra_setnotch"
             , key    : ["extra_setnotch"]
             , skip   : true
           },
           editTrainNoteS: {
-              onkey: (data)=>{this.layout.trains.forEach(c => {if(c.trainid == data.trainid){c.note = data.note}});; return data;}
+              onkey: (data)=>{this.layout.trains.forEach(c => {if(c.trainid == data.trainid){c.note = data.note}});; }
             , text_ja: "選択列車注釈"
             , softkey: "extra_edittrainoteS"
             , key    : ["extra_edittrainoteS"]
             , skip   : true
           },
           notchPlus: {
-              onkey: (data)=>{ this.layout.trains.forEach(c => {if(c.trainid == data.trainid){c.notch = Math.min(5, c.notch+1)}});; return data;}
+              onkey: (data)=>{ this.layout.trains.forEach(c => {if(c.trainid == data.trainid){c.notch = Math.min(5, c.notch+1)}});; }
             , text_ja: "ノッチ上げ"
             , softkey: "j"
             , key    : ["extra_notchplus", "j"]
             , skip   : true
           },
           notchMinus: {
-              onkey: (data)=>{ this.layout.trains.forEach(c => {if(c.trainid == data.trainid){c.notch = Math.max(-8, c.notch-1)}});; return data;}
+              onkey: (data)=>{ this.layout.trains.forEach(c => {if(c.trainid == data.trainid){c.notch = Math.max(-8, c.notch-1)}});; }
             , text_ja: "ノッチ下げ"
             , softkey: "k"
             , key    : ["extra_notchminus", "k"]
             , skip   : true
           },
           setTrainTagsS: {
-              onkey: (data)=>{ this.layout.trains.forEach(c => {if(c.trainid == data.trainid){c.tags = data.tags.split("\n")}});; return data;}
+              onkey: (data)=>{ this.layout.trains.forEach(c => {if(c.trainid == data.trainid){c.tags = data.tags.split("\n")}});; }
             , text_ja: "列車タグ設定"
             , softkey: "extra_settraintag"
             , key    : ["extra_settraintag"]
             , skip   : true
           },
           resetSignalRulePhaseS: {
-              onkey: (data)=>{ this.layout.trains.forEach(c => {if(c.trainid == data.trainid){c.signalRulePhase = 0}});; return data;}
+              onkey: (data)=>{ this.layout.trains.forEach(c => {if(c.trainid == data.trainid){c.signalRulePhase = 0}});; }
             , text_ja: "信号ルール再適用"
             , softkey: "extra_resetsignalrulephase"
             , key    : ["extra_resetsignalrulephase"]
             , skip   : true
           },
           setSignalRules: {
-              onkey: (data)=>{ this.setSignalRules(data.rules); return data;}
+              onkey: (data)=>{ this.setSignalRules(data.rules); }
             , text_ja: "信号タグ設定"
             , softkey: "extra_setsignaltag"
             , key    : ["extra_setsignaltag"]
@@ -799,7 +799,8 @@ class Layout {
     Object.assign(selectedJoint, this.selectedJoint);
     console.log(e, data);
     if(this.keybinds[e.key] !== undefined){
-      this.syncwithdata(e.key, this.keybinds[e.key](data), selectedJoint, selectedTrain);
+      this.keybinds[e.key](data);
+      this.syncwithdata(e.key, data, selectedJoint, selectedTrain);
     }
   }
   

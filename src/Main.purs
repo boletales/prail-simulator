@@ -12,6 +12,8 @@ module Main
   , converterRail
   , crossoverLRail
   , crossoverRRail
+  , crossoverTripleLRail
+  , crossoverTripleRRail
   , curveLRail
   , curveRRail
   , decodeLayout
@@ -77,6 +79,7 @@ module Main
 import Data.Maybe as Ex
 import Internal.JSON as Ex
 import Internal.Layout as Ex
+import Internal.Rails (crossoverTripleLRail)
 import Internal.Rails as Ex
 import Internal.Types as Ex
 
@@ -126,6 +129,8 @@ autoTurnOutRPlusRail      = Ex.autoTurnOutRPlusRail
 converterRail             = Ex.converterRail             
 crossoverLRail            = Ex.crossoverLRail            
 crossoverRRail            = Ex.crossoverRRail            
+crossoverTripleLRail      = Ex.crossoverTripleLRail
+crossoverTripleRRail      = Ex.crossoverTripleRRail
 curveLRail                = Ex.curveLRail                
 curveRRail                = Ex.curveRRail                
 diamondRail               = Ex.diamondRail               

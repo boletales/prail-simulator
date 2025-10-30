@@ -187,12 +187,14 @@ var refEq = function(r1) {
     return r1 === r2;
   };
 };
+var eqBooleanImpl = refEq;
 var eqIntImpl = refEq;
 var eqNumberImpl = refEq;
 
 // output-es/Data.Eq/index.js
 var eqNumber = { eq: eqNumberImpl };
 var eqInt = { eq: eqIntImpl };
+var eqBoolean = { eq: eqBooleanImpl };
 
 // output-es/Data.Ord/foreign.js
 var unsafeCompareImpl = function(lt) {
@@ -206,12 +208,14 @@ var unsafeCompareImpl = function(lt) {
     };
   };
 };
+var ordBooleanImpl = unsafeCompareImpl;
 var ordIntImpl = unsafeCompareImpl;
 var ordNumberImpl = unsafeCompareImpl;
 
 // output-es/Data.Ord/index.js
 var ordNumber = { compare: /* @__PURE__ */ ordNumberImpl(LT)(EQ)(GT), Eq0: () => eqNumber };
 var ordInt = { compare: /* @__PURE__ */ ordIntImpl(LT)(EQ)(GT), Eq0: () => eqInt };
+var ordBoolean = { compare: /* @__PURE__ */ ordBooleanImpl(LT)(EQ)(GT), Eq0: () => eqBoolean };
 
 // output-es/Unsafe.Coerce/foreign.js
 var unsafeCoerce = function(x) {
@@ -2761,7 +2765,7 @@ var rowListSerializeCons = () => (dictIsSymbol) => (dictIntSerialize) => (dictRo
     }
     return Nothing;
   },
-  rltoSerial: (v) => (v1) => dictIntSerialize.toSerial(unsafeGet(dictIsSymbol.reflectSymbol($$Proxy))(v1)) + (dictRowListSerialize.rltoSerial($$Proxy)(unsafeDelete(dictIsSymbol.reflectSymbol($$Proxy))(v1)) * dictRowListSerialize.rllengthSerial($$Proxy) | 0) | 0,
+  rltoSerial: (v) => (v1) => dictIntSerialize.toSerial(unsafeGet(dictIsSymbol.reflectSymbol($$Proxy))(v1)) + (dictRowListSerialize.rltoSerial($$Proxy)(unsafeDelete(dictIsSymbol.reflectSymbol($$Proxy))(v1)) * dictIntSerialize.lengthSerial($$Proxy) | 0) | 0,
   rllengthSerial: (() => {
     const $0 = dictIntSerialize.lengthSerial($$Proxy) * dictRowListSerialize.rllengthSerial($$Proxy) | 0;
     return (v) => $0;
@@ -2773,6 +2777,7 @@ var $JointsDouble = (tag) => tag;
 var $JointsDoublePoint = (tag) => tag;
 var $JointsPoint = (tag) => tag;
 var $JointsSimple = (tag) => tag;
+var $JointsTriple = (tag) => tag;
 var $StateDiamond = (tag) => tag;
 var $StateScissors = (tag) => tag;
 var $StatesSolid = () => ({ tag: "StateSolid" });
@@ -2800,12 +2805,40 @@ var rowListSerializeNilRow = {
 };
 var rowListSerializeCons1 = /* @__PURE__ */ rowListSerializeCons()({ reflectSymbol: () => "turnout" })(intSerializeBoolean)(rowListSerializeNilRow)()()();
 var intSerializeSum3 = /* @__PURE__ */ intSerializeSum(intSerializeConstructor)(intSerializeSum2);
+var intSerializeSum4 = /* @__PURE__ */ intSerializeSum(intSerializeConstructor)(/* @__PURE__ */ intSerializeSum(intSerializeConstructor)(intSerializeSum3));
+var intSerializeConstructor1 = /* @__PURE__ */ (() => {
+  const $0 = rowListSerializeCons()({ reflectSymbol: () => "innerturnout" })(intSerializeBoolean)(rowListSerializeCons()({
+    reflectSymbol: () => "outerturnout"
+  })(intSerializeBoolean)(rowListSerializeNilRow)()()())()()();
+  const $1 = $0.rlfromSerial($$Proxy);
+  const $2 = $0.rltoSerial($$Proxy);
+  const $3 = $0.rllengthSerial($$Proxy);
+  return {
+    fromSerial: (i) => {
+      if (0 <= i && i < $3 && 0 <= i && i < $3) {
+        const $4 = $1(i);
+        if ($4.tag === "Just") {
+          return $Maybe("Just", $4._1);
+        }
+      }
+      return Nothing;
+    },
+    toSerial: (v) => $2(v),
+    lengthSerial: (v) => $3
+  };
+})();
 var StateSolid = /* @__PURE__ */ $StatesSolid();
 var StateSP_P = /* @__PURE__ */ $StateScissors("StateSP_P");
 var StateSP_S = /* @__PURE__ */ $StateScissors("StateSP_S");
 var StateSP_N = /* @__PURE__ */ $StateScissors("StateSP_N");
 var StateDM_P = /* @__PURE__ */ $StateDiamond("StateDM_P");
 var StateDM_N = /* @__PURE__ */ $StateDiamond("StateDM_N");
+var JointRFront = /* @__PURE__ */ $JointsTriple("JointRFront");
+var JointMFront = /* @__PURE__ */ $JointsTriple("JointMFront");
+var JointLFront = /* @__PURE__ */ $JointsTriple("JointLFront");
+var JointRBack = /* @__PURE__ */ $JointsTriple("JointRBack");
+var JointMBack = /* @__PURE__ */ $JointsTriple("JointMBack");
+var JointLBack = /* @__PURE__ */ $JointsTriple("JointLBack");
 var JointBegin = /* @__PURE__ */ $JointsSimple("JointBegin");
 var JointEnd = /* @__PURE__ */ $JointsSimple("JointEnd");
 var JointEnter = /* @__PURE__ */ $JointsPoint("JointEnter");
@@ -2821,6 +2854,7 @@ var JointOuterBegin = /* @__PURE__ */ $JointsDouble("JointOuterBegin");
 var JointInnerEnd = /* @__PURE__ */ $JointsDouble("JointInnerEnd");
 var JointInnerBegin = /* @__PURE__ */ $JointsDouble("JointInnerBegin");
 var JointOuterEnd = /* @__PURE__ */ $JointsDouble("JointOuterEnd");
+var defaultStatesCrossOver3 = { default: { innerturnout1: false, outerturnout1: false, innerturnout2: false, outerturnout2: false } };
 var intSerialize = {
   fromSerial: (i) => {
     if (0 <= i && i < 1 && 0 <= i && i < 1) {
@@ -2851,30 +2885,24 @@ var intSerialize1 = /* @__PURE__ */ (() => {
   };
 })();
 var serialAll1 = /* @__PURE__ */ serialAll(intSerialize1);
-var intSerialize2 = /* @__PURE__ */ (() => {
-  const $0 = rowListSerializeCons()({ reflectSymbol: () => "innerturnout" })(intSerializeBoolean)(rowListSerializeCons()({
-    reflectSymbol: () => "outerturnout"
-  })(intSerializeBoolean)(rowListSerializeNilRow)()()())()()();
-  const $1 = $0.rlfromSerial($$Proxy);
-  const $2 = $0.rltoSerial($$Proxy);
-  const $3 = $0.rllengthSerial($$Proxy);
-  return {
-    fromSerial: (i) => {
-      if (0 <= i && i < $3 && 0 <= i && i < $3) {
-        const $4 = $1(i);
-        if ($4.tag === "Just") {
-          return $Maybe("Just", $4._1);
-        }
-      }
-      return Nothing;
-    },
-    toSerial: (x) => $2(x),
-    lengthSerial: (v) => $3
-  };
-})();
+var intSerialize2 = {
+  fromSerial: (i) => {
+    const $0 = intSerializeConstructor1.fromSerial(i);
+    if ($0.tag === "Just") {
+      return $Maybe("Just", $0._1);
+    }
+    return Nothing;
+  },
+  toSerial: (x) => intSerializeConstructor1.toSerial(x),
+  lengthSerial: (v) => intSerializeConstructor1.lengthSerial($$Proxy)
+};
 var serialAll22 = /* @__PURE__ */ serialAll(intSerialize2);
 var intSerialize3 = /* @__PURE__ */ (() => {
-  const $0 = rowListSerializeCons()({ reflectSymbol: () => "auto" })(intSerializeBoolean)(rowListSerializeCons1)()()();
+  const $0 = rowListSerializeCons()({ reflectSymbol: () => "innerturnout1" })(intSerializeBoolean)(rowListSerializeCons()({
+    reflectSymbol: () => "innerturnout2"
+  })(intSerializeBoolean)(rowListSerializeCons()({ reflectSymbol: () => "outerturnout1" })(intSerializeBoolean)(rowListSerializeCons()({
+    reflectSymbol: () => "outerturnout2"
+  })(intSerializeBoolean)(rowListSerializeNilRow)()()())()()())()()())()()();
   const $1 = $0.rlfromSerial($$Proxy);
   const $2 = $0.rltoSerial($$Proxy);
   const $3 = $0.rllengthSerial($$Proxy);
@@ -2893,6 +2921,36 @@ var intSerialize3 = /* @__PURE__ */ (() => {
   };
 })();
 var intSerialize4 = {
+  fromSerial: (i) => {
+    const $0 = intSerializeConstructor1.fromSerial(i);
+    if ($0.tag === "Just") {
+      return $Maybe("Just", $0._1);
+    }
+    return Nothing;
+  },
+  toSerial: (x) => intSerializeConstructor1.toSerial(x),
+  lengthSerial: (v) => intSerializeConstructor1.lengthSerial($$Proxy)
+};
+var intSerialize5 = /* @__PURE__ */ (() => {
+  const $0 = rowListSerializeCons()({ reflectSymbol: () => "auto" })(intSerializeBoolean)(rowListSerializeCons1)()()();
+  const $1 = $0.rlfromSerial($$Proxy);
+  const $2 = $0.rltoSerial($$Proxy);
+  const $3 = $0.rllengthSerial($$Proxy);
+  return {
+    fromSerial: (i) => {
+      if (0 <= i && i < $3 && 0 <= i && i < $3) {
+        const $4 = $1(i);
+        if ($4.tag === "Just") {
+          return $Maybe("Just", $4._1);
+        }
+      }
+      return Nothing;
+    },
+    toSerial: (x) => $2(x),
+    lengthSerial: (v) => $3
+  };
+})();
+var intSerialize6 = {
   fromSerial: (i) => {
     const $0 = intSerializeSum2.fromSerial(i);
     if ($0.tag === "Just") {
@@ -2930,7 +2988,7 @@ var intSerialize4 = {
   })()),
   lengthSerial: (v) => intSerializeSum2.lengthSerial($$Proxy)
 };
-var intSerialize5 = {
+var intSerialize7 = {
   fromSerial: (i) => {
     const $0 = intSerializeSum1.fromSerial(i);
     if ($0.tag === "Just") {
@@ -2960,7 +3018,76 @@ var intSerialize5 = {
   })()),
   lengthSerial: (v) => intSerializeSum1.lengthSerial($$Proxy)
 };
-var intSerialize6 = {
+var intSerialize8 = {
+  fromSerial: (i) => {
+    const $0 = intSerializeSum4.fromSerial(i);
+    if ($0.tag === "Just") {
+      return $Maybe(
+        "Just",
+        (() => {
+          if ($0._1.tag === "Inl") {
+            return JointRFront;
+          }
+          if ($0._1.tag === "Inr") {
+            if ($0._1._1.tag === "Inl") {
+              return JointMFront;
+            }
+            if ($0._1._1.tag === "Inr") {
+              if ($0._1._1._1.tag === "Inl") {
+                return JointLFront;
+              }
+              if ($0._1._1._1.tag === "Inr") {
+                if ($0._1._1._1._1.tag === "Inl") {
+                  return JointRBack;
+                }
+                if ($0._1._1._1._1.tag === "Inr") {
+                  if ($0._1._1._1._1._1.tag === "Inl") {
+                    return JointMBack;
+                  }
+                  if ($0._1._1._1._1._1.tag === "Inr") {
+                    return JointLBack;
+                  }
+                }
+              }
+            }
+          }
+          fail();
+        })()
+      );
+    }
+    return Nothing;
+  },
+  toSerial: (x) => intSerializeSum4.toSerial((() => {
+    if (x === "JointRFront") {
+      return $Sum("Inl", NoArguments);
+    }
+    if (x === "JointMFront") {
+      return $Sum("Inr", $Sum("Inl", NoArguments));
+    }
+    if (x === "JointLFront") {
+      return $Sum("Inr", $Sum("Inr", $Sum("Inl", NoArguments)));
+    }
+    if (x === "JointRBack") {
+      return $Sum("Inr", $Sum("Inr", $Sum("Inr", $Sum("Inl", NoArguments))));
+    }
+    if (x === "JointMBack") {
+      return $Sum(
+        "Inr",
+        $Sum("Inr", $Sum("Inr", $Sum("Inr", $Sum("Inl", NoArguments))))
+      );
+    }
+    if (x === "JointLBack") {
+      return $Sum(
+        "Inr",
+        $Sum("Inr", $Sum("Inr", $Sum("Inr", $Sum("Inr", NoArguments))))
+      );
+    }
+    fail();
+  })()),
+  lengthSerial: (v) => intSerializeSum4.lengthSerial($$Proxy)
+};
+var serialAll3 = /* @__PURE__ */ serialAll(intSerialize8);
+var intSerialize9 = {
   fromSerial: (i) => {
     const $0 = intSerializeSum1.fromSerial(i);
     if ($0.tag === "Just") {
@@ -2990,18 +3117,18 @@ var intSerialize6 = {
   })()),
   lengthSerial: (v) => intSerializeSum1.lengthSerial($$Proxy)
 };
-var serialAll3 = /* @__PURE__ */ serialAll(intSerialize6);
+var serialAll4 = /* @__PURE__ */ serialAll(intSerialize9);
 var halfRail = /* @__PURE__ */ (() => {
   const pe = { coord: { x: 0.5, y: 0, z: 0 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: true };
   const pb = { coord: { x: 0, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
   const r0 = [{ start: pb, end: pe, length: partLength(pb)(pe) }];
-  return memorizeRail(toRail_(intSerialize6)(intSerialize)({
+  return memorizeRail(toRail_(intSerialize9)(intSerialize)({
     name: "half",
     flipped: false,
     opposed: false,
     getDrawInfo: (v) => ({ rails: arrayMap(activeRail)(r0), additionals: [] }),
     defaultState: StateSolid,
-    getJoints: serialAll3,
+    getJoints: serialAll4,
     getStates: serialAll2,
     origin: JointBegin,
     getJointPos: (j) => {
@@ -3038,13 +3165,13 @@ var halfSlopeRail = /* @__PURE__ */ (() => {
   const pe = { coord: { x: 1, y: 0, z: 0.5 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: true };
   const pb = { coord: { x: 0, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
   const r0 = [{ start: pb, end: pe, length: partLength(pb)(pe) }];
-  return memorizeRail(toRail_(intSerialize6)(intSerialize)({
+  return memorizeRail(toRail_(intSerialize9)(intSerialize)({
     name: "halfslope",
     flipped: false,
     opposed: false,
     getDrawInfo: (v) => ({ rails: arrayMap(activeRail)(r0), additionals: [] }),
     defaultState: StateSolid,
-    getJoints: serialAll3,
+    getJoints: serialAll4,
     getStates: serialAll2,
     origin: JointBegin,
     getJointPos: (j) => {
@@ -3081,13 +3208,13 @@ var longRail = /* @__PURE__ */ (() => {
   const pe = { coord: { x: 2, y: 0, z: 0 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: true };
   const pb = { coord: { x: 0, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
   const r0 = [{ start: pb, end: pe, length: partLength(pb)(pe) }];
-  return memorizeRail(toRail_(intSerialize6)(intSerialize)({
+  return memorizeRail(toRail_(intSerialize9)(intSerialize)({
     name: "long",
     flipped: false,
     opposed: false,
     getDrawInfo: (v) => ({ rails: arrayMap(activeRail)(r0), additionals: [] }),
     defaultState: StateSolid,
-    getJoints: serialAll3,
+    getJoints: serialAll4,
     getStates: serialAll2,
     origin: JointBegin,
     getJointPos: (j) => {
@@ -3124,13 +3251,13 @@ var quarterRail = /* @__PURE__ */ (() => {
   const pe = { coord: { x: 0.25, y: 0, z: 0 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: true };
   const pb = { coord: { x: 0, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
   const r0 = [{ start: pb, end: pe, length: partLength(pb)(pe) }];
-  return memorizeRail(toRail_(intSerialize6)(intSerialize)({
+  return memorizeRail(toRail_(intSerialize9)(intSerialize)({
     name: "quarter",
     flipped: false,
     opposed: false,
     getDrawInfo: (v) => ({ rails: arrayMap(activeRail)(r0), additionals: [] }),
     defaultState: StateSolid,
-    getJoints: serialAll3,
+    getJoints: serialAll4,
     getStates: serialAll2,
     origin: JointBegin,
     getJointPos: (j) => {
@@ -3167,13 +3294,13 @@ var quarterSlopeRail = /* @__PURE__ */ (() => {
   const pe = { coord: { x: 1, y: 0, z: 0.25 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: true };
   const pb = { coord: { x: 0, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
   const r0 = [{ start: pb, end: pe, length: partLength(pb)(pe) }];
-  return memorizeRail(toRail_(intSerialize6)(intSerialize)({
+  return memorizeRail(toRail_(intSerialize9)(intSerialize)({
     name: "quaterslope",
     flipped: false,
     opposed: false,
     getDrawInfo: (v) => ({ rails: arrayMap(activeRail)(r0), additionals: [] }),
     defaultState: StateSolid,
-    getJoints: serialAll3,
+    getJoints: serialAll4,
     getStates: serialAll2,
     origin: JointBegin,
     getJointPos: (j) => {
@@ -3210,13 +3337,13 @@ var slopeCurveLRail = /* @__PURE__ */ (() => {
   const pe = { coord: { x: sqrt(0.5), y: 1 - sqrt(0.5), z: 0.25 }, angle: toNumber(1) * 6.283185307179586 / toNumber(8), isPlus: true };
   const pb = { coord: { x: 0, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
   const r0 = [{ start: pb, end: pe, length: partLength(pb)(pe) }];
-  return memorizeRail(toRail_(intSerialize6)(intSerialize)({
+  return memorizeRail(toRail_(intSerialize9)(intSerialize)({
     name: "slopecurve",
     flipped: false,
     opposed: false,
     getDrawInfo: (v) => ({ rails: arrayMap(activeRail)(r0), additionals: [] }),
     defaultState: StateSolid,
-    getJoints: serialAll3,
+    getJoints: serialAll4,
     getStates: serialAll2,
     origin: JointBegin,
     getJointPos: (j) => {
@@ -3254,13 +3381,13 @@ var slopeRail = /* @__PURE__ */ (() => {
   const pe = { coord: { x: 2, y: 0, z: 1 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: true };
   const pb = { coord: { x: 0, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
   const r0 = [{ start: pb, end: pe, length: partLength(pb)(pe) }];
-  return memorizeRail(toRail_(intSerialize6)(intSerialize)({
+  return memorizeRail(toRail_(intSerialize9)(intSerialize)({
     name: "slope",
     flipped: false,
     opposed: false,
     getDrawInfo: (v) => ({ rails: arrayMap(activeRail)(r0), additionals: [] }),
     defaultState: StateSolid,
-    getJoints: serialAll3,
+    getJoints: serialAll4,
     getStates: serialAll2,
     origin: JointBegin,
     getJointPos: (j) => {
@@ -3297,13 +3424,13 @@ var straightRail = /* @__PURE__ */ (() => {
   const pe = { coord: { x: 1, y: 0, z: 0 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: true };
   const pb = { coord: { x: 0, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
   const r0 = [{ start: pb, end: pe, length: partLength(pb)(pe) }];
-  return memorizeRail(toRail_(intSerialize6)(intSerialize)({
+  return memorizeRail(toRail_(intSerialize9)(intSerialize)({
     name: "straight",
     flipped: false,
     opposed: false,
     getDrawInfo: (v) => ({ rails: arrayMap(activeRail)(r0), additionals: [] }),
     defaultState: StateSolid,
-    getJoints: serialAll3,
+    getJoints: serialAll4,
     getStates: serialAll2,
     origin: JointBegin,
     getJointPos: (j) => {
@@ -3336,7 +3463,7 @@ var straightRail = /* @__PURE__ */ (() => {
     isSimple: true
   }));
 })();
-var intSerialize7 = {
+var intSerialize10 = {
   fromSerial: (i) => {
     const $0 = intSerializeSum2.fromSerial(i);
     if ($0.tag === "Just") {
@@ -3374,14 +3501,14 @@ var intSerialize7 = {
   })()),
   lengthSerial: (v) => intSerializeSum2.lengthSerial($$Proxy)
 };
-var serialAll4 = /* @__PURE__ */ serialAll(intSerialize7);
+var serialAll5 = /* @__PURE__ */ serialAll(intSerialize10);
 var turnOutLPlusRail = /* @__PURE__ */ (() => {
   const ps = { coord: { x: sqrt(0.5), y: 1 - sqrt(0.5), z: 0 }, angle: toNumber(1) * 6.283185307179586 / toNumber(8), isPlus: true };
   const pm = { coord: { x: 1, y: 0, z: 0 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: true };
   const pe = { coord: { x: 0, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
   const r0 = [{ start: pe, end: pm, length: partLength(pe)(pm) }];
   const r1 = [{ start: pe, end: ps, length: partLength(pe)(ps) }];
-  return memorizeRail(toRail_(intSerialize7)(intSerialize1)({
+  return memorizeRail(toRail_(intSerialize10)(intSerialize1)({
     name: "turnout",
     flipped: false,
     opposed: false,
@@ -3398,7 +3525,7 @@ var turnOutLPlusRail = /* @__PURE__ */ (() => {
       };
     },
     defaultState: { turnout: false },
-    getJoints: serialAll4,
+    getJoints: serialAll5,
     getStates: serialAll1,
     origin: JointEnter,
     getJointPos: (j) => {
@@ -3482,86 +3609,83 @@ var turnOutLPlusRail = /* @__PURE__ */ (() => {
       if (s.turnout === s$p.turnout) {
         return [];
       }
-      return serialAll4;
+      return serialAll5;
     },
     isBlocked: (v) => (v1) => (v2) => true,
     isSimple: false
   }));
 })();
 var turnOutRPlusRail = /* @__PURE__ */ memorizeRail(/* @__PURE__ */ flipRail_(turnOutLPlusRail));
-var intSerialize8 = /* @__PURE__ */ (() => {
-  const $0 = intSerializeSum(intSerializeConstructor)(intSerializeSum(intSerializeConstructor)(intSerializeSum3));
-  return {
-    fromSerial: (i) => {
-      const $1 = $0.fromSerial(i);
-      if ($1.tag === "Just") {
-        return $Maybe(
-          "Just",
-          (() => {
-            if ($1._1.tag === "Inl") {
-              return JointOuterEnter;
+var intSerialize11 = {
+  fromSerial: (i) => {
+    const $0 = intSerializeSum4.fromSerial(i);
+    if ($0.tag === "Just") {
+      return $Maybe(
+        "Just",
+        (() => {
+          if ($0._1.tag === "Inl") {
+            return JointOuterEnter;
+          }
+          if ($0._1.tag === "Inr") {
+            if ($0._1._1.tag === "Inl") {
+              return JointInnerEnter;
             }
-            if ($1._1.tag === "Inr") {
-              if ($1._1._1.tag === "Inl") {
-                return JointInnerEnter;
+            if ($0._1._1.tag === "Inr") {
+              if ($0._1._1._1.tag === "Inl") {
+                return JointInnerMain;
               }
-              if ($1._1._1.tag === "Inr") {
-                if ($1._1._1._1.tag === "Inl") {
-                  return JointInnerMain;
+              if ($0._1._1._1.tag === "Inr") {
+                if ($0._1._1._1._1.tag === "Inl") {
+                  return JointOuterMain;
                 }
-                if ($1._1._1._1.tag === "Inr") {
-                  if ($1._1._1._1._1.tag === "Inl") {
-                    return JointOuterMain;
+                if ($0._1._1._1._1.tag === "Inr") {
+                  if ($0._1._1._1._1._1.tag === "Inl") {
+                    return JointInnerSub;
                   }
-                  if ($1._1._1._1._1.tag === "Inr") {
-                    if ($1._1._1._1._1._1.tag === "Inl") {
-                      return JointInnerSub;
-                    }
-                    if ($1._1._1._1._1._1.tag === "Inr") {
-                      return JointOuterSub;
-                    }
+                  if ($0._1._1._1._1._1.tag === "Inr") {
+                    return JointOuterSub;
                   }
                 }
               }
             }
-            fail();
-          })()
-        );
-      }
-      return Nothing;
-    },
-    toSerial: (x) => $0.toSerial((() => {
-      if (x === "JointOuterEnter") {
-        return $Sum("Inl", NoArguments);
-      }
-      if (x === "JointInnerEnter") {
-        return $Sum("Inr", $Sum("Inl", NoArguments));
-      }
-      if (x === "JointInnerMain") {
-        return $Sum("Inr", $Sum("Inr", $Sum("Inl", NoArguments)));
-      }
-      if (x === "JointOuterMain") {
-        return $Sum("Inr", $Sum("Inr", $Sum("Inr", $Sum("Inl", NoArguments))));
-      }
-      if (x === "JointInnerSub") {
-        return $Sum(
-          "Inr",
-          $Sum("Inr", $Sum("Inr", $Sum("Inr", $Sum("Inl", NoArguments))))
-        );
-      }
-      if (x === "JointOuterSub") {
-        return $Sum(
-          "Inr",
-          $Sum("Inr", $Sum("Inr", $Sum("Inr", $Sum("Inr", NoArguments))))
-        );
-      }
-      fail();
-    })()),
-    lengthSerial: (v) => $0.lengthSerial($$Proxy)
-  };
-})();
-var serialAll5 = /* @__PURE__ */ serialAll(intSerialize8);
-var intSerialize9 = {
+          }
+          fail();
+        })()
+      );
+    }
+    return Nothing;
+  },
+  toSerial: (x) => intSerializeSum4.toSerial((() => {
+    if (x === "JointOuterEnter") {
+      return $Sum("Inl", NoArguments);
+    }
+    if (x === "JointInnerEnter") {
+      return $Sum("Inr", $Sum("Inl", NoArguments));
+    }
+    if (x === "JointInnerMain") {
+      return $Sum("Inr", $Sum("Inr", $Sum("Inl", NoArguments)));
+    }
+    if (x === "JointOuterMain") {
+      return $Sum("Inr", $Sum("Inr", $Sum("Inr", $Sum("Inl", NoArguments))));
+    }
+    if (x === "JointInnerSub") {
+      return $Sum(
+        "Inr",
+        $Sum("Inr", $Sum("Inr", $Sum("Inr", $Sum("Inl", NoArguments))))
+      );
+    }
+    if (x === "JointOuterSub") {
+      return $Sum(
+        "Inr",
+        $Sum("Inr", $Sum("Inr", $Sum("Inr", $Sum("Inr", NoArguments))))
+      );
+    }
+    fail();
+  })()),
+  lengthSerial: (v) => intSerializeSum4.lengthSerial($$Proxy)
+};
+var serialAll6 = /* @__PURE__ */ serialAll(intSerialize11);
+var intSerialize12 = {
   fromSerial: (i) => {
     const $0 = intSerializeSum3.fromSerial(i);
     if ($0.tag === "Just") {
@@ -3607,7 +3731,7 @@ var intSerialize9 = {
   })()),
   lengthSerial: (v) => intSerializeSum3.lengthSerial($$Proxy)
 };
-var serialAll6 = /* @__PURE__ */ serialAll(intSerialize9);
+var serialAll7 = /* @__PURE__ */ serialAll(intSerialize12);
 var doubleTurnoutLPlusRail = /* @__PURE__ */ (() => {
   const pos = { coord: { x: sqrt(0.5), y: 1 - sqrt(0.5), z: 0 }, angle: toNumber(1) * 6.283185307179586 / toNumber(8), isPlus: true };
   const pom = { coord: { x: 1, y: 0, z: 0 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: true };
@@ -3623,7 +3747,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ (() => {
   const pie = { coord: { x: 0, y: -0.28037383177570097, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
   const rim = [{ start: pie, end: pim, length: partLength(pie)(pim) }];
   const ris = [{ start: pie, end: pis, length: partLength(pie)(pis) }];
-  return memorizeRail(toRail_(intSerialize8)(intSerialize2)({
+  return memorizeRail(toRail_(intSerialize11)(intSerialize2)({
     name: "doubleTurnout",
     flipped: false,
     opposed: false,
@@ -3672,7 +3796,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ (() => {
       };
     },
     defaultState: { innerturnout: false, outerturnout: false },
-    getJoints: serialAll5,
+    getJoints: serialAll6,
     getStates: serialAll22,
     origin: JointOuterEnter,
     getJointPos: (j) => {
@@ -3876,7 +4000,7 @@ var doubleTurnoutLPlusRail = /* @__PURE__ */ (() => {
       if (s.innerturnout === s$p.innerturnout && s.outerturnout === s$p.outerturnout) {
         return [];
       }
-      return serialAll5;
+      return serialAll6;
     },
     isBlocked: (j) => (s) => (j$p) => {
       if (j === "JointOuterEnter") {
@@ -4018,13 +4142,13 @@ var outerCurveLRail = /* @__PURE__ */ (() => {
   };
   const pb = { coord: { x: 0, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
   const r0 = [{ start: pb, end: pe, length: partLength(pb)(pe) }];
-  return memorizeRail(toRail_(intSerialize6)(intSerialize)({
+  return memorizeRail(toRail_(intSerialize9)(intSerialize)({
     name: "outercurve",
     flipped: false,
     opposed: false,
     getDrawInfo: (v) => ({ rails: arrayMap(activeRail)(r0), additionals: [] }),
     defaultState: StateSolid,
-    getJoints: serialAll3,
+    getJoints: serialAll4,
     getStates: serialAll2,
     origin: JointBegin,
     getJointPos: (j) => {
@@ -4067,7 +4191,7 @@ var scissorsRail = /* @__PURE__ */ (() => {
   const pib = { coord: { x: 1, y: -0.28037383177570097, z: 0 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: false };
   const ri = [{ start: pib, end: pie, length: partLength(pib)(pie) }];
   const rp = slipShapes()({ start: pob, end: pib });
-  return memorizeRail(toRail_(intSerialize9)(intSerialize4)({
+  return memorizeRail(toRail_(intSerialize12)(intSerialize6)({
     name: "scissors",
     flipped: false,
     opposed: false,
@@ -4108,8 +4232,8 @@ var scissorsRail = /* @__PURE__ */ (() => {
       fail();
     },
     defaultState: StateSP_S,
-    getJoints: serialAll6,
-    getStates: serialAll(intSerialize4),
+    getJoints: serialAll7,
+    getStates: serialAll(intSerialize6),
     origin: JointOuterBegin,
     getJointPos: (j) => {
       if (j === "JointOuterBegin") {
@@ -4262,7 +4386,7 @@ var scissorsRail = /* @__PURE__ */ (() => {
       })()) {
         return [];
       }
-      return serialAll6;
+      return serialAll7;
     },
     isBlocked: (j) => (s) => (j$p) => {
       if (s === "StateSP_P" || s !== "StateSP_S") {
@@ -4292,7 +4416,7 @@ var diamondRail = /* @__PURE__ */ (() => {
   const rn = slipShapes()({ start: pie, end: poe });
   const pib = { coord: { x: 1, y: -0.28037383177570097, z: 0 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: false };
   const rp = slipShapes()({ start: pob, end: pib });
-  return memorizeRail(toRail_(intSerialize9)(intSerialize5)({
+  return memorizeRail(toRail_(intSerialize12)(intSerialize7)({
     name: "diamond",
     flipped: false,
     opposed: false,
@@ -4306,8 +4430,8 @@ var diamondRail = /* @__PURE__ */ (() => {
       fail();
     },
     defaultState: StateDM_P,
-    getJoints: serialAll6,
-    getStates: serialAll(intSerialize5),
+    getJoints: serialAll7,
+    getStates: serialAll(intSerialize7),
     origin: JointOuterBegin,
     getJointPos: (j) => {
       if (j === "JointOuterBegin") {
@@ -4420,7 +4544,7 @@ var diamondRail = /* @__PURE__ */ (() => {
       if (s === "StateDM_P" ? s$p === "StateDM_P" : s === "StateDM_N" && s$p === "StateDM_N") {
         return [];
       }
-      return serialAll6;
+      return serialAll7;
     },
     isBlocked: (v) => (v1) => (v2) => true,
     isSimple: true
@@ -4430,13 +4554,13 @@ var curveLRail = /* @__PURE__ */ (() => {
   const pe = { coord: { x: sqrt(0.5), y: 1 - sqrt(0.5), z: 0 }, angle: toNumber(1) * 6.283185307179586 / toNumber(8), isPlus: true };
   const pb = { coord: { x: 0, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
   const r0 = [{ start: pb, end: pe, length: partLength(pb)(pe) }];
-  return memorizeRail(toRail_(intSerialize6)(intSerialize)({
+  return memorizeRail(toRail_(intSerialize9)(intSerialize)({
     name: "curve",
     flipped: false,
     opposed: false,
     getDrawInfo: (v) => ({ rails: arrayMap(activeRail)(r0), additionals: [] }),
     defaultState: StateSolid,
-    getJoints: serialAll3,
+    getJoints: serialAll4,
     getStates: serialAll2,
     origin: JointBegin,
     getJointPos: (j) => {
@@ -4470,6 +4594,198 @@ var curveLRail = /* @__PURE__ */ (() => {
   }));
 })();
 var curveRRail = /* @__PURE__ */ memorizeRail(/* @__PURE__ */ flipRail_(curveLRail));
+var crossoverTripleLRail = /* @__PURE__ */ (() => {
+  const prf = { coord: { x: 0, y: -0.28037383177570097, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: true };
+  const prb = { coord: { x: 1, y: -0.28037383177570097, z: 0 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: false };
+  const rr = [{ start: prf, end: prb, length: partLength(prf)(prb) }];
+  const pmf = { coord: { x: 0, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: true };
+  const pmb = { coord: { x: 1, y: 0, z: 0 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: false };
+  const rm = [{ start: pmf, end: pmb, length: partLength(pmf)(pmb) }];
+  const rn1 = slipShapes()({ start: prf, end: pmb });
+  const plf = { coord: { x: 0, y: 0.28037383177570097, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: true };
+  const plb = { coord: { x: 1, y: 0.28037383177570097, z: 0 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: false };
+  const rl = [{ start: plf, end: plb, length: partLength(plf)(plb) }];
+  const rn2 = slipShapes()({ start: pmf, end: plb });
+  return memorizeRail(toRail_(intSerialize8)(intSerialize3)({
+    name: "crossover3",
+    flipped: false,
+    opposed: false,
+    getDrawInfo: (v) => ({
+      rails: arrayBind(sortBy((x) => (y) => ordBoolean.compare(x.isActive)(y.isActive))([
+        { isActive: !v.innerturnout1, route: rr },
+        { isActive: !v.innerturnout2 && !v.outerturnout1, route: rm },
+        { isActive: !v.outerturnout2, route: rl },
+        { isActive: v.innerturnout1 || v.outerturnout1, route: rn1 },
+        { isActive: v.innerturnout2 || v.outerturnout2, route: rn2 }
+      ]))((v1) => {
+        if (v1.isActive) {
+          return arrayMap(activeRail)(v1.route);
+        }
+        return arrayMap(passiveRail)(v1.route);
+      }),
+      additionals: []
+    }),
+    defaultState: defaultStatesCrossOver3.default,
+    getJoints: serialAll3,
+    getStates: serialAll(intSerialize3),
+    origin: JointRFront,
+    getJointPos: (j) => {
+      if (j === "JointRFront") {
+        return prf;
+      }
+      if (j === "JointRBack") {
+        return prb;
+      }
+      if (j === "JointMFront") {
+        return pmf;
+      }
+      if (j === "JointMBack") {
+        return pmb;
+      }
+      if (j === "JointLFront") {
+        return plf;
+      }
+      if (j === "JointLBack") {
+        return plb;
+      }
+      fail();
+    },
+    getNewState: (j) => (v) => {
+      if (j === "JointRFront") {
+        if (v.innerturnout1) {
+          return { newjoint: JointMBack, newstate: { ...v, innerturnout1: true, outerturnout1: true }, shape: rn1 };
+        }
+        return { newjoint: JointRBack, newstate: v, shape: rr };
+      }
+      if (j === "JointRBack") {
+        return { newjoint: JointRFront, newstate: { ...v, innerturnout1: false }, shape: reverseShapes(rr) };
+      }
+      if (j === "JointMFront") {
+        if (v.innerturnout2) {
+          return { newjoint: JointLBack, newstate: { ...v, innerturnout2: true, outerturnout2: true }, shape: rn2 };
+        }
+        return { newjoint: JointMBack, newstate: { ...v, outerturnout1: false }, shape: rm };
+      }
+      if (j === "JointMBack") {
+        if (v.outerturnout1) {
+          return { newjoint: JointRFront, newstate: { ...v, innerturnout1: true }, shape: reverseShapes(rn1) };
+        }
+        return { newjoint: JointMFront, newstate: { ...v, innerturnout2: false }, shape: reverseShapes(rm) };
+      }
+      if (j === "JointLFront") {
+        return { newjoint: JointLBack, newstate: { ...v, outerturnout2: false }, shape: rl };
+      }
+      if (j === "JointLBack") {
+        if (v.outerturnout2) {
+          return { newjoint: JointMFront, newstate: { ...v, innerturnout2: true }, shape: reverseShapes(rn2) };
+        }
+        return { newjoint: JointLFront, newstate: v, shape: reverseShapes(rl) };
+      }
+      fail();
+    },
+    getRoute: (s) => (f) => (t) => {
+      if (f === "JointRFront") {
+        if (t === "JointRBack") {
+          return $Maybe("Just", { ...s, innerturnout1: false, outerturnout1: false });
+        }
+        if (t === "JointMBack") {
+          return $Maybe("Just", { ...s, innerturnout1: true, outerturnout1: true });
+        }
+        return Nothing;
+      }
+      if (f === "JointRBack") {
+        if (t === "JointRFront") {
+          return $Maybe("Just", { ...s, innerturnout1: false, outerturnout1: false });
+        }
+        return Nothing;
+      }
+      if (f === "JointMFront") {
+        if (t === "JointMBack") {
+          return $Maybe("Just", { ...s, innerturnout2: false, outerturnout1: false, outerturnout2: false, innerturnout1: false });
+        }
+        if (t === "JointLBack") {
+          return $Maybe("Just", { ...s, innerturnout2: true, outerturnout2: true });
+        }
+        return Nothing;
+      }
+      if (f === "JointMBack") {
+        if (t === "JointRFront") {
+          return $Maybe("Just", { ...s, innerturnout1: true, outerturnout1: true });
+        }
+        if (t === "JointMFront") {
+          return $Maybe("Just", { ...s, outerturnout1: false, innerturnout2: false, outerturnout2: false, innerturnout1: false });
+        }
+        return Nothing;
+      }
+      if (f === "JointLFront") {
+        if (t === "JointLBack") {
+          return $Maybe("Just", { ...s, outerturnout2: false, innerturnout2: false });
+        }
+        return Nothing;
+      }
+      if (f === "JointLBack") {
+        if (t === "JointMFront") {
+          return $Maybe("Just", { ...s, innerturnout2: true, outerturnout2: true });
+        }
+        if (t === "JointLFront") {
+          return $Maybe("Just", { ...s, outerturnout2: false, innerturnout2: false });
+        }
+        return Nothing;
+      }
+      fail();
+    },
+    isLegal: (j) => (v) => {
+      if (j === "JointRFront") {
+        return !v.innerturnout1 || v.innerturnout1 && v.outerturnout1;
+      }
+      if (j === "JointRBack") {
+        return !v.innerturnout1;
+      }
+      if (j === "JointMFront") {
+        return !v.innerturnout2 && !v.outerturnout1 || v.innerturnout2 && v.outerturnout2;
+      }
+      if (j === "JointMBack") {
+        return !v.innerturnout2 && !v.outerturnout1 || v.innerturnout1 && v.outerturnout1;
+      }
+      if (j === "JointLFront") {
+        return !v.outerturnout2;
+      }
+      if (j === "JointLBack") {
+        return !v.outerturnout2 || v.innerturnout2 && v.outerturnout2;
+      }
+      fail();
+    },
+    lockedBy: (s) => (s$p) => {
+      if (s.innerturnout1 === s$p.innerturnout1 && s.innerturnout2 === s$p.innerturnout2 && s.outerturnout1 === s$p.outerturnout1 && s.outerturnout2 === s$p.outerturnout2) {
+        return [];
+      }
+      return serialAll3;
+    },
+    isBlocked: (j) => (v) => (j$p) => {
+      if (j$p === "JointRFront") {
+        return j === "JointRBack" || (v.innerturnout1 || v.outerturnout1) && (j === "JointMBack" || j === "JointMFront");
+      }
+      if (j$p === "JointRBack") {
+        return j === "JointRFront" || (v.innerturnout1 || v.outerturnout1) && j === "JointMBack";
+      }
+      if (j$p === "JointMFront") {
+        return j === "JointMBack" || (v.innerturnout1 || v.outerturnout1) && j === "JointRFront" || (v.innerturnout2 || v.outerturnout2) && (j === "JointLBack" || j === "JointLFront");
+      }
+      if (j$p === "JointMBack") {
+        return j === "JointMFront" || (v.innerturnout1 || v.outerturnout1) && (j === "JointRFront" || j === "JointRBack") || (v.innerturnout2 || v.outerturnout2) && j === "JointLBack";
+      }
+      if (j$p === "JointLFront") {
+        return j === "JointLBack" || (v.innerturnout2 || v.outerturnout2) && j === "JointMFront";
+      }
+      if (j$p === "JointLBack") {
+        return j === "JointLFront" || (v.innerturnout2 || v.outerturnout2) && (j === "JointMFront" || j === "JointMBack");
+      }
+      fail();
+    },
+    isSimple: false
+  }));
+})();
+var crossoverTripleRRail = /* @__PURE__ */ memorizeRail(/* @__PURE__ */ flipRail_(crossoverTripleLRail));
 var crossoverLRail = /* @__PURE__ */ (() => {
   const poe = { coord: { x: 1, y: 0, z: 0 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: false };
   const pob = { coord: { x: 0, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: true };
@@ -4478,7 +4794,7 @@ var crossoverLRail = /* @__PURE__ */ (() => {
   const rn = slipShapes()({ start: pie, end: poe });
   const pib = { coord: { x: 1, y: -0.28037383177570097, z: 0 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: false };
   const ri = [{ start: pib, end: pie, length: partLength(pib)(pie) }];
-  return memorizeRail(toRail_(intSerialize9)(intSerialize2)({
+  return memorizeRail(toRail_(intSerialize12)(intSerialize4)({
     name: "crossover",
     flipped: false,
     opposed: false,
@@ -4523,8 +4839,8 @@ var crossoverLRail = /* @__PURE__ */ (() => {
       };
     },
     defaultState: { innerturnout: false, outerturnout: false },
-    getJoints: serialAll6,
-    getStates: serialAll22,
+    getJoints: serialAll7,
+    getStates: serialAll(intSerialize4),
     origin: JointInnerEnd,
     getJointPos: (j) => {
       if (j === "JointOuterBegin") {
@@ -4682,7 +4998,7 @@ var crossoverLRail = /* @__PURE__ */ (() => {
       if (s.innerturnout === s$p.innerturnout && s.outerturnout === s$p.outerturnout) {
         return [];
       }
-      return serialAll6;
+      return serialAll7;
     },
     isBlocked: (j) => (s) => (j$p) => {
       if (s.innerturnout && s.outerturnout) {
@@ -4710,13 +5026,13 @@ var converterRail = /* @__PURE__ */ (() => {
   const pe = { coord: { x: 0.25, y: 0, z: 0 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: false };
   const pb = { coord: { x: 0, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
   const r0 = [{ start: pb, end: pe, length: partLength(pb)(pe) }];
-  return memorizeRail(toRail_(intSerialize6)(intSerialize)({
+  return memorizeRail(toRail_(intSerialize9)(intSerialize)({
     name: "converter",
     flipped: false,
     opposed: false,
     getDrawInfo: (v) => ({ rails: arrayMap(activeRail)(r0), additionals: [] }),
     defaultState: StateSolid,
-    getJoints: serialAll3,
+    getJoints: serialAll4,
     getStates: serialAll2,
     origin: JointBegin,
     getJointPos: (j) => {
@@ -4757,7 +5073,7 @@ var doubleToWideLRail = /* @__PURE__ */ (() => {
   const rn = slipShapes()({ start: pie, end: poe });
   const pib = { coord: { x: 1.25, y: -0.28037383177570097, z: 0 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: false };
   const ri = [{ start: pib, end: pie, length: partLength(pib)(pie) }];
-  return memorizeRail(toRail_(intSerialize9)(intSerialize2)({
+  return memorizeRail(toRail_(intSerialize12)(intSerialize2)({
     name: "doubletowide",
     flipped: false,
     opposed: false,
@@ -4802,7 +5118,7 @@ var doubleToWideLRail = /* @__PURE__ */ (() => {
       };
     },
     defaultState: { innerturnout: false, outerturnout: false },
-    getJoints: serialAll6,
+    getJoints: serialAll7,
     getStates: serialAll22,
     origin: JointOuterBegin,
     getJointPos: (j) => {
@@ -4961,7 +5277,7 @@ var doubleToWideLRail = /* @__PURE__ */ (() => {
       if (s.innerturnout === s$p.innerturnout && s.outerturnout === s$p.outerturnout) {
         return [];
       }
-      return serialAll6;
+      return serialAll7;
     },
     isBlocked: (j) => (s) => (j$p) => {
       if (s.innerturnout && s.outerturnout) {
@@ -4989,13 +5305,13 @@ var doubleWidthSLRail = /* @__PURE__ */ (() => {
   const ps = { coord: { x: 1, y: 0.28037383177570097, z: 0 }, angle: toNumber(0) * 6.283185307179586 / toNumber(8), isPlus: true };
   const pe = { coord: { x: 0, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
   const r1 = slipShapes()({ start: pe, end: ps });
-  return memorizeRail(toRail_(intSerialize6)(intSerialize)({
+  return memorizeRail(toRail_(intSerialize9)(intSerialize)({
     name: "doublewidths",
     flipped: false,
     opposed: false,
     getDrawInfo: (v) => ({ rails: arrayMap(activeRail)(r1), additionals: [] }),
     defaultState: StateSolid,
-    getJoints: serialAll3,
+    getJoints: serialAll4,
     getStates: serialAll2,
     origin: JointBegin,
     getJointPos: (j) => {
@@ -5049,7 +5365,7 @@ var toDoubleLPlusRail = /* @__PURE__ */ (() => {
   const pe = { coord: { x: 0, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
   const r0 = [{ start: pe, end: pm, length: partLength(pe)(pm) }];
   const r1 = slipShapes()({ start: pe, end: ps });
-  return memorizeRail(toRail_(intSerialize7)(intSerialize1)({
+  return memorizeRail(toRail_(intSerialize10)(intSerialize1)({
     name: "todouble",
     flipped: false,
     opposed: false,
@@ -5066,7 +5382,7 @@ var toDoubleLPlusRail = /* @__PURE__ */ (() => {
       };
     },
     defaultState: { turnout: false },
-    getJoints: serialAll4,
+    getJoints: serialAll5,
     getStates: serialAll1,
     origin: JointEnter,
     getJointPos: (j) => {
@@ -5150,7 +5466,7 @@ var toDoubleLPlusRail = /* @__PURE__ */ (() => {
       if (s.turnout === s$p.turnout) {
         return [];
       }
-      return serialAll4;
+      return serialAll5;
     },
     isBlocked: (v) => (v1) => (v2) => true,
     isSimple: false
@@ -5174,7 +5490,7 @@ var autoTurnOutLPlusRail = /* @__PURE__ */ (() => {
   const pP = { coord: { x: 0.5, y: 0, z: 0 }, angle: toNumber(4) * 6.283185307179586 / toNumber(8), isPlus: false };
   const r0 = [{ start: pP, end: pm, length: partLength(pP)(pm) }];
   const r1 = [{ start: pP, end: ps, length: partLength(pP)(ps) }];
-  return memorizeRail(toRail_(intSerialize7)(intSerialize3)({
+  return memorizeRail(toRail_(intSerialize10)(intSerialize5)({
     name: "autoturnout",
     flipped: false,
     opposed: false,
@@ -5219,8 +5535,8 @@ var autoTurnOutLPlusRail = /* @__PURE__ */ (() => {
       };
     },
     defaultState: { turnout: false, auto: true },
-    getJoints: serialAll4,
-    getStates: serialAll(intSerialize3),
+    getJoints: serialAll5,
+    getStates: serialAll(intSerialize5),
     origin: JointEnter,
     getJointPos: (j) => {
       if (j === "JointEnter") {
@@ -5309,7 +5625,7 @@ var autoTurnOutLPlusRail = /* @__PURE__ */ (() => {
       if (s.auto === s$p.auto && s.turnout === s$p.turnout) {
         return [];
       }
-      return serialAll4;
+      return serialAll5;
     },
     isBlocked: (v) => (v1) => (v2) => true,
     isSimple: false
@@ -5377,6 +5693,7 @@ var rails = [
   longRail,
   doubleWidthSLRail,
   crossoverLRail,
+  crossoverTripleLRail,
   diamondRail,
   halfSlopeRail,
   quarterSlopeRail
@@ -5930,6 +6247,8 @@ var decodeSignalRules2 = decodeSignalRules;
 var decodeLayout2 = decodeLayout;
 var curveRRail2 = curveRRail;
 var curveLRail2 = curveLRail;
+var crossoverTripleRRail2 = crossoverTripleRRail;
+var crossoverTripleLRail2 = crossoverTripleLRail;
 var crossoverRRail2 = crossoverRRail;
 var crossoverLRail2 = crossoverLRail;
 var converterRail2 = converterRail;
@@ -5957,6 +6276,8 @@ export {
   converterRail2 as converterRail,
   crossoverLRail2 as crossoverLRail,
   crossoverRRail2 as crossoverRRail,
+  crossoverTripleLRail2 as crossoverTripleLRail,
+  crossoverTripleRRail2 as crossoverTripleRRail,
   curveLRail2 as curveLRail,
   curveRRail2 as curveRRail,
   decodeLayout2 as decodeLayout,

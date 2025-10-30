@@ -493,6 +493,18 @@ class Layout {
             , softkey: "H"
             , key    : ["H"]
           },
+          crossoverTripleLRail: {
+              onkey: ()=>{this.addRail(P.crossoverTripleLRail);}
+            , text_ja: "三線わたりポイントレール（左）"
+            , softkey: "%"
+            , key    : ["%"]
+          },
+          crossoverTripleRRail: {
+              onkey: ()=>{this.addRail(P.crossoverTripleRRail);}
+            , text_ja: "三線わたりポイントレール（右）"
+            , softkey: "&"
+            , key    : ["&"]
+          },
         }
       },
     };

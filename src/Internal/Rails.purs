@@ -14,6 +14,8 @@ module Internal.Rails
   , converterRail
   , crossoverLRail
   , crossoverRRail
+  , crossoverTripleLRail
+  , crossoverTripleRRail
   , curveLRail
   , curveRRail
   , diamondRail
@@ -51,9 +53,11 @@ import Internal.Types
 import Prelude
 import Type.Proxy
 
+import Data.Bifunctor.Join (Join)
 import Data.NaturalTransformation (NaturalTransformation)
 import Data.Symbol (class IsSymbol)
 import Data.Traversable (scanl)
+import Internal.Types.Rail (default)
 import Record as R
 import Type.Row as R
 import Type.RowList as RL
@@ -108,6 +112,12 @@ derive instance genericStateDiamond   :: Generic StateDiamond   _
 instance Default  StateDiamond   where
   default = StateDM_P
 
+newtype StatesCrossOver3   = StateCO3 {innerturnout1 :: Boolean, outerturnout1 :: Boolean, innerturnout2 :: Boolean, outerturnout2 :: Boolean}
+derive instance Eq StatesCrossOver3
+derive instance Newtype StatesCrossOver3 _
+derive instance genericStatesCrossOver3   :: Generic StatesCrossOver3   _
+instance Default  StatesCrossOver3  where
+  default = StateCO3 {innerturnout1 : false, outerturnout1 : false, innerturnout2 : false, outerturnout2 : false}
 
 data JointsSimple      = JointBegin | JointEnd
 derive instance Eq JointsSimple
@@ -121,6 +131,9 @@ derive instance genericJointsDouble     :: Generic JointsDouble      _
 data JointsDoublePoint = JointOuterEnter | JointInnerEnter | JointInnerMain | JointOuterMain | JointInnerSub | JointOuterSub
 derive instance Eq JointsDoublePoint
 derive instance genericJointsDoublePoint:: Generic JointsDoublePoint _
+data JointsTriple      = JointRFront | JointMFront | JointLFront | JointRBack | JointMBack | JointLBack
+derive instance Eq JointsTriple
+derive instance genericJointsTriple     :: Generic JointsTriple      _
 
 
 noAdditionals :: forall x c. Array (DrawRail x c) -> DrawInfo x c
@@ -1101,7 +1114,7 @@ crossoverLRail =
     name : "crossover"
     ,flipped : false
     ,opposed : false
-    ,getDrawInfo : \(StateDP s) ->
+    ,getDrawInfo : \(StateCO s) ->
       if s.outerturnout
       then
         if s.innerturnout
@@ -1124,7 +1137,7 @@ crossoverLRail =
               <> (activeRail <$> ri)
               <> (activeRail <$> ro)
       
-    ,defaultState : StateDP {innerturnout: false, outerturnout: false}
+    ,defaultState : StateCO {innerturnout: false, outerturnout: false}
     ,getJoints    : serialAll
     ,getStates    : serialAll
     ,origin       : JointInnerEnd
@@ -1133,62 +1146,62 @@ crossoverLRail =
       JointOuterEnd   -> poe
       JointInnerBegin -> pib
       JointInnerEnd   -> pie
-    ,getNewState : \j (StateDP s) ->
+    ,getNewState : \j (StateCO s) ->
       if s.outerturnout
       then
         if s.innerturnout
         then
           case j of
-            JointInnerBegin -> {newjoint: JointInnerEnd   , newstate:(StateDP s{innerturnout = false}), shape:               ri} 
-            JointInnerEnd   -> {newjoint: JointOuterEnd   , newstate:(StateDP s                      ), shape:               rn}
-            JointOuterBegin -> {newjoint: JointOuterEnd   , newstate:(StateDP s{outerturnout = false}), shape:               ro}
-            JointOuterEnd   -> {newjoint: JointInnerEnd   , newstate:(StateDP s                      ), shape: reverseShapes rn}
+            JointInnerBegin -> {newjoint: JointInnerEnd   , newstate:(StateCO s{innerturnout = false}), shape:               ri} 
+            JointInnerEnd   -> {newjoint: JointOuterEnd   , newstate:(StateCO s                      ), shape:               rn}
+            JointOuterBegin -> {newjoint: JointOuterEnd   , newstate:(StateCO s{outerturnout = false}), shape:               ro}
+            JointOuterEnd   -> {newjoint: JointInnerEnd   , newstate:(StateCO s                      ), shape: reverseShapes rn}
         else
           case j of
-            JointInnerBegin -> {newjoint: JointInnerEnd   , newstate:(StateDP s                      ), shape:               ri} 
-            JointInnerEnd   -> {newjoint: JointInnerBegin , newstate:(StateDP s                      ), shape: reverseShapes ri}
-            JointOuterBegin -> {newjoint: JointOuterEnd   , newstate:(StateDP s{outerturnout = false}), shape:               ro}
-            JointOuterEnd   -> {newjoint: JointInnerEnd   , newstate:(StateDP s{innerturnout = true }), shape: reverseShapes rn}
+            JointInnerBegin -> {newjoint: JointInnerEnd   , newstate:(StateCO s                      ), shape:               ri} 
+            JointInnerEnd   -> {newjoint: JointInnerBegin , newstate:(StateCO s                      ), shape: reverseShapes ri}
+            JointOuterBegin -> {newjoint: JointOuterEnd   , newstate:(StateCO s{outerturnout = false}), shape:               ro}
+            JointOuterEnd   -> {newjoint: JointInnerEnd   , newstate:(StateCO s{innerturnout = true }), shape: reverseShapes rn}
       else
         if s.innerturnout
         then
           case j of
-            JointInnerBegin -> {newjoint: JointInnerEnd   , newstate:(StateDP s{innerturnout = false}), shape:               ri} 
-            JointInnerEnd   -> {newjoint: JointOuterEnd   , newstate:(StateDP s{outerturnout = true} ), shape:               rn}
-            JointOuterBegin -> {newjoint: JointOuterEnd   , newstate:(StateDP s                      ), shape:               ro}
-            JointOuterEnd   -> {newjoint: JointOuterBegin , newstate:(StateDP s                      ), shape: reverseShapes ro}
+            JointInnerBegin -> {newjoint: JointInnerEnd   , newstate:(StateCO s{innerturnout = false}), shape:               ri} 
+            JointInnerEnd   -> {newjoint: JointOuterEnd   , newstate:(StateCO s{outerturnout = true} ), shape:               rn}
+            JointOuterBegin -> {newjoint: JointOuterEnd   , newstate:(StateCO s                      ), shape:               ro}
+            JointOuterEnd   -> {newjoint: JointOuterBegin , newstate:(StateCO s                      ), shape: reverseShapes ro}
         else
           case j of
-            JointInnerBegin -> {newjoint: JointInnerEnd   , newstate:(StateDP s                      ), shape:               ri} 
-            JointInnerEnd   -> {newjoint: JointInnerBegin , newstate:(StateDP s                      ), shape: reverseShapes ri}
-            JointOuterBegin -> {newjoint: JointOuterEnd   , newstate:(StateDP s                      ), shape:               ro}
-            JointOuterEnd   -> {newjoint: JointOuterBegin , newstate:(StateDP s                      ), shape: reverseShapes ro}
+            JointInnerBegin -> {newjoint: JointInnerEnd   , newstate:(StateCO s                      ), shape:               ri} 
+            JointInnerEnd   -> {newjoint: JointInnerBegin , newstate:(StateCO s                      ), shape: reverseShapes ri}
+            JointOuterBegin -> {newjoint: JointOuterEnd   , newstate:(StateCO s                      ), shape:               ro}
+            JointOuterEnd   -> {newjoint: JointOuterBegin , newstate:(StateCO s                      ), shape: reverseShapes ro}
 
       ,getRoute  : \s f t  -> 
                       case f of
                         JointInnerBegin -> 
                           case t of
                             JointInnerBegin -> Nothing
-                            JointInnerEnd   -> Just $ StateDP $ (unwrap s) {innerturnout = false, outerturnout = false}
+                            JointInnerEnd   -> Just $ StateCO $ (unwrap s) {innerturnout = false, outerturnout = false}
                             JointOuterBegin -> Nothing
                             JointOuterEnd   -> Nothing
                         JointInnerEnd   -> 
                           case t of
-                            JointInnerBegin -> Just $ StateDP $ (unwrap s) {innerturnout = false, outerturnout = false}
+                            JointInnerBegin -> Just $ StateCO $ (unwrap s) {innerturnout = false, outerturnout = false}
                             JointInnerEnd   -> Nothing
                             JointOuterBegin -> Nothing
-                            JointOuterEnd   -> Just $ StateDP $ (unwrap s) {innerturnout = true, outerturnout = true}
+                            JointOuterEnd   -> Just $ StateCO $ (unwrap s) {innerturnout = true, outerturnout = true}
                         JointOuterBegin -> 
                           case t of
                             JointInnerBegin -> Nothing
                             JointInnerEnd   -> Nothing
                             JointOuterBegin -> Nothing
-                            JointOuterEnd   -> Just $ StateDP $ (unwrap s) {innerturnout = false, outerturnout = false}
+                            JointOuterEnd   -> Just $ StateCO $ (unwrap s) {innerturnout = false, outerturnout = false}
                         JointOuterEnd   -> 
                           case t of
                             JointInnerBegin -> Nothing
-                            JointInnerEnd   -> Just $ StateDP $ (unwrap s) {innerturnout = true, outerturnout = true}
-                            JointOuterBegin -> Just $ StateDP $ (unwrap s) {innerturnout = false, outerturnout = false}
+                            JointInnerEnd   -> Just $ StateCO $ (unwrap s) {innerturnout = true, outerturnout = true}
+                            JointOuterBegin -> Just $ StateCO $ (unwrap s) {innerturnout = false, outerturnout = false}
                             JointOuterEnd   -> Nothing
       ,isLegal   : \j s    -> 
           case j of
@@ -1209,6 +1222,123 @@ crossoverLRail =
 
 crossoverRRail ∷ RailGen IntJoint IntState
 crossoverRRail = flipRail crossoverLRail
+
+crossoverTripleLRail :: RailGen IntJoint IntState
+crossoverTripleLRail =
+  let prf = RelPos (Pos {coord: Coord{x: 0.0 , y: -doubleRailWidth    , z:0.0}, angle: angle8 4    , isPlus: true})
+      prb = RelPos (Pos {coord: Coord{x: 1.0 , y: -doubleRailWidth    , z:0.0}, angle: angle8 0    , isPlus: false})
+      pmf = RelPos (Pos {coord: Coord{x: 0.0 , y:  0.0                , z:0.0}, angle: angle8 4    , isPlus: true})
+      pmb = RelPos (Pos {coord: Coord{x: 1.0 , y:  0.0                , z:0.0}, angle: angle8 0    , isPlus: false})
+      plf = RelPos (Pos {coord: Coord{x: 0.0 , y:  doubleRailWidth    , z:0.0}, angle: angle8 4    , isPlus: true})
+      plb = RelPos (Pos {coord: Coord{x: 1.0 , y:  doubleRailWidth    , z:0.0}, angle: angle8 0    , isPlus: false})
+      rr = [railShape {start :prf, end: prb}]
+      rm = [railShape {start :pmf, end: pmb}]
+      rl = [railShape {start :plf, end: plb}]
+      rn1 = slipShapes {start :prf, end: pmb}
+      rn2 = slipShapes {start :pmf, end: plb}
+  in toRail $ RailGen {
+    name : "crossover3"
+    ,flipped : false
+    ,opposed : false
+    ,getDrawInfo : \(StateCO3 s) ->
+      noAdditionals $ (\{isActive, route} ->
+        if isActive then activeRail <$> route else passiveRail <$> route
+      ) =<< sortBy (comparing (\r -> r.isActive)) [
+          {isActive:(not s.innerturnout1)                        ,route:rr },
+          {isActive:(not s.innerturnout2 && not s.outerturnout1) ,route:rm },
+          {isActive:(not s.outerturnout2)                        ,route:rl },
+          {isActive:(s.innerturnout1 || s.outerturnout1)         ,route:rn1},
+          {isActive:(s.innerturnout2 || s.outerturnout2)         ,route:rn2}
+        ]
+        
+    ,defaultState : default
+    ,getJoints    : serialAll
+    ,getStates    : serialAll
+    ,origin       : JointRFront
+    ,getJointPos : \j -> case j of
+      JointRFront -> prf
+      JointRBack  -> prb
+      JointMFront -> pmf
+      JointMBack  -> pmb
+      JointLFront -> plf  
+      JointLBack  -> plb
+    ,getNewState : \j (StateCO3 s) ->
+      case j of
+        JointRFront ->
+          if s.innerturnout1
+            then {newjoint: JointMBack , newstate:(StateCO3 s {innerturnout1 = true, outerturnout1 = true}), shape: rn1}
+            else {newjoint: JointRBack , newstate:(StateCO3 s), shape: rr}
+        JointRBack  ->
+          {newjoint: JointRFront , newstate:(StateCO3 s {innerturnout1 = false}), shape: reverseShapes rr}
+        JointMFront ->
+          if s.innerturnout2
+            then {newjoint: JointLBack , newstate:(StateCO3 s {innerturnout2 = true, outerturnout2 = true}), shape: rn2}
+            else {newjoint: JointMBack , newstate:(StateCO3 s {outerturnout1 = false}), shape: rm}
+        JointMBack  ->
+          if s.outerturnout1
+            then {newjoint: JointRFront , newstate:(StateCO3 s {innerturnout1 = true}), shape: reverseShapes rn1}
+            else {newjoint: JointMFront , newstate:(StateCO3 s {innerturnout2 = false}), shape: reverseShapes rm}
+        JointLFront ->
+          {newjoint: JointLBack , newstate:(StateCO3 s {outerturnout2 = false}), shape: rl}
+        JointLBack  ->
+          if s.outerturnout2
+            then {newjoint: JointMFront , newstate:(StateCO3 s {innerturnout2 = true}), shape: reverseShapes rn2}
+            else {newjoint: JointLFront , newstate:(StateCO3 s), shape: reverseShapes rl}
+
+      ,getRoute  : \s f t  -> 
+                      case f of
+                        JointRFront -> 
+                          case t of
+                            JointRBack  -> Just $ StateCO3 $ (unwrap s) {innerturnout1 = false, outerturnout1 = false}
+                            JointMBack  -> Just $ StateCO3 $ (unwrap s) {innerturnout1 = true, outerturnout1 = true}
+                            _           -> Nothing
+                        JointRBack  ->
+                          case t of
+                            JointRFront -> Just $ StateCO3 $ (unwrap s) {innerturnout1 = false, outerturnout1 = false}
+                            _           -> Nothing
+                        JointMFront -> 
+                          case t of
+                            JointMBack  -> Just $ StateCO3 $ (unwrap s) {innerturnout2 = false, outerturnout1 = false, outerturnout2 = false, innerturnout1 = false}
+                            JointLBack  -> Just $ StateCO3 $ (unwrap s) {innerturnout2 = true, outerturnout2 = true}
+                            _           -> Nothing
+                        JointMBack  ->
+                          case t of
+                            JointRFront -> Just $ StateCO3 $ (unwrap s) {innerturnout1 = true, outerturnout1 = true}
+                            JointMFront -> Just $ StateCO3 $ (unwrap s) {outerturnout1 = false, innerturnout2 = false, outerturnout2 = false, innerturnout1 = false}
+                            _           -> Nothing
+                        JointLFront -> 
+                          case t of
+                            JointLBack  -> Just $ StateCO3 $ (unwrap s) {outerturnout2 = false, innerturnout2 = false}
+                            _           -> Nothing
+                        JointLBack  ->
+                          case t of
+                            JointMFront -> Just $ StateCO3 $ (unwrap s) {innerturnout2 = true, outerturnout2 = true}
+                            JointLFront -> Just $ StateCO3 $ (unwrap s) {outerturnout2 = false, innerturnout2 = false}
+                            _           -> Nothing
+      ,isLegal   : \j (StateCO3 s)    -> 
+          case j of
+            JointRFront -> not s.innerturnout1 || (s.innerturnout1 && s.outerturnout1)
+            JointRBack  -> not s.innerturnout1
+            JointMFront -> (not s.innerturnout2 && not s.outerturnout1) || (s.innerturnout2 && s.outerturnout2)
+            JointMBack  -> (not s.innerturnout2 && not s.outerturnout1) || (s.innerturnout1 && s.outerturnout1)
+            JointLFront -> not s.outerturnout2
+            JointLBack  -> not s.outerturnout2 || (s.innerturnout2 && s.outerturnout2)
+
+      ,lockedBy  : \s s'   -> if s == s' then [] else serialAll
+      ,isBlocked : \j (StateCO3 s) j' -> 
+          case j' of
+            JointRFront -> (j == JointRBack)  || ((s.innerturnout1 || s.outerturnout1) && (j == JointMBack || j == JointMFront))
+            JointRBack  -> (j == JointRFront) || ((s.innerturnout1 || s.outerturnout1) && (j == JointMBack))
+            JointMFront -> (j == JointMBack)  || ((s.innerturnout1 || s.outerturnout1) && (j == JointRFront)) || ((s.innerturnout2 || s.outerturnout2) && (j == JointLBack || j == JointLFront))
+            JointMBack  -> (j == JointMFront) || ((s.innerturnout1 || s.outerturnout1) && (j == JointRFront || j == JointRBack)) || ((s.innerturnout2 || s.outerturnout2) && (j == JointLBack))
+            JointLFront -> (j == JointLBack)  || ((s.innerturnout2 || s.outerturnout2) && (j == JointMFront))
+            JointLBack  -> (j == JointLFront) || ((s.innerturnout2 || s.outerturnout2) && (j == JointMFront || j == JointMBack))
+
+      ,isSimple  : false
+  }
+
+crossoverTripleRRail ∷ RailGen IntJoint IntState
+crossoverTripleRRail = flipRail crossoverTripleLRail
 
 diamondRail :: Rail
 diamondRail = 

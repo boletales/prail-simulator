@@ -36,7 +36,7 @@ instance (RL.RowToList row (RL.Cons n x xs), IsSymbol n, IntSerialize x, RowList
                     let l1 = lengthSerial (Proxy :: Proxy x) 
                         l2 = rllengthSerial (Proxy :: Proxy xs)
                     in if 0 <= i && i < l1*l2  then ((R.insert (Proxy :: Proxy n)) <$> fromSerial (i `mod` l1) <*> rlfromSerial (Proxy :: Proxy xs) (i `div` l1)) else Nothing)
-  rltoSerial     = \_ (rec :: Record row)  -> toSerial (R.get (Proxy :: Proxy n) rec) + (rltoSerial (Proxy :: Proxy xs) (R.delete (Proxy :: Proxy n) rec) * rllengthSerial (Proxy :: Proxy xs))
+  rltoSerial     = \_ (rec :: Record row)  -> toSerial (R.get (Proxy :: Proxy n) rec) + (rltoSerial (Proxy :: Proxy xs) (R.delete (Proxy :: Proxy n) rec) * lengthSerial (Proxy :: Proxy x))
   rllengthSerial = const $ lengthSerial (Proxy :: Proxy x) * rllengthSerial (Proxy :: Proxy xs)
 
 

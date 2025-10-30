@@ -19,13 +19,11 @@ import Data.Array (catMaybes, filter, find, foldl, length, mapWithIndex, reverse
 import Data.Either (fromRight, hush)
 import Data.Function (on)
 import Data.Identity (Identity)
-import Data.Int (floor)
 import Data.Int as Int
 import Data.List.Types (NonEmptyList)
 import Data.Maybe (Maybe(..), fromMaybe, isNothing, maybe)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Number (abs, cos, pi, round, sign, sin)
-import Data.Number as Number
 import Data.String as St
 import Data.String.Regex (regex, replace, source) as Re
 import Data.String.Regex.Flags (global, noFlags) as Re
@@ -82,6 +80,7 @@ defaultLayout =
         }
     )
 
+defaultFloorData ∷ FloorData
 defaultFloorData = 
   FloorData {
     height: 500.0,
@@ -107,6 +106,7 @@ rails = [
     , longRail
     , doubleWidthSLRail
     , crossoverLRail
+    , crossoverTripleLRail
     , diamondRail
     , halfSlopeRail
     , quarterSlopeRail

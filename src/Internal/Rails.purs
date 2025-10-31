@@ -14,6 +14,8 @@ module Internal.Rails
   , converterRail
   , crossoverLRail
   , crossoverRRail
+  , crossoverShortLRail
+  , crossoverShortRRail
   , crossoverTripleLRail
   , crossoverTripleRRail
   , curveLRail
@@ -37,8 +39,12 @@ module Internal.Rails
   , slopeCurveRRail
   , slopeRail
   , straightRail
+  , halfScissorsLRail
   , toDoubleLPlusRail
+  , halfScissorsRRail
   , toDoubleRPlusRail
+  , toDoubleShortLPlusRail
+  , toDoubleShortRPlusRail
   , turnOutLPlusRail
   , turnOutRPlusRail
   )
@@ -404,13 +410,13 @@ outerCurveLRail =
     ,isSimple  : true
   }
 
+outerCurveRRail ∷ Rail
 outerCurveRRail = flipRail outerCurveLRail
 
 
 doubleWidthSLRail :: Rail
 doubleWidthSLRail = 
-  let anglep = fromRadian $ calcMidAngle 1.0 doubleRailWidth
-      pe  = RelPos (Pos {coord: Coord{x: 0.0, y: 0.0                , z:0.0}, angle: angle8 4            , isPlus: false})
+  let pe  = RelPos (Pos {coord: Coord{x: 0.0, y: 0.0                , z:0.0}, angle: angle8 4            , isPlus: false})
       ps  = RelPos (Pos {coord: Coord{x: 1.0, y: doubleRailWidth    , z:0.0}, angle: angle8 0            , isPlus: true })
       r1 = slipShapes {start: pe, end: ps}
   in toRail $ RailGen {
@@ -596,18 +602,18 @@ calcMidAngle x y =
   let r = (y `pow` 2.0 + x `pow`2.0) / (2.0*y)
   in  asin (x/r)
 
-toDoubleLPlusRail :: Rail
-toDoubleLPlusRail = 
+toDoubleLPlusRailGen :: Number -> String -> Rail
+toDoubleLPlusRailGen len name = 
   let anglep = fromRadian $ calcMidAngle 1.0 doubleRailWidth
       pe  = RelPos (Pos {coord: Coord{x: 0.0, y: 0.0                , z:0.0}, angle: angle8 4            , isPlus: false})
-      pm  = RelPos (Pos {coord: Coord{x: 1.0, y: 0.0                , z:0.0}, angle: angle8 0            , isPlus: true })
+      pm  = RelPos (Pos {coord: Coord{x: len, y: 0.0                , z:0.0}, angle: angle8 0            , isPlus: true })
       _pp  = RelPos (Pos {coord: Coord{x: 0.5, y: doubleRailWidth/2.0, z:0.0}, angle: anglep              , isPlus: true })
       _pP  = RelPos (Pos {coord: Coord{x: 0.5, y: doubleRailWidth/2.0, z:0.0}, angle: reverseAngle anglep , isPlus: false})
       ps  = RelPos (Pos {coord: Coord{x: 1.0, y: doubleRailWidth    , z:0.0}, angle: angle8 0            , isPlus: true })
       r0 = [railShape {start: pe, end: pm}]
       r1 = slipShapes {start: pe, end: ps}
   in toRail $ RailGen {
-      name : "todouble"
+      name : "todouble" <> name
       ,flipped : false
       ,opposed : false
       ,getDrawInfo : \(StatePoint s) ->
@@ -657,9 +663,79 @@ toDoubleLPlusRail =
       ,isSimple  : false
     }
 
+toDoubleLPlusRail ∷ Rail
+toDoubleLPlusRail = toDoubleLPlusRailGen 1.0 ""
+
 toDoubleRPlusRail ∷ Rail
 toDoubleRPlusRail = flipRail toDoubleLPlusRail
 
+toDoubleShortLPlusRail ∷ Rail
+toDoubleShortLPlusRail = toDoubleLPlusRailGen 0.5 "short"
+
+toDoubleShortRPlusRail ∷ Rail
+toDoubleShortRPlusRail = flipRail toDoubleShortLPlusRail
+
+halfScissorsLRail :: Rail
+halfScissorsLRail = 
+  let anglep = fromRadian $ calcMidAngle 1.0 doubleRailWidth
+      pe  = RelPos (Pos {coord: Coord{x: 0.0, y: 0.0                , z:0.0}, angle: angle8 4            , isPlus: false})
+      pp  = RelPos (Pos {coord: Coord{x: 0.5, y: doubleRailWidth/2.0, z:0.0}, angle: anglep              , isPlus: true })
+      pm  = RelPos (Pos {coord: Coord{x: 1.0, y: 0.0                , z:0.0}, angle: angle8 0            , isPlus: true })
+      r0 = [railShape {start: pe, end: pp}]
+      r1 = slipShapes {start: pe, end: pm}
+  in toRail $ RailGen {
+      name : "halfscissors"
+      ,flipped : false
+      ,opposed : false
+      ,getDrawInfo : \(StatePoint s) ->
+        if s.turnout
+        then noAdditionals $ join [passiveRail <$> r0, activeRail <$> r1]
+        else noAdditionals $ join [passiveRail <$> r1, activeRail <$> r0]
+      ,defaultState : StatePoint {turnout: false}
+      ,getJoints    : serialAll
+      ,getStates    : serialAll
+      ,origin       : JointEnter
+      ,getJointPos : \j -> case j of
+        JointEnter -> pe
+        JointMain  -> pm
+        JointSub   -> pp
+      ,getNewState : \j (StatePoint s) -> case j of
+        JointMain  -> {newjoint: JointEnter, newstate: StatePoint {turnout: false}, shape: reverseShapes r0}
+        JointSub   -> {newjoint: JointEnter, newstate: StatePoint {turnout: true }, shape: reverseShapes r1}
+        JointEnter -> 
+          if s.turnout
+            then {newjoint: JointSub , newstate:StatePoint s, shape: r1}
+            else {newjoint: JointMain, newstate:StatePoint s, shape: r0}
+
+      ,getRoute  : \s f t  -> 
+                      case f of
+                        JointEnter ->
+                          case t of
+                            JointEnter -> Nothing
+                            JointMain  -> Just $ StatePoint $ (unwrap s) {turnout= false}
+                            JointSub   -> Just $ StatePoint $ (unwrap s) {turnout= true}
+                        JointMain ->
+                          case t of
+                            JointEnter -> Just $ StatePoint $ (unwrap s) {turnout= false}
+                            JointMain  -> Nothing
+                            JointSub   -> Nothing
+                        JointSub ->
+                          case t of
+                            JointEnter -> Just $ StatePoint $ (unwrap s) {turnout= true}
+                            JointMain  -> Nothing
+                            JointSub   -> Nothing
+      ,isLegal   : \j s    -> 
+          case j of
+            JointEnter -> true
+            JointMain  -> not (unwrap s).turnout
+            JointSub   -> (unwrap s).turnout
+      ,lockedBy  : \s s'   -> if s == s' then [] else serialAll
+      ,isBlocked : \_ _ _  -> true
+      ,isSimple  : false
+    }
+
+halfScissorsRRail ∷ Rail
+halfScissorsRRail = flipRail halfScissorsLRail
 
 scissorsRail :: Rail
 scissorsRail = 
@@ -1101,17 +1177,17 @@ doubleToWideRRail ∷ Rail
 doubleToWideRRail = flipRail doubleToWideLRail
 
 
-crossoverLRail :: Rail
-crossoverLRail = 
-  let pib = RelPos (Pos {coord: Coord{x: 1.0 , y: -doubleRailWidth    , z:0.0}, angle: angle8 0    , isPlus: false})
-      pie = RelPos (Pos {coord: Coord{x: 0.0 , y: -doubleRailWidth    , z:0.0}, angle: angle8 4    , isPlus: true}) 
-      pob = RelPos (Pos {coord: Coord{x: 0.0 , y:  0.0                , z:0.0}, angle: angle8 4    , isPlus: true})
-      poe = RelPos (Pos {coord: Coord{x: 1.0 , y:  0.0                , z:0.0}, angle: angle8 0    , isPlus: false}) 
+crossoverLRailGen :: Number -> String -> Rail
+crossoverLRailGen len name = 
+  let pib = RelPos (Pos {coord: Coord{x:       len , y: -doubleRailWidth    , z:0.0}, angle: angle8 0    , isPlus: false})
+      pie = RelPos (Pos {coord: Coord{x: 0.0       , y: -doubleRailWidth    , z:0.0}, angle: angle8 4    , isPlus: true}) 
+      pob = RelPos (Pos {coord: Coord{x: 1.0 - len , y:  0.0                , z:0.0}, angle: angle8 4    , isPlus: true})
+      poe = RelPos (Pos {coord: Coord{x: 1.0       , y:  0.0                , z:0.0}, angle: angle8 0    , isPlus: false}) 
       ro = [railShape {start :pob, end: poe}]
       ri = [railShape {start :pib, end: pie}]
       rn = slipShapes {start :pie, end: poe}
   in toRail $ RailGen {
-    name : "crossover"
+    name : "crossover" <> name
     ,flipped : false
     ,opposed : false
     ,getDrawInfo : \(StateCO s) ->
@@ -1220,8 +1296,17 @@ crossoverLRail =
       ,isSimple  : false
   }
 
+crossoverLRail :: RailGen IntJoint IntState
+crossoverLRail = crossoverLRailGen 1.0 ""
+
 crossoverRRail ∷ RailGen IntJoint IntState
 crossoverRRail = flipRail crossoverLRail
+
+crossoverShortLRail :: RailGen IntJoint IntState
+crossoverShortLRail = crossoverLRailGen 0.5 "short"
+
+crossoverShortRRail ∷ RailGen IntJoint IntState
+crossoverShortRRail = flipRail crossoverShortLRail
 
 crossoverTripleLRail :: RailGen IntJoint IntState
 crossoverTripleLRail =

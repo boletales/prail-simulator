@@ -100,12 +100,15 @@ rails = [
     , turnOutLPlusRail
     , outerCurveLRail
     , toDoubleLPlusRail
+    , toDoubleShortLPlusRail
+    , halfScissorsLRail
     , scissorsRail
     , doubleToWideLRail
     , doubleTurnoutLPlusRail
     , longRail
     , doubleWidthSLRail
     , crossoverLRail
+    , crossoverShortLRail
     , crossoverTripleLRail
     , diamondRail
     , halfSlopeRail

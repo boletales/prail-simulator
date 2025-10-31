@@ -34,7 +34,7 @@ Object.values(L.keycontrols).forEach(category => {
       "onkey": (()=>{
         L.onkey({key:key.key[0]});
       })
-    }, "onkey").name(key.softkey + " : " + key.text_ja);
+    }, "onkey").name((key.softkey.startsWith("extra_") ? "" : key.softkey + " : ") + key.text_ja);
     folder.close();
   });
 });

@@ -428,6 +428,18 @@ class Layout {
             , softkey: "3"
             , key    : ["3"]
           },
+          toDoubleShortLPlusRail: {
+              onkey: ()=>{this.addRail(P.toDoubleShortLPlusRail);}
+            , text_ja: "単線複線ポイント短レール（左）"
+            , softkey: "!"
+            , key    : ["!"]
+          },
+          toDoubleShortRPlusRail: {
+              onkey: ()=>{this.addRail(P.toDoubleShortRPlusRail);}
+            , text_ja: "単線複線ポイント短レール（右）"
+            , softkey: "#"
+            , key    : ["#"]
+          },
           doubleWidthSLRail: {
               onkey: ()=>{this.addRail(P.doubleWidthSLRail);}
             , text_ja: "複線幅S字レール（左）"
@@ -454,14 +466,14 @@ class Layout {
           doubleTurnoutLPlusRail: {
               onkey: ()=>{this.addRail(P.doubleTurnoutLPlusRail);}
             , text_ja: "複線ターンアウトレール（左）"
-            , softkey: "!"
-            , key    : ["!"]
+            , softkey: "extra_doubleTurnoutLPlusRail"
+            , key    : ["extra_doubleTurnoutLPlusRail"]
           },
           doubleTurnoutRPlusRail: {
               onkey: ()=>{this.addRail(P.doubleTurnoutRPlusRail);}
             , text_ja: "複線ターンアウトレール（右）"
-            , softkey: "#"
-            , key    : ["#"]
+            , softkey: "extra_doubleTurnoutRPlusRail"
+            , key    : ["extra_doubleTurnoutRPlusRail"]
           },
           diamondRail: {
               onkey: ()=>{this.addRail(P.diamondRail);}
@@ -484,26 +496,38 @@ class Layout {
           crossoverLRail: {
               onkey: ()=>{this.addRail(P.crossoverLRail);}
             , text_ja: "複線わたりポイントレール（左）"
-            , softkey: "G"
-            , key    : ["G"]
+            , softkey: "5"
+            , key    : ["5"]
           },
           crossoverRRail: {
               onkey: ()=>{this.addRail(P.crossoverRRail);}
             , text_ja: "複線わたりポイントレール（右）"
-            , softkey: "H"
-            , key    : ["H"]
+            , softkey: "6"
+            , key    : ["6"]
           },
           crossoverTripleLRail: {
-              onkey: ()=>{this.addRail(P.crossoverTripleLRail);}
-            , text_ja: "三線わたりポイントレール（左）"
+              onkey: ()=>{this.addRail(P.crossoverShortLRail);}
+            , text_ja: "複線わたりポイント短レール（左）"
             , softkey: "%"
             , key    : ["%"]
           },
           crossoverTripleRRail: {
-              onkey: ()=>{this.addRail(P.crossoverTripleRRail);}
-            , text_ja: "三線わたりポイントレール（右）"
+              onkey: ()=>{this.addRail(P.crossoverShortRRail);}
+            , text_ja: "複線わたりポイント短レール（右）"
             , softkey: "&"
             , key    : ["&"]
+          },
+          halfScissorsLRail: {
+              onkey: ()=>{this.addRail(P.halfScissorsLRail);}
+            , text_ja: "半シーサスレール（左）"
+            , softkey: "7"
+            , key    : ["7"]
+          },
+          halfScissorsRRail: {
+              onkey: ()=>{this.addRail(P.halfScissorsRRail);}
+            , text_ja: "半シーサスレール（右）"
+            , softkey: "8"
+            , key    : ["8"]
           },
         }
       },

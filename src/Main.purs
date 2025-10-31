@@ -12,6 +12,8 @@ module Main
   , converterRail
   , crossoverLRail
   , crossoverRRail
+  , crossoverShortLRail
+  , crossoverShortRRail
   , crossoverTripleLRail
   , crossoverTripleRRail
   , curveLRail
@@ -41,6 +43,8 @@ module Main
   , getNewRailPos
   , getNextSignal
   , halfRail
+  , halfScissorsLRail
+  , halfScissorsRRail
   , halfSlopeRail
   , isArc
   , layoutDrawInfo
@@ -68,6 +72,8 @@ module Main
   , straightRail
   , toDoubleLPlusRail
   , toDoubleRPlusRail
+  , toDoubleShortLPlusRail
+  , toDoubleShortRPlusRail
   , trainsetDrawInfo
   , trainsetLength
   , tryOpenRouteFor_ffi
@@ -79,7 +85,6 @@ module Main
 import Data.Maybe as Ex
 import Internal.JSON as Ex
 import Internal.Layout as Ex
-import Internal.Rails (crossoverTripleLRail)
 import Internal.Rails as Ex
 import Internal.Types as Ex
 
@@ -129,6 +134,8 @@ autoTurnOutRPlusRail      = Ex.autoTurnOutRPlusRail
 converterRail             = Ex.converterRail             
 crossoverLRail            = Ex.crossoverLRail            
 crossoverRRail            = Ex.crossoverRRail            
+crossoverShortLRail      = Ex.crossoverShortLRail
+crossoverShortRRail      = Ex.crossoverShortRRail
 crossoverTripleLRail      = Ex.crossoverTripleLRail
 crossoverTripleRRail      = Ex.crossoverTripleRRail
 curveLRail                = Ex.curveLRail                
@@ -152,6 +159,10 @@ slopeRail                 = Ex.slopeRail
 straightRail              = Ex.straightRail              
 toDoubleLPlusRail         = Ex.toDoubleLPlusRail         
 toDoubleRPlusRail         = Ex.toDoubleRPlusRail         
+toDoubleShortLPlusRail    = Ex.toDoubleShortLPlusRail
+toDoubleShortRPlusRail    = Ex.toDoubleShortRPlusRail
+halfScissorsLRail         = Ex.halfScissorsLRail
+halfScissorsRRail         = Ex.halfScissorsRRail
 turnOutLPlusRail          = Ex.turnOutLPlusRail          
 turnOutRPlusRail          = Ex.turnOutRPlusRail          
 halfSlopeRail             = Ex.halfSlopeRail

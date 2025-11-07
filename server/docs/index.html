@@ -1,1 +1,108 @@
-online/index.html
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    #minicontrols {
+      display:flex
+    }
+
+    #minicontrols div{
+      margin: 10px;
+      border-style: dashed;
+      border-width: 1px;
+      padding: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="main"></div>
+  <div id="control">
+    <span id="coord"></span><br>
+    <input id="save" type="button" value="save" onclick="save();">
+    <input id="download" type="button" value="download" onclick="download();">
+    <input id="upload" type="file" accept=".json" onchange="upload();">
+    <label><input type="checkbox" id="respectSignals" name="respectSignals" checked>信号に従って走行</label><br>
+    <input id="fakeinput" placeholder="fake input for smartphone">
+    <div id="minicontrols">
+      <div id="railcontrol">
+        <span>レール操作：</span><br>
+        <label>レール注釈：<input id="railnote"     ></label><br>
+        <label>信号制御：<textarea id="signalrules" ></textarea></label><br>
+        <label>色：<input id="railcolor"></label><br>
+      </div>
+      <div id="traincontrol">
+        <span>列車操作：</span><br>
+        <select id="trainid"></select> <label><input type="checkbox" id="lockon" name="lockon">追従</label><br>
+        <span>ノッチ操作：</span> <input type="button" id="notchplus" value="+(j)"><input type="button" id="notchminus" value="-(k)"> <input type="button" value="反転(l)" id="reverse"> <span id="speedinfo"></span><br>
+        <label>列車番号：<input id="trainnote"   ></label><br>
+        <label>列車タグ：<textarea id="traintags"></textarea></label>
+        <input id="applyrule" type="button" value="信号ルール再適用"><br>
+      </div>
+    </div>
+    <hr>
+    <div>
+      <h3>チートシート</h3>
+      <ul>
+        <li>レイアウト操作</li>
+        <ul>
+            <li>右上メニューの各ボタン・そこに表記されているキーで操作ができます</li>
+            <li>/online/*において、操作は同一のurlに接続しているユーザーと共有されます</li>
+        </ul>
+
+        <li>下側コントロールパネル</li>
+        <ul>
+            <li>座標表示：現在選択しているレール接続点の座標を表示します</li>
+            <li>α値表示：直線レールの√2/2倍の長さを合わせるための追加情報です</li>
+            <li>save：一人用モードであればセーブを試みます</li>
+            <li>download：レイアウトデータをダウンロードします</li>
+            <li>参照：レイアウトデータをアップロードします</li>
+            <li>レール注釈：レール上に駅名などの注釈を表示します</li>
+            <li>信号制御：選択中の接続点に信号がある場合、信号ルールを設定します</li>
+            <li>ノッチ操作：信号による制限がない場合、指定したノッチで走行します</li>
+            <li>列車番号：列車に注釈を表示します。編成番号として使う方が適切かもしれません</li>
+            <li>列車タグ：影響を受ける信号ルールの種類の指定です。改行区切りで複数指定できます</li>
+        </ul>
+
+        <li>信号・自動化</li>
+        <ul>
+            <li>列車の仕様</li>
+            <ul>
+                <li>進路上の一番近い信号機に反応します</li>
+                <li>自身の列車タグに合致する信号ルールを見つけた際、それを適用します</li>
+                <li>信号現示・信号ルールで指定された最高速度に対して、ATS-Pに近い動作で減速をします</li>
+                <li>前方に複数の進路や分岐レールを含む「複雑な信号機」を通過した際、自動で停止現示に変化させます</li>
+            </ul>
+
+            <li>信号ルール</li>
+            <ul>
+                <li>c：この信号を「複雑な信号機」として扱います</li>
+                <li>m [列車タグ] [最高速度]：該当する列車が通過する際に速度を制限します</li>
+                <li>o [列車タグ] [進路番号]：該当する列車が信号機を見つけた際、その方向に進路を開通して自動停止現示を解除します</li>
+                <li>u [列車タグ] [改変部分] [改変後]：該当する列車が信号機を見つけた際、列車タグを置換します</li>
+                <li>s [列車タグ]：該当する列車を停止させます</li>
+                <li>O [列車タグ] [進路番号]：該当する列車を一時停止させ、その後にoと同じように振る舞います</li>
+                <li>U [列車タグ] [改変部分] [改変後]：該当する列車を一時停止させ、その後にuと同じように振る舞います</li>
+                <li>r [列車タグ]：該当する列車を反転させます</li>
+                <li>R [列車タグ] [改変部分] [改変後]：該当する列車を反転させ、その後にuと同じように振る舞います</li>
+                <li>その他の文字列はコメントとして扱われます</li>
+                <li>※進路番号は、右から順に0, 1, 2... です</li>
+                <li>※列車タグには正規表現を用いることができます</li>
+            </ul>
+          </li>
+        </ul>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js" integrity="sha256-80RGv4dbX7Dc2TgZ/+HZ4YLUZjTuhV9dkExsSsfNvJU=" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/FBXLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/utils/BufferGeometryUtils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lil-gui@0.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fflate@0.7.4/umd/index.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/socket.io@4.6.1/client-dist/socket.io.min.js"></script>
+  <script type="module" src="load.js">
+  </script>
+</body>
+</html>

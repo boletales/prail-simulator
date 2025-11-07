@@ -7,7 +7,6 @@ import * as fflate from "fflate";
 import * as fs from "fs";
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { start } from "repl";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -127,21 +126,42 @@ function onupload(socket, data){
   }
 }
 
+function safeSendFile(res, documentRoot, file){
+  let fullpath = path.join(documentRoot, file);
+  if(fullpath.normalize().startsWith(documentRoot.normalize())){
+    res.sendFile(fullpath);
+  } else {
+    res.status(404).send('Not Found');
+  }
+}
 
+const documentRoot = path.join(__dirname, 'docs');
 
-app.use(express.json())
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.get('/',function(req,res){
-    res.sendFile(__dirname+'/docs/index.html');
+  safeSendFile(res, documentRoot, 'index.html');
 });
 app.get('/online/models/:file',function(req,res){
-    res.sendFile(__dirname+'/docs/models/'+req.params.file);
+  safeSendFile(res, documentRoot, 'models/'+req.params.file);
 });
 app.get('/online/load.js',function(req,res){
-    res.sendFile(__dirname+'/docs/online/load.js');
+  safeSendFile(res, documentRoot, 'online/load.js');
 });
 app.get('/online/:roomid',function(req,res){
-    res.sendFile(__dirname+'/docs/online/index.html');
+  safeSendFile(res, documentRoot, 'online/index.html');
+});
+app.get('/preset/data/:file',function(req,res){
+  safeSendFile(res, documentRoot, 'preset/data/'+req.params.file);
+});
+app.get('/preset/models/:file',function(req,res){
+  safeSendFile(res, documentRoot, 'models/'+req.params.file);
+});
+app.get('/preset/load.js',function(req,res){
+  safeSendFile(res, documentRoot, 'preset/load.js');
+});
+app.get('/preset/:id',function(req,res){
+  safeSendFile(res, documentRoot, 'preset/index.html');
 });
 
 app.use(express.static('docs'));

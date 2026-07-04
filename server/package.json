@@ -1,9 +1,9 @@
 {
   "type": "module",
   "dependencies": {
-    "express": "^4.19.2",
-    "fflate": "^0.7.4",
-    "socket.io": "^4.7.5"
+    "express": "^5.2.1",
+    "fflate": "^0.8.3",
+    "socket.io": "^4.8.3"
   },
   "scripts": {
     "start": "node index.mjs"

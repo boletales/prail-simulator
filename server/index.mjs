@@ -185,5 +185,5 @@ io.on('connection',function(socket){
 });
 
 http.listen(process.env.PORT || 8080);
-console.log('It works!!');
+console.log("server started: http://localhost:" + (process.env.PORT || 8080));
 

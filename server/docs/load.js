@@ -1,5 +1,5 @@
-import {download, L, clearCache, forceUpdateModel} from "../3d.js";
-import * as P from "../main.js";
+import {download, L, clearCache, forceUpdateModel} from "./3d.js";
+import * as P from "./main.js";
 window.P = P;
 
 window.upload = upload;

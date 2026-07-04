@@ -101,11 +101,20 @@ var arrayApply = function(fs) {
 };
 
 // output-es/Control.Bind/foreign.js
-var arrayBind = function(arr) {
+var arrayBind = typeof Array.prototype.flatMap === "function" ? function(arr) {
+  return function(f) {
+    return arr.flatMap(f);
+  };
+} : function(arr) {
   return function(f) {
     var result = [];
-    for (var i = 0, l = arr.length; i < l; i++) {
-      Array.prototype.push.apply(result, f(arr[i]));
+    var l = arr.length;
+    for (var i = 0; i < l; i++) {
+      var xs = f(arr[i]);
+      var k = xs.length;
+      for (var j = 0; j < k; j++) {
+        result.push(xs[j]);
+      }
     }
     return result;
   };

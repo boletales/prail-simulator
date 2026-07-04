@@ -34,4 +34,4 @@ workspace:
       - build
   extraPackages: {}
   packageSet:
-    url: https://raw.githubusercontent.com/purescript/package-sets/psc-0.15.15-20240829/packages.json
+    registry: 77.9.0

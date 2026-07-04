@@ -116,13 +116,13 @@ class Layout {
           },
           addSignal: {
               onkey: ()=>this.addSignal()
-            , text_ja: "信号追加"
+            , text_ja: "信号機追加"
             , softkey: "0"
             , key    : ["0"]
           },
           removeSignal: {
               onkey: ()=>this.removeSignal()
-            , text_ja: "信号削除"
+            , text_ja: "信号機削除"
             , softkey: "-"
             , key    : ["-"]
           },
@@ -246,14 +246,14 @@ class Layout {
           },
           resetSignalRulePhaseS: {
               onkey: (data)=>{ this.layout.trains.forEach(c => {if(c.trainid == data.trainid){c.signalRulePhase = 0}});; }
-            , text_ja: "信号ルール再適用"
+            , text_ja: "信号機ルール再適用"
             , softkey: "extra_resetsignalrulephase"
             , key    : ["extra_resetsignalrulephase"]
             , skip   : true
           },
           setSignalRules: {
               onkey: (data)=>{ this.setSignalRules(data.rules); }
-            , text_ja: "信号タグ設定"
+            , text_ja: "信号機タグ設定"
             , softkey: "extra_setsignaltag"
             , key    : ["extra_setsignaltag"]
             , skip   : true

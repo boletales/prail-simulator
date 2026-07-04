@@ -30,8 +30,8 @@ import Data.String.Regex.Flags (global, noFlags) as Re
 import Data.String.Regex.Unsafe (unsafeRegex) as Re
 import Data.String.Utils as St
 import Foreign (Foreign, ForeignError, isArray, isNull, isUndefined, readNumber, unsafeFromForeign, unsafeToForeign)
-import Internal.Layout (FloorData(..), IntNode(..), IntReserve, InvalidRoute, Layout(..), RailNode, RailNode_(..), RouteQueueElement, Signal(..), SignalRule(..), TrainRoute, TrainRoute_(..), Trainset, Trainset_(..), addJoint, getJointAbsPos, recalcInstanceDrawInfo, removeRail, saEmpty, signalRulePhase_unfired, updateSignalRoutes)
-import Internal.Types (Coord(..), IntJoint, IntState(..), Pos(..), Rail, RailGen(..), RailShape(..), flipRail, fromRadian, opposeRail, poszero, reverseAngle, reversePos, toRadian, ColorOption)
+import Internal.Layout (FloorData(..), IntNode(..), IntReserve, InvalidRoute, Layout(..), RailNode, RailNode_(..), RouteQueueElement, Signal(..), SignalRule(..), TrainRoute, TrainRoute_(..), Trainset, Trainset_(..), addJoint, getJointAbsPos, recalcInstanceDrawInfo, removeRail, signalRulePhase_unfired, updateSignalRoutes)
+import Internal.Types (Coord(..), IntJoint, IntState(..), Pos(..), Rail, RailGen(..), RailShape(..), flipRail, fromRadian, opposeRail, poszero, reverseAngle, reversePos, saEmpty, toRadian, ColorOption)
 import Prelude as Prelude
 
 

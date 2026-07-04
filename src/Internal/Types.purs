@@ -1,6 +1,6 @@
 module Internal.Types (module Ex) where
 
-import Internal.Types.Pos    (
+import Internal.Types.Pos (
       Pos (..)
     , RelPos (..)
     , Coord (..)
@@ -48,4 +48,11 @@ import Internal.Types.Rail   (
 import Internal.Types.Serial (
       class IntSerialize
     , serialAll
+  ) as Ex
+
+import Internal.Types.SectionArray (
+      SectionArray (..)
+    , saEmpty
+    , saIndex
+    , saModifyAt
   ) as Ex

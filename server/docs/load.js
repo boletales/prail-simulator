@@ -73,4 +73,15 @@ fetch("./preset/presets.json").then(res=>res.json()).then(presets=>{
       select.value = "";
     }
   };
+  
+  let presetParam = new URLSearchParams(window.location.search).get("preset");
+  if(presetParam){
+    let preset = presets.find(p=>p.file === presetParam);
+    if(preset){
+      select.value = preset.file;
+      fetch("./preset/layout/"+preset.file).then(res=>res.text()).then(t=>{
+        L.loadfrom(()=>(clearCache()), t);
+      });
+    }
+  }
 });

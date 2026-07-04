@@ -54,7 +54,7 @@ document.getElementById("upload").hidden = true;
 
 L.load = () => {
   const file = window.location.pathname.split("/").pop();
-  fetch("./data/"+file+".json").then(res=>res.text()).then(t=>{
+  fetch("./layout/"+file+".json").then(res=>res.text()).then(t=>{
     L.loadfrom(()=>(clearCache()), t);
   });
 };

@@ -151,8 +151,8 @@ app.get('/online/load.js',function(req,res){
 app.get('/online/:roomid',function(req,res){
   safeSendFile(res, documentRoot, 'online/index.html');
 });
-app.get('/preset/data/:file',function(req,res){
-  safeSendFile(res, documentRoot, 'preset/data/'+req.params.file);
+app.get('/preset/layout/:file',function(req,res){
+  safeSendFile(res, documentRoot, 'preset/layout/'+req.params.file);
 });
 app.get('/preset/models/:file',function(req,res){
   safeSendFile(res, documentRoot, 'models/'+req.params.file);

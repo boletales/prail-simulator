@@ -46,3 +46,31 @@ GUI.domElement.style.opacity = 0.7;
 document.getElementById("respectSignals").oninput = ()=>{
   L.onkey({key: "extra_respectSignals"});
 }
+
+fetch("./preset/presets.json").then(res=>res.json()).then(presets=>{
+  let select = document.getElementById("presets");
+  select.innerHTML = "";
+  {
+    let option = document.createElement("option");
+    option.value = "";
+    option.textContent = "―― 作例を読み込む ――";
+    select.appendChild(option);
+  }
+  presets.forEach(preset=>{
+    let option = document.createElement("option");
+    option.value = preset.file;
+    option.textContent = preset.name;
+    select.appendChild(option);
+  });
+  select.onchange = ()=>{
+    let file = select.value;
+    if(file === "") return;
+    if(confirm("作例「"+select.options[select.selectedIndex].textContent+"」を読み込みます。現在のレイアウトは失われます。よろしいですか？")){
+      fetch("./preset/layout/"+file).then(res=>res.text()).then(t=>{
+        L.loadfrom(()=>(clearCache()), t);
+      });
+    }else{
+      select.value = "";
+    }
+  };
+});

@@ -160,6 +160,9 @@ app.get('/preset/models/:file',function(req,res){
 app.get('/preset/load.js',function(req,res){
   safeSendFile(res, documentRoot, 'preset/load.js');
 });
+app.get('/preset/presets.json',function(req,res){
+  safeSendFile(res, documentRoot, 'preset/presets.json');
+});
 app.get('/preset/:id',function(req,res){
   safeSendFile(res, documentRoot, 'preset/index.html');
 });

@@ -51,6 +51,8 @@ document.getElementById("save").disabled = true;
 document.getElementById("save").hidden = true;
 document.getElementById("upload").disabled = true;
 document.getElementById("upload").hidden = true;
+document.getElementById("presets").disabled = true;
+document.getElementById("presets").hidden = true;
 
 L.load = () => {
   const file = window.location.pathname.split("/").pop();

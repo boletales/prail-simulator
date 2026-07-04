@@ -21,11 +21,12 @@
   <div id="main"></div>
   <div id="control">
     <span id="coord"></span><br>
-    <input id="save" type="button" value="save" onclick="save();">
-    <input id="download" type="button" value="download" onclick="download();">
-    <input id="upload" type="file" accept=".json" onchange="upload();">
-    <label><input type="checkbox" id="respectSignals" name="respectSignals" checked>信号に従って走行</label><br>
-    <input id="fakeinput" placeholder="fake input for smartphone">
+    <input id="save" type="button" value="一次保存" onclick="save();">
+    <input id="download" type="button" value="書き出し" onclick="download();">
+    <input id="upload" type="file" accept=".json" onchange="upload();" value="読み込み">
+    <select id="presets"></select>
+    <br>
+    <input id="fakeinput" placeholder="fake input for smartphone"> <label><input type="checkbox" id="respectSignals" name="respectSignals" checked>信号に従って走行</label>
     <div id="minicontrols">
       <div id="railcontrol">
         <span>レール操作：</span><br>

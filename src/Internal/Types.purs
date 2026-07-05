@@ -17,6 +17,7 @@ import Internal.Types.Pos (
     , getDividingPoint_rel
     , fromRadian
     , toRadian
+    , reverseRelPos
   ) as Ex
 
 import Internal.Types.Rail   (

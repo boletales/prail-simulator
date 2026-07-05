@@ -1,8 +1,42 @@
-module Internal.Layout.Types where
+module Internal.Layout.Types
+  ( CarType(..)
+  , FloorData(..)
+  , IntNode(..)
+  , IntReserve(..)
+  , InvalidRoute(..)
+  , JointData(..)
+  , Layout(..)
+  , RailNode
+  , RailNode_(..)
+  , RouteQueueElement(..)
+  , Signal(..)
+  , SignalColor
+  , SignalRoute(..)
+  , SignalRule(..)
+  , SignalRulePhase(..)
+  , Traffic
+  , TrainRoute
+  , TrainRoute_(..)
+  , TrainTag(..)
+  , TrainTagPattern
+  , Trainset
+  , Trainset_(..)
+  , getTag
+  , isComplex
+  , signalAlart
+  , signalCaution
+  , signalClear
+  , signalReduce
+  , signalRulePhase_fired
+  , signalRulePhase_stoppedFired
+  , signalRulePhase_unfired
+  , signalStop
+  )
+  where
 
-import Prelude
-import Internal.Types
-import Data.Newtype
+import Prelude (class Eq, class Ord, class Show, show, (>>>))
+import Internal.Types (ColorOption, DrawInfo, IntJoint, IntState, Pos, Rail, RailShape, RealColor, SectionArray)
+import Data.Newtype (class Newtype, unwrap)
 import Data.String.Regex
 import Data.String.Regex.Flags (noFlags) as Re
 import Data.String.Regex.Unsafe (unsafeRegex) as Re

@@ -1,12 +1,21 @@
-module Internal.Layout.DrawInfo where
+module Internal.Layout.DrawInfo
+  ( TrainsetDrawInfo(..)
+  , carLength
+  , carMargin
+  , layoutDrawInfo
+  , recalcInstanceDrawInfo
+  , trainsetDrawInfo
+  , trainsetLength
+  )
+  where
 
-import Prelude
-import Data.Newtype
-import Data.Maybe
-import Data.Array
-import Internal.Types
-import Internal.Layout.Types
-import Internal.Layout.Helper
+import Prelude (map, negate, ($), (*), (+), (-), (/), (<), (<$>), (=<<), (>>>))
+import Data.Newtype (unwrap)
+import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Array (length, mapWithIndex, reverse, (!!))
+import Internal.Types (DrawAdditional, DrawInfo(..), DrawRail, Pos, RailShape(..), RealColor, absDrawInfo, applyColorOption, brokenDrawInfo, getDividingPoint_rel, poszero)
+import Internal.Layout.Types (CarType, FloorData, InvalidRoute(..), Layout(..), RailNode, RailNode_(..), Signal(..), TrainRoute_(..), TrainTag, Trainset, Trainset_(..))
+import Internal.Layout.Helper (getJointAbsPos, getRailJointAbsPos)
 import Data.Int
 
 

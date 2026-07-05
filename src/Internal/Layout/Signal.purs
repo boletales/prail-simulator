@@ -1,20 +1,33 @@
-module Internal.Layout.Signal where
+module Internal.Layout.Signal
+  ( baseaccr
+  , basedccr
+  , brakePattern
+  , digestIndication
+  , getNextSignal
+  , hasTraffic
+  , indicationToSpeed
+  , signalSearchDepth
+  , signalToSpeed
+  , speedScale
+  , updateSignalIndication
+  , updateSignalRoutes
+  )
+  where
 
-import Prelude
-import Prelude
-import Data.Newtype
-import Data.Maybe
-import Data.Array
-import Internal.Types
-import Internal.Layout.Types
-import Internal.Layout.Helper
-import Data.Int
+import Prelude (compare, identity, map, max, not, ($), (&&), (*), (+), (-), (/), (/=), (<), (<$>), (<<<), (<>), (=<<), (==), (>), (>=), (>>=), (>>>), (||))
+import Data.Newtype (unwrap)
+import Data.Maybe (Maybe(..), fromMaybe, maybe)
+import Data.Array (all, any, elem, filter, find, head, insert, last, length, nubBy, reverse, zipWith, (!!))
+import Internal.Types (IntJoint(..), shapeLength)
+import Internal.Layout.Types (InvalidRoute(..), Layout(..), RailNode, RailNode_(..), Signal(..), SignalRoute(..), TrainRoute_(..), Trainset, Trainset_(..), isComplex, signalAlart, signalCaution, signalClear, signalReduce, signalStop)
+import Internal.Layout.Helper (getNextJoint, getRailNode, getRailTraffic, getRouteInfo, isRailClear)
 import Data.Function (on)
-import Data.Foldable (foldM, maximum, sum)
-import Data.FoldableWithIndex (allWithIndex, findWithIndex)
+import Data.Foldable (maximum, sum)
+import Data.FoldableWithIndex (allWithIndex)
 
 signalSearchDepth :: Int
 signalSearchDepth = 30
+
 updateSignalRoutes :: Layout -> Layout
 updateSignalRoutes (Layout layout) = 
   Layout $ layout {
@@ -241,3 +254,10 @@ indicationToSpeed i =
 
 speedScale ∷ Number
 speedScale = 3.0 / 120.0
+
+
+signalToSpeed :: Signal -> Number 
+signalToSpeed = digestIndication >>> indicationToSpeed
+
+digestIndication :: Signal -> Int
+digestIndication signal = if (unwrap signal).manualStop || (unwrap signal).restraint then signalStop else fromMaybe signalStop $ maximum ((unwrap signal).indication)

@@ -1,12 +1,25 @@
-module Internal.Layout.Helper where
+module Internal.Layout.Helper
+  ( (!!?)
+  , getJointAbsPos
+  , getJoints
+  , getNewRailPos
+  , getNextJoint
+  , getRailJointAbsPos
+  , getRailNode
+  , getRailTraffic
+  , getRouteInfo
+  , indexMaybe
+  , isRailClear
+  )
+  where
 
-import Prelude
-import Data.Maybe
-import Data.Array
-import Data.Int
-import Data.Newtype
-import Internal.Layout.Types
-import Internal.Types
+import Prelude (join, pure, ($), (+), (-), (<), (<$>), (<*>), (>=>), (>>>))
+import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Array (foldM, index, (!!))
+import Data.Int (round)
+import Data.Newtype (unwrap)
+import Internal.Layout.Types (IntNode(..), JointData, Layout(..), RailNode, RailNode_(..))
+import Internal.Types (IntJoint, Pos, RailShape, RelPos(..), absShape, canJoin, convertRelPos, poszero, reversePos, reverseRelPos, saIndex, toAbsPos)
 
 indexMaybe ∷ ∀ (t192 ∷ Type). Array (Maybe t192) → Int → Maybe t192
 indexMaybe a = index a >>> join

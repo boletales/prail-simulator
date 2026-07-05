@@ -1,44 +1,24 @@
-module Internal.Layout.Tick where
+module Internal.Layout.Tick
+  ( layoutTick
+  , trainTick
+  )
+  where
 
-import Prelude
-import Data.Newtype
-import Data.Maybe
-import Data.Array
-import Internal.Types
-import Internal.Layout.Types
-import Internal.Layout.Helper
-import Internal.Layout.Signal
-import Internal.Layout.DrawInfo
-import Internal.Layout.Operation
-import Internal.Layout.Train
-import Data.Int
-import Data.String.Regex
-import Data.String.Regex as Re
-import Data.String.Regex.Flags as Re
-import Data.String.Regex.Unsafe as Re
-import Data.Foldable (foldM, maximum, sum)
-import Data.Number (infinity)
-import Data.Function (on)
-import Data.FoldableWithIndex (allWithIndex, findWithIndex)
+import Prelude (identity, map, max, min, ($), (&&), (*), (+), (/), (<), (<$>), (<>), (==), (>>>))
+import Data.Newtype (unwrap, wrap)
+import Data.Maybe (Maybe(..), maybe)
+import Data.Array (any, catMaybes, foldl)
+import Internal.Layout.Types (Layout(..), RouteQueueElement(..), Signal(..), SignalRule(..), TrainRoute_(..), Trainset, Trainset_(..), getTag, signalRulePhase_fired, signalRulePhase_stoppedFired, signalRulePhase_unfired)
+import Internal.Layout.Helper (getRailNode)
+import Internal.Layout.Signal (getNextSignal, speedScale, signalToSpeed)
+import Internal.Layout.Operation (flipTrain, layoutUpdate, setManualStop, tryOpenRouteFor)
+import Internal.Layout.Train (acceralate, addRouteQueue, getMaxNotchWithNextSignal, movefoward)
+import Data.String.Regex (replace, test)
 
 
 trainTick :: Layout -> Trainset -> Number -> {newlayout :: Layout, newtrainset :: Trainset}
 trainTick (Layout layout) (Trainset t0) dt =
   let nextsignal = getNextSignal (Layout layout) (Trainset t0)
-      {-
-      {reservedlayout, reserved} = fromMaybe {reservedlayout :(Layout layout), reserved : t0.reserved} $ do
-            (Signal s) <- nextsignal.signal
-            if any (\r -> r.nodeid == s.nodeid && r.jointid == s.jointid) t0.reserved then Nothing else pure unit
-            p <- find (\{nodeid, jointid} -> nodeid == s.nodeid && jointid == s.jointid) t0.program
-            l' <- tryOpenRouteFor (Layout layout) p.nodeid p.jointid p.routeid
-            l'' <- unlockManualStop l'.layout p.nodeid p.jointid
-            pure {reservedlayout : l'', reserved : t0.reserved <> [{nodeid : p.nodeid, jointid : p.jointid, routeid : p.routeid, reserveid: l'.reserveid}]}
-      
-      reverseOn = maybe false (\(Signal s) -> any (\r -> r.nodeid == s.nodeid && r.jointid == s.jointid) t0.reverseOn) nextsignal.signal 
-      -}
-
-      -- reverseOn = false
-
       {firedlayout, firedtrain: Trainset t1} =
         case nextsignal.signal of
           Nothing     -> {firedlayout:Layout layout, firedtrain:Trainset t0}
@@ -46,7 +26,7 @@ trainTick (Layout layout) (Trainset t0) dt =
             if t0.signalRulePhase == signalRulePhase_unfired then
               (\{l, t} -> {firedlayout:l, firedtrain: Trainset $ (unwrap t) {signalRulePhase = signalRulePhase_fired}}) $ foldl (\{l, t} r -> 
                 let tag = getTag r
-                in  if any (Re.test tag) (map unwrap t0.tags)
+                in  if any (test tag) (map unwrap t0.tags)
                     then case r of
                           RuleComment              _ -> {l, t}
                           RuleComplex              _ -> {l, t}
@@ -63,7 +43,7 @@ trainTick (Layout layout) (Trainset t0) dt =
             else if t0.signalRulePhase == signalRulePhase_fired && t0.speed == 0.0 then
               (\{f, l, t} -> {firedlayout:l, firedtrain: (if f then flipTrain else identity) $ if (unwrap t).signalRulePhase == signalRulePhase_fired then Trainset $ (unwrap t) {signalRulePhase = signalRulePhase_stoppedFired} else t}) $ foldl (\{f, l, t} r -> 
                 let tag = getTag r
-                in  if any (Re.test tag) (map unwrap t0.tags)
+                in  if any (test tag) (map unwrap t0.tags)
                     then case r of
                           RuleComment                 _ -> {f, l, t}
                           RuleComplex                 _ -> {f, l, t}
@@ -81,7 +61,7 @@ trainTick (Layout layout) (Trainset t0) dt =
                 
       (Trainset t2) = Trainset $ t1 {signalRestriction = max t1.signalRestriction (maybe (speedScale * 25.0) signalToSpeed nextsignal.signal)}
       
-      notch = min (t2.notch) (getMaxNotch_ nextsignal (Trainset t2))
+      notch = min (t2.notch) (getMaxNotchWithNextSignal nextsignal (Trainset t2))
       
       (Trainset t3) = if t2.realAcceralation
             then acceralate (Trainset t2) notch dt
@@ -111,8 +91,3 @@ layoutTick (Layout l) =
         ) {layout: Layout l', queuenew: []} l'.routequeue
       ) >>> (\(Layout l') -> Layout (l' {time = l.time + l.speed / 60.0}) )
   ) (Layout l)
-
-
-
--- derive instance IntSerialize SignalColor
-

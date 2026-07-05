@@ -1,17 +1,37 @@
-module Internal.Layout.Operation where
+module Internal.Layout.Operation
+  ( addInvalidRoute
+  , addJoint
+  , addRail
+  , addSignal
+  , addTrainset
+  , autoAdd
+  , fixBrokenConnections
+  , flipTrain
+  , forceUpdate
+  , layoutUpdate
+  , layoutUpdate_NoManualStop
+  , removeRail
+  , removeSignal
+  , setManualStop
+  , setRailColor
+  , tryOpenRouteFor
+  , tryOpenRouteFor_ffi
+  , updateRailNode
+  )
+  where
 
-import Prelude
-import Data.Newtype
-import Data.Maybe
-import Data.Array
-import Internal.Types
-import Internal.Layout.Types
-import Internal.Layout.Helper
-import Internal.Layout.Signal
-import Internal.Layout.DrawInfo
+import Prelude (bind, discard, map, negate, not, pure, show, unit, ($), (&&), (*), (+), (-), (/=), (<), (<$>), (<>), (=<<), (==), (>), (>>=), (>>>), (||))
+import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Maybe (Maybe(..), fromMaybe, maybe)
+import Data.Array (all, any, catMaybes, deleteAt, elem, filter, find, foldl, head, length, modifyAt, replicate, reverse, uncons, updateAt, (!!))
+import Internal.Types (ColorOption, IntJoint, Pos(..), Rail, RailShape, absShape, canJoin, opposeRail, poszero, reverseShapes, saEmpty, saModifyAt, shapeLength, toAbsPos)
+import Internal.Layout.Types (CarType, IntNode(..), IntReserve(..), InvalidRoute(..), JointData(..), Layout(..), RailNode, RailNode_(..), Signal(..), SignalRoute(..), TrainRoute_(..), Trainset, Trainset_(..), signalAlart, signalCaution, signalReduce, signalRulePhase_unfired, signalStop)
+import Internal.Layout.Helper (getJointAbsPos, getJoints, getNewRailPos, getNextJoint, getRailNode, getRouteInfo)
+import Internal.Layout.Signal (hasTraffic, updateSignalIndication, updateSignalRoutes)
+import Internal.Layout.DrawInfo (carLength, carMargin, recalcInstanceDrawInfo)
 import Data.Int
-import Data.Foldable (foldM, maximum, sum)
-import Data.FoldableWithIndex (allWithIndex, findWithIndex)
+import Data.Foldable (foldM, sum)
+import Data.FoldableWithIndex (findWithIndex)
 
 flipTrain :: Trainset -> Trainset
 flipTrain (Trainset t0) = Trainset $ t0 {

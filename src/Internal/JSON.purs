@@ -11,8 +11,8 @@ module Internal.JSON
   )
   where
 
-import Internal.Rails
-import Prelude
+import Internal.Rails (autoTurnOutLPlusRail, converterRail, crossoverLRail, crossoverShortLRail, crossoverTripleLRail, curveLRail, diamondRail, doubleToWideLRail, doubleTurnoutLPlusRail, doubleWidthSLRail, halfRail, halfScissorsLRail, halfSlopeRail, longRail, outerCurveLRail, quarterRail, quarterSlopeRail, scissorsRail, slopeCurveLRail, slopeRail, straightRail, toDoubleLPlusRail, toDoubleShortLPlusRail, turnOutLPlusRail)
+import Prelude (bind, identity, map, negate, pure, show, ($), (&&), (*), (+), (-), (/), (/=), (<$>), (<*>), (<<<), (<=), (<>), (=<<), (==), (>>>), (||))
 
 import Control.Monad.Except (runExceptT, ExceptT)
 import Data.Array (catMaybes, filter, find, foldl, length, mapWithIndex, reverse, sort, (!!))
@@ -24,11 +24,11 @@ import Data.List.Types (NonEmptyList)
 import Data.Maybe (Maybe(..), fromMaybe, isNothing, maybe)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Number (abs, cos, pi, round, sign, sin)
-import Data.String as St
+import Data.String (Pattern(..), split) as St
 import Data.String.Regex (regex, replace, source) as Re
 import Data.String.Regex.Flags (global, noFlags) as Re
 import Data.String.Regex.Unsafe (unsafeRegex) as Re
-import Data.String.Utils as St
+import Data.String.Utils (trimStart) as St
 import Foreign (Foreign, ForeignError, isArray, isNull, isUndefined, readNumber, unsafeFromForeign, unsafeToForeign)
 import Internal.Layout (FloorData(..), IntNode(..), IntReserve, InvalidRoute, Layout(..), RailNode, RailNode_(..), RouteQueueElement, Signal(..), SignalRule(..), TrainRoute, TrainRoute_(..), Trainset, Trainset_(..), addJoint, getJointAbsPos, recalcInstanceDrawInfo, removeRail, signalRulePhase_unfired, updateSignalRoutes)
 import Internal.Types (Coord(..), IntJoint, IntState(..), Pos(..), Rail, RailGen(..), RailShape(..), flipRail, fromRadian, opposeRail, poszero, reverseAngle, reversePos, saEmpty, toRadian, ColorOption)

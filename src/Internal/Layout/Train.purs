@@ -1,28 +1,32 @@
-module Internal.Layout.Train where
+module Internal.Layout.Train
+  ( acceralate
+  , addRouteQueue
+  , getMarginFromBrakePattern
+  , getMaxNotch
+  , getMaxNotchWithNextSignal
+  , movefoward
+  )
+  where
 
-import Prelude
-import Data.Newtype
-import Data.Maybe
-import Data.Array
-import Internal.Types
-import Internal.Layout.Types
-import Internal.Layout.Helper
-import Internal.Layout.Signal
-import Internal.Layout.DrawInfo
-import Internal.Layout.Operation
-import Data.Int
-import Data.String.Regex
-import Data.String.Regex as Re
-import Data.String.Regex.Flags as Re
-import Data.String.Regex.Unsafe as Re
-import Data.Foldable (foldM, maximum, sum)
+import Prelude (bind, map, max, min, negate, ($), (*), (+), (-), (/), (/=), (<), (<$>), (<=), (<>), (==), (>), (||))
+import Data.Newtype (unwrap)
+import Data.Maybe (Maybe(..), fromMaybe, maybe)
+import Data.Array (any, filter, find, foldl, head, unsnoc, updateAt)
+import Internal.Types (IntJoint, shapeLength)
+import Internal.Layout.Types (IntNode, Layout(..), RailNode_(..), RouteQueueElement(..), Signal(..), SignalRule(..), TrainRoute_(..), TrainTag, Trainset, Trainset_(..), signalRulePhase_unfired)
+import Internal.Layout.Helper (getNextJoint, getRailNode)
+import Internal.Layout.Signal (baseaccr, basedccr, brakePattern, getNextSignal, signalToSpeed, speedScale)
+import Internal.Layout.Operation (updateRailNode)
+import Data.Int (toNumber)
+import Data.String.Regex (test) as Re
+import Data.Foldable (sum)
 import Data.Number (infinity)
 import Data.Function (on)
 
 
 
-getMaxNotch_ :: forall x. { distance ∷ Number , sections ∷ Int , signal ∷ Maybe Signal } -> Trainset_ x -> Int
-getMaxNotch_ nextsignal (Trainset t2) =
+getMaxNotchWithNextSignal :: forall x. { distance ∷ Number , sections ∷ Int , signal ∷ Maybe Signal } -> Trainset_ x -> Int
+getMaxNotchWithNextSignal nextsignal (Trainset t2) =
   if t2.respectSignals
   then if t2.signalRestriction < t2.speed || brakePatternCheck t2.speed nextsignal t2.tags
         then -8
@@ -34,7 +38,7 @@ getMaxNotch_ nextsignal (Trainset t2) =
 getMaxNotch :: Layout -> Trainset -> Int
 getMaxNotch (Layout layout) (Trainset t0) =
   let nextsignal = getNextSignal (Layout layout) (Trainset t0)
-  in  getMaxNotch_ nextsignal (Trainset t0)
+  in  getMaxNotchWithNextSignal nextsignal (Trainset t0)
 
 getMarginFromBrakePattern :: Layout -> Trainset -> Number
 getMarginFromBrakePattern (Layout layout) (Trainset t0) =
@@ -45,11 +49,6 @@ addRouteQueue :: Layout -> IntNode -> IntJoint -> Int -> Int -> Layout
 addRouteQueue l n j r t = Layout $ (unwrap l) {routequeue = (unwrap l).routequeue <> [RouteQueueElement {jointid: j, nodeid: n, routeid: r, time: (unwrap l).time, retryafter: (unwrap l).time, trainid: t}]}
 
 
-signalToSpeed :: Signal -> Number 
-signalToSpeed = digestIndication >>> indicationToSpeed
-
-digestIndication :: Signal -> Int
-digestIndication signal = if (unwrap signal).manualStop || (unwrap signal).restraint then signalStop else fromMaybe signalStop $ maximum ((unwrap signal).indication)
 
 brakePatternCheck :: Number -> {signal :: Maybe Signal, sections :: Int, distance :: Number} -> Array TrainTag -> Boolean
 brakePatternCheck speed signaldata tags =

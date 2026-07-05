@@ -1,28 +1,6 @@
 module Internal.Layout
-  ( CarType(..)
-  , FloorData(..)
-  , IntNode(..)
-  , IntReserve(..)
-  , InvalidRoute(..)
-  , JointData(..)
-  , Layout(..)
-  , RailNode
-  , RailNode_(..)
-  , RouteQueueElement(..)
-  , Signal(..)
-  , SignalColor(..)
-  , SignalRoute(..)
-  , SignalRule(..)
-  , SignalRulePhase(..)
-  , Traffic
-  , TrainRoute
-  , TrainRoute_(..)
-  , TrainTag(..)
-  , TrainTagPattern(..)
-  , Trainset
-  , TrainsetDrawInfo(..)
-  , Trainset_(..)
-  , addInvalidRoute
+  ( 
+    addInvalidRoute
   , addJoint
   , addRail
   , addSignal
@@ -33,31 +11,24 @@ module Internal.Layout
   , fixBrokenConnections
   , flipTrain
   , forceUpdate
-  , getJointAbsPos
   , getJoints
   , getMarginFromBrakePattern
   , getMaxNotch
   , getNewRailPos
   , getNextSignal
-  , layoutDrawInfo
   , layoutTick
   , layoutUpdate
   , layoutUpdate_NoManualStop
-  , recalcInstanceDrawInfo
   , removeRail
   , removeSignal
   , setRailColor
-  , signalRulePhase_fired
-  , signalRulePhase_stoppedFired
-  , signalRulePhase_unfired
   , speedScale
-  , trainsetDrawInfo
-  , trainsetLength
   , tryOpenRouteFor
   , tryOpenRouteFor_ffi
   , updateSignalIndication
   , updateSignalRoutes
   , updateTraffic
+  , module Ex
   )
   where
 
@@ -81,32 +52,11 @@ import Internal.Types.Pos (reverseRelPos)
 import Internal.Types.Rail (ColorOption(..), RealColor, applyColorOption, brokenDrawInfo)
 import Internal.Types.SectionArray (SectionArray(..), saEmpty, saIndex, saModifyAt)
 
-newtype IntReserve = IntReserve Int
-derive instance Eq IntReserve 
-
-type RailNode = RailNode_ Rail
-newtype RailNode_ x = RailNode {
-    nodeid :: IntNode,
-    instanceid :: Int,
-    rail :: x,
-    state :: IntState,
-    signals :: Array (Signal),
-    invalidRoutes :: Array (InvalidRoute),
-    connections :: Array ({from :: IntJoint, nodeid :: IntNode, jointid :: IntJoint}),
-    reserves :: Array ({reserveid :: IntReserve, jointid :: IntJoint}),
-    pos  :: Pos,
-    note :: String,
-    color :: Array ColorOption,
-    drawinfos :: Array (DrawInfo Pos RealColor)
-  }
-derive instance Newtype (RailNode_ x) _
-
-newtype IntNode = IntNode Int
-instance Show IntNode where
-  show = unwrap >>> show
-derive instance Ord IntNode
-derive instance Eq IntNode
-derive instance Newtype IntNode _
+import Internal.Layout.Types
+import Internal.Layout.DrawInfo
+import Internal.Layout.Types as Ex
+import Internal.Layout.Helper
+import Internal.Layout.Helper as Ex
 
 updateRailNode :: RailNode -> IntJoint -> {instance :: RailNode, newjoint :: IntJoint, shapes :: Array (RailShape Pos)}
 updateRailNode (RailNode ri) j =
@@ -123,94 +73,9 @@ getNextJoint (RailNode ri) j =
   let {newjoint, newstate:_, shape:_} = (unwrap ri.rail).getNewState j (ri.state)
   in  newjoint
 
-newtype JointData = JointData {pos :: Pos, nodeid :: IntNode, jointid :: IntJoint}
-
-newtype FloorData = FloorData {height :: Number, width :: Number}
-
-newtype Layout = Layout {
-    version :: Int,
-    floor :: FloorData,
-    rails :: Array RailNode,
-    trains :: Array Trainset,
-    signalcolors :: Array (Array (Array SignalColor)),
-    traffic :: Traffic,
-    isclear :: Array Boolean,
-    instancecount :: Int,
-    traincount :: Int,
-    updatecount :: Int,
-    jointData :: SectionArray (SectionArray (SectionArray (Array JointData))),
-    routequeue :: Array RouteQueueElement,
-    time :: Number,
-    speed :: Number,
-    activeReserves :: Array ({reserveid :: IntReserve, reserver :: Int})
-  }
-derive instance Newtype Layout _
 
 
-instanceDrawInfos :: RailNode -> Array (DrawInfo Pos RealColor)
-instanceDrawInfos (RailNode node) =
-  ((unwrap node.rail).getDrawInfo
-    >>> applyColorOption (node.color) 
-    >>> absDrawInfo node.pos
-  ) <$> (unwrap node.rail).getStates
 
-recalcInstanceDrawInfo :: RailNode -> RailNode
-recalcInstanceDrawInfo (RailNode node) =
-  RailNode $ node {drawinfos = instanceDrawInfos (RailNode node)}
-
-instanceDrawInfo :: RailNode -> DrawInfo Pos RealColor
-instanceDrawInfo (RailNode node) =
-  fromMaybe brokenDrawInfo $ node.drawinfos !! (unwrap node.state)
-
-carLength ∷ Number
-carLength = 10.0 / 21.4
-carMargin ∷ Number
-carMargin = 1.0 / 21.4
-trainsetLength ∷ forall t. Trainset_ t → Number
-trainsetLength (Trainset t) = (toNumber $ length t.types) * (carLength + carMargin) - carMargin
-wheelWidth ∷ Number
-wheelWidth = 3.4 / 21.4
-wheelMargin ∷ Number
-wheelMargin = 2.0 / 21.4
-
-
-newtype TrainsetDrawInfo = TrainsetDrawInfo ({
-      trainid :: Int
-    , tags :: Array TrainTag
-    , cars :: Array {head :: {r :: Pos, l :: Pos, m :: Pos}, tail :: {r :: Pos, l :: Pos, m :: Pos}, type :: CarType}
-    , flipped :: Boolean
-    , note :: String
-  })
-trainsetDrawInfo :: Trainset -> TrainsetDrawInfo
-trainsetDrawInfo (Trainset t) =
-  let {-
-      getpos d w =
-        fromLeft poszero 
-          $ foldM (\d' (RailShape s) ->
-                if s.length < d'
-                  then Right (d' - s.length)
-                  else Left (getDividingPoint_rel s.start s.end w (1.0 - d' / s.length))
-              ) d ((\(Route r) -> reverse r.shapes) =<< t.route)
-      -}
-      shapes = ((\(TrainRoute r) -> reverse r.shapes) =<< t.route)
-
-      getpos' w d' i =
-        case shapes !! i of
-          Just (RailShape s) ->
-            if s.length < d'
-              then getpos' w (d' - s.length) (i + 1)
-              else getDividingPoint_rel s.start s.end w (1.0 - d' / s.length)
-          Nothing -> poszero
-
-      getpos d w = getpos' w d 0
-
-      -- headpos = (fromMaybe 0.0 (((flip bind) (unwrap >>> _.shapes) >>> head >>> map (unwrap >>> _.length)) t.route)) - 
-  in  TrainsetDrawInfo $ {tags: t.tags, note : t.note, flipped : t.flipped, trainid : t.trainid, cars: mapWithIndex (\i ct -> 
-          let d = ((toNumber i) * (carLength + carMargin)) + t.distanceToNext
-              dh = d + wheelMargin
-              dt = d + carLength - wheelMargin
-          in {type : ct, head : {r : getpos dh (-wheelWidth/2.0), l : getpos dh ( wheelWidth/2.0), m : getpos dh 0.0}, tail : {r : getpos dt (-wheelWidth/2.0), l : getpos dt ( wheelWidth/2.0), m : getpos dt 0.0}}
-        ) t.types}
 
 addTrainset :: Layout -> Int -> IntJoint -> Array CarType -> Layout
 addTrainset (Layout layout) nodeid jointid types =
@@ -261,51 +126,6 @@ addTrainset (Layout layout) nodeid jointid types =
         Just $ Layout $ layout {traincount = layout.traincount + 1, trains = layout.trains <> [newtrain]}
       )
 
-layoutDrawInfo :: Layout -> {
-      rails :: Array {rails :: Array (DrawRail Pos RealColor), additionals :: Array (DrawAdditional Pos), joints :: Array Pos, instance :: RailNode}
-    , signals :: Array (Array {indication :: Array Int, pos :: Pos, signal :: Signal})
-    , invalidRoutes :: Array (Array {pos :: Pos, signal :: InvalidRoute})
-    , trains ::  Array TrainsetDrawInfo
-    , floor  :: FloorData
-  }
-layoutDrawInfo (Layout layout) =
-  {
-      rails : (\r -> let (DrawInfo ide) = instanceDrawInfo r 
-                      in  {
-                              rails: ide.rails
-                            , additionals: ide.additionals
-                            , joints: getRailJointAbsPos r <$> (unwrap (unwrap r).rail).getJoints
-                            , instance : r
-                          }) <$> layout.rails
-
-      , signals : (\(RailNode ri) -> map (\(Signal s) -> {
-          indication : s.indication,
-          pos    : fromMaybe poszero $ getJointAbsPos (Layout layout) s.nodeid s.jointid,
-          signal : (Signal s)
-        }) ri.signals) <$> layout.rails
-
-      , invalidRoutes : (\(RailNode ri) -> map (\(InvalidRoute s) -> {
-          pos    : fromMaybe poszero $ getJointAbsPos (Layout layout) s.nodeid s.jointid,
-          signal : (InvalidRoute s)
-        }) ri.invalidRoutes) <$> layout.rails
-
-      , trains : trainsetDrawInfo <$> layout.trains
-      
-      , floor  : layout.floor
-  }
-
-indexMaybe ∷ ∀ (t192 ∷ Type). Array (Maybe t192) → Int → Maybe t192
-indexMaybe a = index a >>> join
-infixl 8 indexMaybe as !!?
-
-
-getRailJointAbsPos :: RailNode -> IntJoint -> Pos
-getRailJointAbsPos (RailNode ri) jointid =
-  toAbsPos (ri.pos) ((unwrap ri.rail).getJointPos jointid)
-
-getJointAbsPos :: Layout -> IntNode -> IntJoint -> Maybe Pos
-getJointAbsPos (Layout layout) nodeid jointid =
-  (\r -> getRailJointAbsPos r jointid) <$> (getRailNode (Layout layout) nodeid)
 
 addJoint :: Layout -> Pos -> IntNode -> IntJoint -> Layout
 addJoint (Layout layout) pos nodeid jointid = 
@@ -358,15 +178,6 @@ forceUpdate (Layout layout)=
   Layout $ layout{
             updatecount = layout.updatecount + 1
     }
-
-getRailNode :: Layout -> IntNode -> Maybe RailNode
-getRailNode (Layout l) (IntNode i) = l.rails !! i
-
-getRailTraffic ∷ Layout → IntNode → Maybe (Array (Array Int))
-getRailTraffic (Layout l) (IntNode i) = l.traffic !! i
-
-isRailClear ∷ Layout → IntNode → Maybe Boolean
-isRailClear (Layout l) (IntNode i) = l.isclear !! i
 
 addRail :: Layout -> RailNode -> Maybe Layout
 addRail l n = 
@@ -495,59 +306,6 @@ setRailColor (Layout layout) nodeid coloroption = forceUpdate $
         rails = (fromMaybe layout.rails $ modifyAt (unwrap nodeid) (\(RailNode ri) -> recalcInstanceDrawInfo $ RailNode $ ri {color = coloroption}) layout.rails)
       }
 
-
-type TrainRoute = TrainRoute_ RailNode
-newtype TrainRoute_ x = TrainRoute {
-      nodeid :: IntNode
-    , jointid :: IntJoint
-    , railinstance :: x
-    , shapes :: Array (RailShape Pos)
-    , length :: Number
-  }
-derive instance Newtype (TrainRoute_ x) _
-
-
-newtype CarType = CarType {
-      type :: String
-    , flipped :: Boolean
-  }
-derive instance Newtype CarType _
-
-newtype SignalRulePhase = SignalRulePhase Int
-derive instance Eq SignalRulePhase
-derive instance Newtype SignalRulePhase _
-
-signalRulePhase_unfired ∷ SignalRulePhase
-signalRulePhase_unfired      = SignalRulePhase 0
-
-signalRulePhase_fired ∷ SignalRulePhase
-signalRulePhase_fired        = SignalRulePhase 1
-
-signalRulePhase_stoppedFired ∷ SignalRulePhase
-signalRulePhase_stoppedFired = SignalRulePhase 3
-
-newtype TrainTag = TrainTag String
-derive instance Eq TrainTag
-derive instance Newtype TrainTag _
-
-type Trainset = Trainset_ RailNode
-newtype Trainset_ x = Trainset {
-      types :: Array CarType
-    , route      :: Array (TrainRoute_ x)
-    , distanceToNext :: Number
-    , distanceFromOldest :: Number
-    , speed :: Number
-    , trainid :: Int
-    , flipped :: Boolean
-    , signalRestriction :: Number
-    , respectSignals :: Boolean
-    , realAcceralation :: Boolean
-    , notch :: Int
-    , note :: String
-    , tags :: Array TrainTag
-    , signalRulePhase :: SignalRulePhase
-  }
-derive instance Newtype (Trainset_ x) _
 
 moveTrains :: Number -> Layout -> Layout
 moveTrains dt (Layout layout) =
@@ -837,118 +595,6 @@ layoutUpdate = updateTraffic >>> updateReserves >>> updateSignalIndication true
 layoutUpdate_NoManualStop :: Layout -> Layout
 layoutUpdate_NoManualStop = updateTraffic >>> updateReserves >>> updateSignalIndication false
 
-type TrainTagPattern = Regex
-
-data SignalRule = 
-    RuleComment                                              String
-  | RuleComplex                                              String
-  | RuleSpeed         TrainTagPattern Int                    String
-  | RuleOpen          TrainTagPattern Int                    String
-  | RuleUpdate        TrainTagPattern TrainTagPattern String String
-  | RuleStop          TrainTagPattern                        String
-  | RuleStopOpen      TrainTagPattern Int                    String
-  | RuleStopUpdate    TrainTagPattern TrainTagPattern String String
-  | RuleReverse       TrainTagPattern                        String
-  | RuleReverseUpdate TrainTagPattern TrainTagPattern String String
-
-isComplex :: SignalRule -> Boolean
-isComplex (RuleComplex _) = true
-isComplex _               = false
-
-getTag ∷ SignalRule → TrainTagPattern
-getTag rule = 
-  case rule of
-    RuleComment               _ -> Re.unsafeRegex "(?!.*)" Re.noFlags
-    RuleComplex               _ -> Re.unsafeRegex "(?!.*)" Re.noFlags
-    RuleSpeed         tag _   _ -> tag
-    RuleOpen          tag _   _ -> tag
-    RuleUpdate        tag _ _ _ -> tag
-    RuleStop          tag     _ -> tag
-    RuleStopOpen      tag _   _ -> tag
-    RuleStopUpdate    tag _ _ _ -> tag
-    RuleReverse       tag     _ -> tag
-    RuleReverseUpdate tag _ _ _ -> tag
-
-{-
-matchSignalRuleStop :: forall x. Trainset_ x -> SignalRule -> Boolean
-matchSignalRuleStop train rule =
-  case rule of
-    RuleOpen       tag _   -> false
-    RuleUpdate     tag _ _ -> false
-    RuleStop       tag     -> (unwrap train).signalRulePhase == signalRulePhase_unfired
-    RuleStopOpen   tag _   -> (unwrap train).signalRulePhase == signalRulePhase_unfired
-    RuleStopUpdate tag _ _ -> (unwrap train).signalRulePhase == signalRulePhase_unfired
-    RuleReverse    tag     -> (unwrap train).signalRulePhase == signalRulePhase_unfired
-
-matchSignalRule :: forall x. Trainset_ x -> SignalRule -> Boolean
-matchSignalRule train rule =
-  case rule of
-    RuleOpen       tag _   -> (unwrap train).signalRulePhase == signalRulePhase_unfired
-    RuleUpdate     tag _ _ -> (unwrap train).signalRulePhase == signalRulePhase_unfired
-    RuleStop       tag     -> false
-    RuleStopOpen   tag _   -> (unwrap train).signalRulePhase == signalRulePhase_stopped && (unwrap train).speed == 0.0
-    RuleStopUpdate tag _ _ -> (unwrap train).signalRulePhase == signalRulePhase_stopped && (unwrap train).speed == 0.0
-    RuleReverse    tag     -> (unwrap train).signalRulePhase == signalRulePhase_stopped && (unwrap train).speed == 0.0
--}
-
-newtype RouteQueueElement = RouteQueueElement {
-      time       :: Number
-    , retryafter :: Number
-    , nodeid     :: IntNode
-    , jointid    :: IntJoint
-    , routeid    :: Int
-    , trainid    :: Int
-  }
-
-newtype SignalRoute = SignalRoute {
-      rails :: Array {nodeid :: IntNode, jointenter :: IntJoint, jointexit :: IntJoint}
-    , length :: Number
-    , nextsignal :: {nodeid :: IntNode, jointid :: IntJoint}
-    , isSimple :: Boolean
-  }
-derive instance Newtype SignalRoute _
-
-newtype Signal = Signal {
-      signalname :: String
-    , nodeid :: IntNode
-    , jointid :: IntJoint
-    , routes :: Array SignalRoute
-    , routecond :: Array Boolean
-    , colors :: Array SignalColor
-    , indication :: Array SignalColor
-    , manualStop :: Boolean
-    , restraint  :: Boolean
-    , rules      :: Array SignalRule
-  }
-derive instance Newtype Signal _
-
-newtype InvalidRoute = InvalidRoute {
-      nodeid :: IntNode
-    , jointid :: IntJoint
-  }
-derive instance Newtype InvalidRoute _
-
-type Traffic = Array (Array (Array Int))
-
-type SignalColor = Int
-{-
-    Stop
-  | Alart
-  | Caution
-  | Reduce
-  | Clear
--}
-
-signalStop ∷ Int
-signalStop = 0
-signalAlart ∷ Int
-signalAlart = 1
-signalCaution ∷ Int
-signalCaution = 2
-signalReduce ∷ Int
-signalReduce = 3
-signalClear ∷ Int
-signalClear = 4
 -- derive instance IntSerialize SignalColor
 
 updateTraffic :: Layout -> Layout

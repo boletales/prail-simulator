@@ -23,6 +23,7 @@ import Internal.Types.Rail   (
       class Default
     , RailGen (..)
     , Rail
+    , RealColor
     , ColorType (..)
     , ColorOption
     , RailShape (..)
@@ -41,6 +42,8 @@ import Internal.Types.Rail   (
     , railShape
     , slipShapes
     , reverseShapes
+    , applyColorOption
+    , brokenDrawInfo
     , IntJoint (..)
     , IntState (..)
   ) as Ex

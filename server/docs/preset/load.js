@@ -1,3 +1,7 @@
+/**
+ * page specific scripts for the layout editor (preset mode)
+ */
+
 import {download, L, clearCache, forceUpdateModel} from "../3d.js";
 import * as P from "../main.js";
 window.P = P;

@@ -1,3 +1,7 @@
+/**
+ * Provides a Layout controller for editing, selecting, saving, loading, and simulating railway track, signal, and train data in the simulator.
+ */
+
 import * as P from "./main.js"
 const RAILLENGTH = 21.4;
 const RAILWIDTH = 3.8;

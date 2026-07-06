@@ -1,3 +1,8 @@
+/**
+ * 3D visualization of the layout using Three.js
+ */
+
+
 import * as C from "./control.js";
 import * as P from "./main.js";
 import SpriteText from 'https://cdn.jsdelivr.net/npm/three-spritetext@1.8.0/+esm';

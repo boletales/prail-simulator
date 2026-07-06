@@ -1,3 +1,7 @@
+/**
+ * (old) 2D visualization of the layout using HTML5 Canvas
+ */
+
 import * as C from "./control.js";
 import * as P from "./main.js";
 

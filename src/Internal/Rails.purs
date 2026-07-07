@@ -50,23 +50,15 @@ module Internal.Rails
   )
   where
 
-import Data.Array
-import Data.Generic.Rep
-import Data.Maybe
-import Data.Newtype
-import Data.Number
-import Internal.Types
-import Prelude
-import Type.Proxy
+import Data.Array (sortBy)
+import Data.Generic.Rep (class Generic)
+import Data.Maybe (Maybe(..))
+import Data.Newtype (class Newtype, unwrap)
+import Data.Number (asin, pow, sqrt)
+import Internal.Types (class Default, ColorType(..), Coord(..), DrawInfo(..), DrawRail(..), IntJoint, IntState, Pos(..), Rail, RailGen(..), RelPos(..), activeRail, angle8, anglen, flipRail, fromRadian, passiveRail, railShape, reverseShapes, serialAll, slipShapes, toRail)
+import Prelude (class Eq, comparing, join, negate, not, ($), (&&), (*), (+), (-), (/), (/=), (<$>), (<>), (=<<), (==), (||))
 
-import Data.Bifunctor.Join (Join)
-import Data.NaturalTransformation (NaturalTransformation)
-import Data.Symbol (class IsSymbol)
-import Data.Traversable (scanl)
 import Internal.Types.Rail (default)
-import Record as R
-import Type.Row as R
-import Type.RowList as RL
 
 
 
@@ -597,18 +589,11 @@ doubleRailWidth :: Number
 doubleRailWidth = 6.0/21.4
 
 
-calcMidAngle :: Number -> Number -> Number
-calcMidAngle x y =
-  let r = (y `pow` 2.0 + x `pow`2.0) / (2.0*y)
-  in  asin (x/r)
 
 toDoubleLPlusRailGen :: Number -> String -> Rail
 toDoubleLPlusRailGen len name = 
-  let anglep = fromRadian $ calcMidAngle 1.0 doubleRailWidth
-      pe  = RelPos (Pos {coord: Coord{x: 0.0, y: 0.0                , z:0.0}, angle: angle8 4            , isPlus: false})
+  let pe  = RelPos (Pos {coord: Coord{x: 0.0, y: 0.0                , z:0.0}, angle: angle8 4            , isPlus: false})
       pm  = RelPos (Pos {coord: Coord{x: len, y: 0.0                , z:0.0}, angle: angle8 0            , isPlus: true })
-      _pp  = RelPos (Pos {coord: Coord{x: 0.5, y: doubleRailWidth/2.0, z:0.0}, angle: anglep              , isPlus: true })
-      _pP  = RelPos (Pos {coord: Coord{x: 0.5, y: doubleRailWidth/2.0, z:0.0}, angle: reverseAngle anglep , isPlus: false})
       ps  = RelPos (Pos {coord: Coord{x: 1.0, y: doubleRailWidth    , z:0.0}, angle: angle8 0            , isPlus: true })
       r0 = [railShape {start: pe, end: pm}]
       r1 = slipShapes {start: pe, end: ps}
@@ -674,6 +659,11 @@ toDoubleShortLPlusRail = toDoubleLPlusRailGen 0.5 "short"
 
 toDoubleShortRPlusRail ∷ Rail
 toDoubleShortRPlusRail = flipRail toDoubleShortLPlusRail
+
+calcMidAngle :: Number -> Number -> Number
+calcMidAngle x y =
+  let r = (y `pow` 2.0 + x `pow`2.0) / (2.0*y)
+  in  asin (x/r)
 
 halfScissorsLRail :: Rail
 halfScissorsLRail = 
@@ -1050,16 +1040,10 @@ doubleTurnoutRPlusRail = flipRail doubleTurnoutLPlusRail
 
 doubleToWideLRail :: Rail
 doubleToWideLRail = 
-  let anglep = fromRadian $ calcMidAngle 1.25 0.5
-      angleq = fromRadian $ calcMidAngle 1.25 (0.5 - doubleRailWidth)
-      pib = RelPos (Pos {coord: Coord{x: 1.25  , y: -doubleRailWidth             , z:0.0}, angle: angle8 0            , isPlus: false})
+  let pib = RelPos (Pos {coord: Coord{x: 1.25  , y: -doubleRailWidth             , z:0.0}, angle: angle8 0            , isPlus: false})
       pie = RelPos (Pos {coord: Coord{x: 0.0   , y: -doubleRailWidth             , z:0.0}, angle: angle8 4            , isPlus: false}) 
       pob = RelPos (Pos {coord: Coord{x: 0.0   , y:  0.0                         , z:0.0}, angle: angle8 4            , isPlus: false})
       poe = RelPos (Pos {coord: Coord{x: 1.25  , y:  0.5 - doubleRailWidth       , z:0.0}, angle: angle8 0            , isPlus: true }) 
-      _ppn = RelPos (Pos {coord: Coord{x: 0.625 , y:  0.25 - doubleRailWidth      , z:0.0}, angle: anglep              , isPlus: true }) 
-      _pPn = RelPos (Pos {coord: Coord{x: 0.625 , y:  0.25 - doubleRailWidth      , z:0.0}, angle: reverseAngle anglep , isPlus: false}) 
-      _pqn = RelPos (Pos {coord: Coord{x: 0.625 , y:  (0.5 - doubleRailWidth)/2.0 , z:0.0}, angle: angleq              , isPlus: true }) 
-      _pQn = RelPos (Pos {coord: Coord{x: 0.625 , y:  (0.5 - doubleRailWidth)/2.0 , z:0.0}, angle: reverseAngle angleq , isPlus: false}) 
       ro = slipShapes {start :pob, end: poe}
       ri = [railShape {start :pib, end: pie}]
       rn = slipShapes {start :pie, end: poe}

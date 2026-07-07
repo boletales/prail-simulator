@@ -1,3 +1,5 @@
+-- 列車の挙動に関する関数群
+
 module Internal.Layout.Train
   ( acceralate
   , addRouteQueue
@@ -5,6 +7,7 @@ module Internal.Layout.Train
   , getMaxNotch
   , getMaxNotchWithNextSignal
   , movefoward
+  , trainsetLength
   )
   where
 
@@ -14,12 +17,12 @@ import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Array (any, filter, find, foldl, head, unsnoc, updateAt)
 import Internal.Types (IntJoint, shapeLength)
 import Internal.Layout.Types (IntNode, Layout(..), RailNode_(..), RouteQueueElement(..), Signal(..), SignalRule(..), TrainRoute_(..), TrainTag, Trainset, Trainset_(..), signalRulePhase_unfired)
-import Internal.Layout.Helper (getNextJoint, getRailNode)
-import Internal.Layout.Signal (baseaccr, basedccr, brakePattern, getNextSignal, signalToSpeed, speedScale)
-import Internal.Layout.Operation (updateRailNode)
+import Internal.Layout.Helper (getNextJoint, getRailNode, signalToSpeed, updateRailNode)
+import Internal.Layout.Params (baseaccr, basedccr, brakePattern, speedScale, carLength, carMargin)
+import Internal.Layout.Signal (getNextSignal)
 import Data.Int (toNumber)
 import Data.String.Regex (test) as Re
-import Data.Foldable (sum)
+import Data.Foldable (sum, length)
 import Data.Number (infinity)
 import Data.Function (on)
 
@@ -147,3 +150,6 @@ movefoward (Layout layout) (Trainset t0) dt =
             Nothing -> 
               if t2.distanceToNext <= 0.0 then {newlayout : Layout layout, newtrainset : Trainset t0} else movefoward (Layout layout) (Trainset t0) (t0.distanceToNext / t0.speed * 0.9)
 
+
+trainsetLength ∷ forall t. Trainset_ t → Number
+trainsetLength (Trainset t) = (toNumber $ length t.types) * (carLength + carMargin) - carMargin

@@ -1,3 +1,5 @@
+-- レイアウトが返り値の「動的」な関数群
+
 module Internal.Layout.Operation
   ( addInvalidRoute
   , addJoint
@@ -16,7 +18,6 @@ module Internal.Layout.Operation
   , setRailColor
   , tryOpenRouteFor
   , tryOpenRouteFor_ffi
-  , updateRailNode
   )
   where
 
@@ -24,11 +25,11 @@ import Prelude (bind, discard, map, negate, not, pure, show, unit, ($), (&&), (*
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Array (all, any, catMaybes, deleteAt, elem, filter, find, foldl, head, length, modifyAt, replicate, reverse, uncons, updateAt, (!!))
-import Internal.Types (ColorOption, IntJoint, Pos(..), Rail, RailShape, absShape, canJoin, opposeRail, poszero, reverseShapes, saEmpty, saModifyAt, shapeLength, toAbsPos)
+import Internal.Types (ColorOption, IntJoint, Pos(..), Rail, canJoin, opposeRail, poszero, reverseShapes, saEmpty, saModifyAt, shapeLength, toAbsPos)
 import Internal.Layout.Types (CarType, IntNode(..), IntReserve(..), InvalidRoute(..), JointData(..), Layout(..), RailNode, RailNode_(..), Signal(..), SignalRoute(..), TrainRoute_(..), Trainset, Trainset_(..), signalAlart, signalCaution, signalReduce, signalRulePhase_unfired, signalStop)
-import Internal.Layout.Helper (getJointAbsPos, getJoints, getNewRailPos, getNextJoint, getRailNode, getRouteInfo)
+import Internal.Layout.Helper (getJointAbsPos, getJoints, getNewRailPos, getNextJoint, getRailNode, getRouteInfo, recalcInstanceDrawInfo)
 import Internal.Layout.Signal (hasTraffic, updateSignalIndication, updateSignalRoutes)
-import Internal.Layout.DrawInfo (carLength, carMargin, recalcInstanceDrawInfo)
+import Internal.Layout.Params (carLength, carMargin)
 import Data.Int
 import Data.Foldable (foldM, sum)
 import Data.FoldableWithIndex (findWithIndex)
@@ -204,10 +205,6 @@ setManualStop (Layout layout) nodeid jointid stop = fromMaybe (Layout layout) do
   pure $ Layout $ layout {rails = newRails}
 
 
-updateRailNode :: RailNode -> IntJoint -> {instance :: RailNode, newjoint :: IntJoint, shapes :: Array (RailShape Pos)}
-updateRailNode (RailNode ri) j =
-  let {newjoint, newstate, shape} = (unwrap ri.rail).getNewState j (ri.state)
-  in  {instance : RailNode $ ri {state = newstate, reserves = filter (\x -> x.jointid /= j) ri.reserves}, newjoint, shapes : (absShape ri.pos) <$> shape}
 
 
 addSignal :: Layout -> IntNode -> IntJoint -> Layout

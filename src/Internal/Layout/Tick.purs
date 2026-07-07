@@ -1,3 +1,5 @@
+-- 1ティックの更新関数群
+
 module Internal.Layout.Tick
   ( layoutTick
   , trainTick
@@ -9,8 +11,9 @@ import Data.Newtype (unwrap, wrap)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Array (any, catMaybes, foldl)
 import Internal.Layout.Types (Layout(..), RouteQueueElement(..), Signal(..), SignalRule(..), TrainRoute_(..), Trainset, Trainset_(..), getTag, signalRulePhase_fired, signalRulePhase_stoppedFired, signalRulePhase_unfired)
-import Internal.Layout.Helper (getRailNode)
-import Internal.Layout.Signal (getNextSignal, speedScale, signalToSpeed)
+import Internal.Layout.Helper (getRailNode, signalToSpeed)
+import Internal.Layout.Params (speedScale)
+import Internal.Layout.Signal (getNextSignal)
 import Internal.Layout.Operation (flipTrain, layoutUpdate, setManualStop, tryOpenRouteFor)
 import Internal.Layout.Train (acceralate, addRouteQueue, getMaxNotchWithNextSignal, movefoward)
 import Data.String.Regex (replace, test)

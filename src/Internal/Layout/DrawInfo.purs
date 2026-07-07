@@ -1,21 +1,20 @@
+-- レイアウト全体の描画情報の生成
+
 module Internal.Layout.DrawInfo
   ( TrainsetDrawInfo(..)
-  , carLength
-  , carMargin
   , layoutDrawInfo
-  , recalcInstanceDrawInfo
   , trainsetDrawInfo
-  , trainsetLength
   )
   where
 
-import Prelude (map, negate, ($), (*), (+), (-), (/), (<), (<$>), (=<<), (>>>))
+import Prelude (map, negate, ($), (*), (+), (-), (/), (<), (<$>), (=<<))
 import Data.Newtype (unwrap)
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.Array (length, mapWithIndex, reverse, (!!))
-import Internal.Types (DrawAdditional, DrawInfo(..), DrawRail, Pos, RailShape(..), RealColor, absDrawInfo, applyColorOption, brokenDrawInfo, getDividingPoint_rel, poszero)
+import Data.Array (mapWithIndex, reverse, (!!))
+import Internal.Types (DrawAdditional, DrawInfo(..), DrawRail, Pos, RailShape(..), RealColor, getDividingPoint_rel, poszero)
 import Internal.Layout.Types (CarType, FloorData, InvalidRoute(..), Layout(..), RailNode, RailNode_(..), Signal(..), TrainRoute_(..), TrainTag, Trainset, Trainset_(..))
-import Internal.Layout.Helper (getJointAbsPos, getRailJointAbsPos)
+import Internal.Layout.Helper (getJointAbsPos, getRailJointAbsPos, instanceDrawInfo)
+import Internal.Layout.Params (carLength, carMargin, wheelMargin, wheelWidth)
 import Data.Int
 
 
@@ -53,33 +52,8 @@ layoutDrawInfo (Layout layout) =
   }
 
 
-instanceDrawInfos :: RailNode -> Array (DrawInfo Pos RealColor)
-instanceDrawInfos (RailNode node) =
-  ((unwrap node.rail).getDrawInfo
-    >>> applyColorOption (node.color) 
-    >>> absDrawInfo node.pos
-  ) <$> (unwrap node.rail).getStates
-
-recalcInstanceDrawInfo :: RailNode -> RailNode
-recalcInstanceDrawInfo (RailNode node) =
-  RailNode $ node {drawinfos = instanceDrawInfos (RailNode node)}
-
-instanceDrawInfo :: RailNode -> DrawInfo Pos RealColor
-instanceDrawInfo (RailNode node) =
-  fromMaybe brokenDrawInfo $ node.drawinfos !! (unwrap node.state)
 
 
-
-carLength ∷ Number
-carLength = 10.0 / 21.4
-carMargin ∷ Number
-carMargin = 1.0 / 21.4
-trainsetLength ∷ forall t. Trainset_ t → Number
-trainsetLength (Trainset t) = (toNumber $ length t.types) * (carLength + carMargin) - carMargin
-wheelWidth ∷ Number
-wheelWidth = 3.4 / 21.4
-wheelMargin ∷ Number
-wheelMargin = 2.0 / 21.4
 
 
 newtype TrainsetDrawInfo = TrainsetDrawInfo ({

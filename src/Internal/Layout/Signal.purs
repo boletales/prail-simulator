@@ -1,26 +1,22 @@
+-- 信号ロジック
+
 module Internal.Layout.Signal
-  ( baseaccr
-  , basedccr
-  , brakePattern
-  , digestIndication
-  , getNextSignal
+  ( getNextSignal
   , hasTraffic
-  , indicationToSpeed
   , signalSearchDepth
-  , signalToSpeed
-  , speedScale
   , updateSignalIndication
   , updateSignalRoutes
   )
   where
 
-import Prelude (compare, identity, map, max, not, ($), (&&), (*), (+), (-), (/), (/=), (<), (<$>), (<<<), (<>), (=<<), (==), (>), (>=), (>>=), (>>>), (||))
+import Prelude (compare, identity, map, not, ($), (&&), (*), (+), (/=), (<), (<$>), (<<<), (<>), (=<<), (==), (>), (>=), (>>=), (>>>), (||))
 import Data.Newtype (unwrap)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Array (all, any, elem, filter, find, head, insert, last, length, nubBy, reverse, zipWith, (!!))
 import Internal.Types (IntJoint(..), shapeLength)
 import Internal.Layout.Types (InvalidRoute(..), Layout(..), RailNode, RailNode_(..), Signal(..), SignalRoute(..), TrainRoute_(..), Trainset, Trainset_(..), isComplex, signalAlart, signalCaution, signalClear, signalReduce, signalStop)
 import Internal.Layout.Helper (getNextJoint, getRailNode, getRailTraffic, getRouteInfo, isRailClear)
+import Internal.Layout.Params
 import Data.Function (on)
 import Data.Foldable (maximum, sum)
 import Data.FoldableWithIndex (allWithIndex)
@@ -229,35 +225,3 @@ updateSignalIndication changeManualStop (Layout layout) =
 
 
 
-baseaccr ∷ Number
-baseaccr = 0.4
-basedccr ∷ Number
-basedccr = 0.6
-
-brakePattern ∷ Number → Number → Number
-brakePattern speed finalspeed = 
-  let a = basedccr
-      t = (speed - finalspeed) / a
-  in 0.2 + max 0.0 (finalspeed * t + 0.5 * a * t * t)
-
-
-indicationToSpeed ∷ Int → Number
-indicationToSpeed i =
-  case i of
-    0 ->   0.0 * speedScale
-    1 ->  25.0 * speedScale
-    2 ->  45.0 * speedScale
-    3 ->  65.0 * speedScale
-    4 -> 100.0 * speedScale
-    _ -> 100.0 * speedScale
-
-
-speedScale ∷ Number
-speedScale = 3.0 / 120.0
-
-
-signalToSpeed :: Signal -> Number 
-signalToSpeed = digestIndication >>> indicationToSpeed
-
-digestIndication :: Signal -> Int
-digestIndication signal = if (unwrap signal).manualStop || (unwrap signal).restraint then signalStop else fromMaybe signalStop $ maximum ((unwrap signal).indication)

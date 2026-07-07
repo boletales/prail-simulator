@@ -1,3 +1,5 @@
+-- レイアウト固有の構造体
+
 module Internal.Layout.Types
   ( CarType(..)
   , FloorData(..)

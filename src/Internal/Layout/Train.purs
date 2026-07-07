@@ -15,9 +15,9 @@ import Prelude (bind, map, max, min, negate, ($), (*), (+), (-), (/), (/=), (<),
 import Data.Newtype (unwrap)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Array (any, filter, find, foldl, head, unsnoc)
-import Internal.Types (IntJoint, shapeLength)
+import Internal.Types
 import Internal.Layout.Types (IntNode, Layout(..), RailNode, RailNode_(..), RouteQueueElement(..), Signal(..), SignalRule(..), TrainRoute_(..), TrainTag, Trainset, Trainset_(..), signalRulePhase_unfired)
-import Internal.Layout.Helper (getNextJoint, getRailNode, signalToSpeed, updateRailNode)
+import Internal.Layout.Helper (getNextJoint, getRailNode, signalToSpeed)
 import JS.Map.Primitive as JSM
 import Internal.Layout.Params (baseaccr, basedccr, brakePattern, speedScale, carLength, carMargin)
 import Internal.Layout.Signal (getNextSignal)
@@ -31,6 +31,12 @@ updateRailNodeAt :: RailNode -> IntNode -> JSM.Map IntNode RailNode -> Maybe (JS
 updateRailNodeAt newRail nodeid rails = do
   _ <- JSM.lookup nodeid rails
   Just $ JSM.insert nodeid newRail rails
+
+
+passingRailNode :: RailNode -> IntJoint -> {instance :: RailNode, newjoint :: IntJoint, shapes :: Array (RailShape Pos)}
+passingRailNode (RailNode ri) j =
+  let {newjoint, newstate, shape} = (unwrap ri.rail).getNewState j (ri.state)
+  in  {instance : RailNode $ ri {state = newstate, reserves = filter (\x -> x.jointid /= j) ri.reserves}, newjoint, shapes : (absShape ri.pos) <$> shape}
 
 
 
@@ -122,7 +128,7 @@ movefoward (Layout layout) (Trainset t0) dt =
                 let jointexit = getNextJoint r.railinstance r.jointid
                 cdata <- find (\c -> c.from == jointexit) $ (unwrap r.railinstance).connections
                 nextRail <- getRailNode (Layout layout) cdata.nodeid
-                let updatedroute = updateRailNode nextRail cdata.jointid
+                let updatedroute = passingRailNode nextRail cdata.jointid
                 let newinstance = (\(RailNode rn) -> RailNode $ rn {reserves = filter (\r' -> r'.jointid /= cdata.jointid) rn.reserves}) $ updatedroute.instance
                 let slength = sum (shapeLength <$> updatedroute.shapes)
                 let t3 = Trainset $ t2 {

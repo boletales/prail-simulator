@@ -131,8 +131,3 @@ signalToSpeed = digestIndication >>> indicationToSpeed
 
 digestIndication :: Signal -> Int
 digestIndication signal = if (unwrap signal).manualStop || (unwrap signal).restraint then signalStop else fromMaybe signalStop $ maximum ((unwrap signal).indication)
-
-updateRailNode :: RailNode -> IntJoint -> {instance :: RailNode, newjoint :: IntJoint, shapes :: Array (RailShape Pos)}
-updateRailNode (RailNode ri) j =
-  let {newjoint, newstate, shape} = (unwrap ri.rail).getNewState j (ri.state)
-  in  {instance : RailNode $ ri {state = newstate, reserves = filter (\x -> x.jointid /= j) ri.reserves}, newjoint, shapes : (absShape ri.pos) <$> shape}

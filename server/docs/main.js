@@ -1155,14 +1155,6 @@ var maximum = /* @__PURE__ */ foldlArray((v) => (v1) => {
   }
   fail();
 })(Nothing);
-var updateRailNode = (v) => (j) => {
-  const v1 = v.rail.getNewState(j)(v.state);
-  return {
-    instance: { ...v, state: v1.newstate, reserves: filterImpl((x) => x.jointid !== j, v.reserves) },
-    newjoint: v1.newjoint,
-    shapes: arrayMap(absShape(v.pos))(v1.shape)
-  };
-};
 var isRailClear = (v) => (nodeid) => {
   const $0 = _lookup(Nothing, Just, nodeid, v.rails);
   if ($0.tag === "Just") {
@@ -1875,8 +1867,8 @@ var foldM2 = (f) => (b0) => foldlArray((b) => (a) => {
 var sum2 = /* @__PURE__ */ foldlArray(numAdd)(0);
 var updateTraffic = (v) => ({
   ...v,
-  rails: foldlArray((rails2) => (v1) => foldlArray((rails1) => (v2) => {
-    const $0 = _lookup(Nothing, Just, v2.nodeid, rails1);
+  rails: foldlArray((rails$p) => (v1) => foldlArray((rails2) => (v2) => {
+    const $0 = _lookup(Nothing, Just, v2.nodeid, rails2);
     if ($0.tag === "Just") {
       const $1 = modifyAt(v2.jointid)((d) => [...d, v1.trainid])($0._1.traffic);
       if ($1.tag === "Just") {
@@ -1884,18 +1876,18 @@ var updateTraffic = (v) => ({
           ...$0._1,
           traffic: $1._1,
           isclear: false
-        }))(rails1);
+        }))(rails2);
       }
       if ($1.tag === "Nothing") {
-        return rails1;
+        return rails2;
       }
       fail();
     }
     if ($0.tag === "Nothing") {
-      return rails1;
+      return rails2;
     }
     fail();
-  })(rails2)(v1.route))(_mapWithKey(v.rails, (v1) => (v2) => ({ ...v2, traffic: replicateImpl(v2.rail.getJoints.length, []), isclear: true })))(v.trains)
+  })(rails$p)(v1.route))(_mapWithKey(v.rails, (v1) => (v2) => ({ ...v2, traffic: replicateImpl(v2.rail.getJoints.length, []), isclear: true })))(v.trains)
 });
 var updateReserves = (v) => ({
   ...v,
@@ -6273,6 +6265,14 @@ var updateRailNodeAt2 = (newRail) => (nodeid) => (rails2) => {
   fail();
 };
 var trainsetLength = (v) => toNumber(length3(v.types)) * 0.5140186915887851 - 0.04672897196261683;
+var passingRailNode = (v) => (j) => {
+  const v1 = v.rail.getNewState(j)(v.state);
+  return {
+    instance: { ...v, state: v1.newstate, reserves: filterImpl((x) => x.jointid !== j, v.reserves) },
+    newjoint: v1.newjoint,
+    shapes: arrayMap(absShape(v.pos))(v1.shape)
+  };
+};
 var getRestriction = (tags) => (signal) => foldlArray((s) => (r) => {
   if (r.tag === "RuleSpeed" && anyImpl(test(r._1), arrayMap(unsafeCoerce)(tags))) {
     return min2(s)(toNumber(r._2) * 0.025);
@@ -6310,7 +6310,7 @@ var movefoward = (movefoward$a0$copy) => (movefoward$a1$copy) => (movefoward$a2$
       if ($3.tag === "Just") {
         const $4 = _lookup(Nothing, Just, $3._1.nodeid, v.rails);
         if ($4.tag === "Just") {
-          const updatedroute = updateRailNode($4._1)($3._1.jointid);
+          const updatedroute = passingRailNode($4._1)($3._1.jointid);
           const newinstance = { ...updatedroute.instance, reserves: filterImpl((r$p) => r$p.jointid !== $3._1.jointid, updatedroute.instance.reserves) };
           const slength = sum3(arrayMap(shapeLength)(updatedroute.shapes));
           movefoward$c = false;

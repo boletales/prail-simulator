@@ -9,7 +9,7 @@ module Internal.Layout.Signal
   )
   where
 
-import Prelude
+import Prelude (compare, identity, map, not, ($), (&&), (*), (+), (/=), (<), (<$>), (<<<), (<>), (=<<), (==), (>), (>=), (>>=), (>>>), (||))
 import Data.Newtype (unwrap)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Array (all, any, elem, filter, find, head, insert, last, length, nubBy, reverse, zipWith, (!!))

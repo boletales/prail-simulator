@@ -566,7 +566,7 @@ class Layout {
     }else{
       this.layout = P.layoutTick(this.layout);
     }
-    if(this.layout.rails[this.selectedJoint.nodeid] === undefined){
+    if(this.getSelectedRail() === undefined){
       this.selectNewestRail(this.layout);
     }
     if(this.layout.trains.find(t=>t.trainid == this.selectedTrain) === undefined && this.layout.trains.length > 0){
@@ -595,24 +595,24 @@ class Layout {
   }
   
   selectForward(){
-    let r = this.layout.rails[this.selectedJoint.nodeid];
+    let r = this.getSelectedRail();
     if(r!==undefined){
       let js = r.connections.filter(j=>j.from == this.selectedJoint.jointid);
       if(js.length > 0){
         this.selectedJoint.nodeid = js[0].nodeid;
-        let ns = this.layout.rails[this.selectedJoint.nodeid].rail.getNewState(js[0].jointid)(this.layout.rails[this.selectedJoint.nodeid].state);
-        this.selectedJoint.jointid = ns.newjoint;//(js[0].jointid+1) % this.layout.rails[this.selectedJoint.nodeid].rail.getJoints.length;
-        //this.layout.rails[this.selectedJoint.nodeid].state = ns.newstate;
-        //this.layout.rails[this.selectedJoint.nodeid].maniputaledBy = -1;
+        let ns = this.getSelectedRail().rail.getNewState(js[0].jointid)(this.getSelectedRail().state);
+        this.selectedJoint.jointid = ns.newjoint;//(js[0].jointid+1) % this.getSelectedRail().rail.getJoints.length;
+        //this.getSelectedRail().state = ns.newstate;
+        //this.getSelectedRail().maniputaledBy = -1;
       }
     }
   }
   
   selectJoint(n){
-    let r = this.layout.rails[this.selectedJoint.nodeid];
+    let r = this.getSelectedRail();
     if(r!==undefined){
-      let joints =  this.layout.rails[this.selectedJoint.nodeid].rail.getJoints.length;
-      this.selectedJoint.jointid = (this.selectedJoint.jointid +(n * (this.layout.rails[this.selectedJoint.nodeid].rail.flipped ? -1 : 1)) + joints) % joints;
+      let joints =  this.getSelectedRail().rail.getJoints.length;
+      this.selectedJoint.jointid = (this.selectedJoint.jointid +(n * (this.getSelectedRail().rail.flipped ? -1 : 1)) + joints) % joints;
     }
   }
   
@@ -620,7 +620,7 @@ class Layout {
     this.from = _f === undefined ? rail.origin : _f;
     this.layout = P.autoAdd(this.layout)(this.selectedJoint.nodeid)(this.selectedJoint.jointid)(rail)(this.from);
     this.selectNewestRail(this.layout);
-    this.selectedJoint.jointid = (this.from+1) % this.layout.rails[this.selectedJoint.nodeid].rail.getJoints.length;
+    this.selectedJoint.jointid = (this.from+1) % this.getSelectedRail().rail.getJoints.length;
     this.requestSave();
   }
   
@@ -639,9 +639,9 @@ class Layout {
   
   
   removeRail(){
-    if(this.layout.rails.length>1 && this.layout.rails[this.selectedJoint.nodeid] !== undefined){
+    if(this.layout.rails.length>1 && this.getSelectedRail() !== undefined){
       let layout_ = P.removeRail(this.layout)(this.selectedJoint.nodeid);
-      let rail = this.layout.rails[this.selectedJoint.nodeid];
+      let rail = this.getSelectedRail();
       let js = rail.connections.filter(j=>j.from == this.selectedJoint.jointid);
       let cs = rail.connections.filter(j=>j !== undefined);
       if(js.length > 0){
@@ -652,7 +652,7 @@ class Layout {
         this.selectedJoint.jointid = cs[0].jointid;
       }
       this.layout = layout_;
-      if(this.layout.rails[this.selectedJoint.nodeid] === undefined){
+      if(this.getSelectedRail() === undefined){
         this.selectNewestRail(layout_);
       }
       this.requestSave();
@@ -662,11 +662,11 @@ class Layout {
 
   flipRail(){
     if(this.layout.rails.length>1){
-      let r = this.layout.rails[this.selectedJoint.nodeid];
+      let r = this.getSelectedRail();
       if(r !== undefined && r.connections[0] !== undefined){
         this.layout = P.autoAdd(P.removeRail(this.layout)(this.selectedJoint.nodeid))(r.connections[0].nodeid)(r.connections[0].jointid)(P.flipRail(r.rail))(r.connections[0].from);
         this.selectNewestRail(this.layout);
-        this.selectedJoint.jointid = (this.from+1) % this.layout.rails[this.selectedJoint.nodeid].rail.getJoints.length;
+        this.selectedJoint.jointid = (this.from+1) % this.getSelectedRail().rail.getJoints.length;
         this.requestSave();
       }
     }
@@ -674,39 +674,39 @@ class Layout {
   
   rotateRail(){
     if(this.layout.rails.length>1){
-      let r = this.layout.rails[this.selectedJoint.nodeid];
+      let r = this.getSelectedRail();
       if(r !== undefined && r.connections[0] !== undefined){
         this.layout = P.autoAdd(P.removeRail(this.layout)(this.selectedJoint.nodeid))(r.connections[0].nodeid)(r.connections[0].jointid)(r.rail)((r.connections[0].from + 1) % r.rail.getJoints.length);
         this.selectNewestRail(this.layout);
-        this.selectedJoint.jointid = (this.from+1) % this.layout.rails[this.selectedJoint.nodeid].rail.getJoints.length;
+        this.selectedJoint.jointid = (this.from+1) % this.getSelectedRail().rail.getJoints.length;
         this.requestSave();
       }
     }
   }
   
   changeState(){
-    if(this.layout.rails[this.selectedJoint.nodeid] !== undefined){
-      this.layout.rails[this.selectedJoint.nodeid].state = (this.layout.rails[this.selectedJoint.nodeid].state+1) % this.layout.rails[this.selectedJoint.nodeid].rail.getStates.length;
-      this.layout.rails[this.selectedJoint.nodeid].maniputaledBy = -1;
+    if(this.getSelectedRail() !== undefined){
+      this.getSelectedRail().state = (this.getSelectedRail().state+1) % this.getSelectedRail().rail.getStates.length;
+      this.getSelectedRail().maniputaledBy = -1;
       this.layout = P.forceUpdate(this.layout);
     }
   }
   
   manualStop(){
-    if(this.layout.rails[this.selectedJoint.nodeid] !== undefined){
-      this.layout.rails[this.selectedJoint.nodeid].signals.forEach(e => {if(e.jointid == this.selectedJoint.jointid) if(e.manualStop || e.restraint){e.manualStop = false; e.restraint = false;}else{e.restraint = true;}});
+    if(this.getSelectedRail() !== undefined){
+      this.getSelectedRail().signals.forEach(e => {if(e.jointid == this.selectedJoint.jointid) if(e.manualStop || e.restraint){e.manualStop = false; e.restraint = false;}else{e.restraint = true;}});
     }
   }
   
   restraint(){
-    if(this.layout.rails[this.selectedJoint.nodeid] !== undefined){
-      this.layout.rails[this.selectedJoint.nodeid].signals.forEach(e => {if(e.jointid == this.selectedJoint.jointid){e.restraint = true;}});
+    if(this.getSelectedRail() !== undefined){
+      this.getSelectedRail().signals.forEach(e => {if(e.jointid == this.selectedJoint.jointid){e.restraint = true;}});
     }
   }
   
   openRouteL(){
-    if(this.layout.rails[this.selectedJoint.nodeid] !== undefined){
-      let signal = this.layout.rails[this.selectedJoint.nodeid].signals.find(e => e.jointid == this.selectedJoint.jointid);
+    if(this.getSelectedRail() !== undefined){
+      let signal = this.getSelectedRail().signals.find(e => e.jointid == this.selectedJoint.jointid);
       if(signal === undefined) return;
       let routeid = signal.routecond.findIndex(e => e);
       if(routeid === -1) routeid = -2;
@@ -715,8 +715,8 @@ class Layout {
   }
   
   openRouteR(){
-    if(this.layout.rails[this.selectedJoint.nodeid] !== undefined){
-      let signal = this.layout.rails[this.selectedJoint.nodeid].signals.find(e => e.jointid == this.selectedJoint.jointid);
+    if(this.getSelectedRail() !== undefined){
+      let signal = this.getSelectedRail().signals.find(e => e.jointid == this.selectedJoint.jointid);
       if(signal === undefined) return;
       let routeid = signal.routecond.findIndex(e => e);
       if(routeid === -1) routeid = 1;
@@ -730,18 +730,18 @@ class Layout {
   }
   
   copyColor(){
-    if(this.layout.rails[this.selectedJoint.nodeid] !== undefined){
-      this.copiedColor = Object.assign([], this.layout.rails[this.selectedJoint.nodeid].color);
+    if(this.getSelectedRail() !== undefined){
+      this.copiedColor = Object.assign([], this.getSelectedRail().color);
     }
   }
   pasteColor(){
-    if(this.layout.rails[this.selectedJoint.nodeid] !== undefined){
+    if(this.getSelectedRail() !== undefined){
       this.layout = P.setRailColor(this.layout)(this.selectedJoint.nodeid)(this.copiedColor);
       this.requestSave();
     }
   }
   setRailColor(color){
-    if(this.layout.rails[this.selectedJoint.nodeid] !== undefined){
+    if(this.getSelectedRail() !== undefined){
       let coloroption = [];
       if (color !== "") {
         coloroption = [{
@@ -755,7 +755,7 @@ class Layout {
   }
 
   addTrain(){
-    if(this.layout.rails[this.selectedJoint.nodeid] !== undefined){
+    if(this.getSelectedRail() !== undefined){
       this.layout = P.addTrainset(this.layout)(this.selectedJoint.nodeid)(this.selectedJoint.jointid)([{type:"313_Mc", flipped:false}, {type:"313_T", flipped:false}, {type:"312_Tc", flipped:false}]);
       this.layout.trains[this.layout.trains.length -1].realAcceralation=true;
       this.layout.trains[this.layout.trains.length -1].respectSignals=this.respectSignals;
@@ -796,20 +796,20 @@ class Layout {
   }
   
   editRailNote(note){
-    if(this.layout.rails[this.selectedJoint.nodeid] !== undefined){
-      this.layout.rails[this.selectedJoint.nodeid].note = note;
+    if(this.getSelectedRail() !== undefined){
+      this.getSelectedRail().note = note;
       this.requestSave();
     }
   }
   getSignalTag(note){
-    if(this.layout.rails[this.selectedJoint.nodeid] !== undefined){
-      this.layout.rails[this.selectedJoint.nodeid].note = note;
+    if(this.getSelectedRail() !== undefined){
+      this.getSelectedRail().note = note;
       this.requestSave();
     }
   }
   setSignalRules(rulestr){
-    if(this.layout.rails[this.selectedJoint.nodeid] !== undefined){
-      this.layout.rails[this.selectedJoint.nodeid].signals.forEach(s => {if(s.jointid == this.selectedJoint.jointid){s.rules = P.decodeSignalRules(rulestr.split("\n"))}});
+    if(this.getSelectedRail() !== undefined){
+      this.getSelectedRail().signals.forEach(s => {if(s.jointid == this.selectedJoint.jointid){s.rules = P.decodeSignalRules(rulestr.split("\n"))}});
       this.requestSave();
     }
   }
@@ -822,8 +822,9 @@ class Layout {
   }
 
   getSelectedRail(){
-    if(this.layout.rails[this.selectedJoint.nodeid] !== undefined){
-      return this.layout.rails[this.selectedJoint.nodeid];
+    let rail = this.layout.rails[this.selectedJoint.nodeid];
+    if(rail !== undefined){
+      return rail;
     }
   }
   getSelectedTrains(){

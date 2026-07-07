@@ -24,10 +24,11 @@ module Internal.Layout.Operation
 import Prelude (bind, discard, map, negate, not, pure, show, unit, ($), (&&), (*), (+), (-), (/=), (<), (<$>), (<>), (=<<), (==), (>), (>>=), (>>>), (||))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
-import Data.Array (all, any, catMaybes, deleteAt, elem, filter, find, findIndex, foldl, head, length, modifyAt, replicate, reverse, uncons, updateAt, (!!))
+import Data.Array (all, any, catMaybes, deleteAt, elem, filter, find, foldl, head, length, modifyAt, replicate, reverse, uncons, updateAt, (!!))
 import Internal.Types (ColorOption, IntJoint, Pos(..), Rail, canJoin, opposeRail, poszero, reverseShapes, saEmpty, saModifyAt, shapeLength, toAbsPos)
 import Internal.Layout.Types (CarType, IntNode(..), IntReserve(..), InvalidRoute(..), JointData(..), Layout(..), RailNode, RailNode_(..), Signal(..), SignalRoute(..), TrainRoute_(..), Trainset, Trainset_(..), signalAlart, signalCaution, signalReduce, signalRulePhase_unfired, signalStop)
-import Internal.Layout.Helper (getJointAbsPos, getJoints, getNewRailPos, getNextJoint, getRailNode, getRouteInfo, recalcInstanceDrawInfo, findIndexRail, selectRail)
+import Internal.Layout.Helper (getJointAbsPos, getJoints, getNewRailPos, getNextJoint, getRailNode, getRouteInfo, recalcInstanceDrawInfo, selectRail)
+import JS.Map.Primitive as JSM
 import Internal.Layout.Signal (hasTraffic, updateSignalIndication, updateSignalRoutes)
 import Internal.Layout.Params (carLength, carMargin)
 import Data.Int
@@ -64,20 +65,22 @@ autoAdd (Layout layout) selectednode selectedjoint rail from =
               pos : poszero,
               drawinfos : [],
               note : "",
-              color : []
+              color : [],
+              traffic : replicate (length (unwrap rail').getJoints) [],
+              isclear : true
             }
       addRail (Layout layout) node
     )
 
-modifyRailNode :: (RailNode -> RailNode) -> IntNode -> Array RailNode -> Maybe (Array RailNode)
+modifyRailNode :: (RailNode -> RailNode) -> IntNode -> JSM.Map IntNode RailNode -> Maybe (JSM.Map IntNode RailNode)
 modifyRailNode f nodeid rails = do
-  idx <- findIndexRail rails nodeid
-  modifyAt idx f rails
+  r <- JSM.lookup nodeid rails
+  Just $ JSM.insert nodeid (f r) rails
 
-updateRailNodeAt :: RailNode -> IntNode -> Array RailNode -> Maybe (Array RailNode)
+updateRailNodeAt :: RailNode -> IntNode -> JSM.Map IntNode RailNode -> Maybe (JSM.Map IntNode RailNode)
 updateRailNodeAt newRail nodeid rails = do
-  idx <- findIndexRail rails nodeid
-  updateAt idx newRail rails
+  _ <- JSM.lookup nodeid rails
+  Just $ JSM.insert nodeid newRail rails
 
 
 removeRail :: Layout -> IntNode -> Layout
@@ -88,13 +91,11 @@ removeRail (Layout layout) nodeid =
             Nothing -> layout
     in  updateSignalRoutes $ Layout $ layout' {
           updatecount = layout'.updatecount + 1,
-          rails = (\(RailNode ri) -> 
+          rails = map (\(RailNode ri) -> 
                       RailNode $ ri {
                           connections = filter (\{nodeid:i} -> i /= nodeid) ri.connections
                         }
-                    ) <$> (fromMaybe layout'.rails $ do
-                             idx <- findIndexRail layout'.rails nodeid
-                             deleteAt idx layout'.rails),
+                    ) (JSM.delete nodeid layout'.rails),
           jointData = (map $ map $ map $ filter (\(JointData d) -> d.nodeid /= nodeid)) layout'.jointData,
           trains = layout'.trains
         }
@@ -140,9 +141,12 @@ addRailWithPos (Layout layout) (RailNode node) pos =
                           -> {from: j, nodeid: nodeid, jointid: jointid}
                       ) <$> newconnections),
                 instanceid = layout.instancecount,
-                pos = pos
+                pos = pos,
+                traffic = replicate (length (unwrap node.rail).getJoints) [],
+                isclear = true
               }
             newrails =
+              JSM.insert newnodeId newnode $
               foldl (\rs {jointData:(JointData {pos: _, nodeid: nodeid, jointid: jointid}), jointid:j} ->
                   fromMaybe rs 
                     (modifyRailNode (\(RailNode n) ->
@@ -150,7 +154,6 @@ addRailWithPos (Layout layout) (RailNode node) pos =
                     ) nodeid rs
                   )
                 ) layout.rails connections
-              <> [newnode]
         in Just $ updateSignalRoutes $ 
                   (\l -> foldl (\l' {jointid: j, pos: p} -> addJoint l' p newnodeId j) l joints)
                     $ Layout $ layout{
@@ -176,7 +179,7 @@ addJoint (Layout layout) pos nodeid jointid =
 
 fixBrokenConnections :: Layout -> Layout
 fixBrokenConnections (Layout layout) =
-  foldl (\l (RailNode r) -> fromMaybe l $ addRailWithPos l (RailNode (r {connections = []})) r.pos) (Layout (layout { rails = [], jointData = saEmpty})) (layout.rails)
+  foldl (\l (RailNode r) -> fromMaybe l $ addRailWithPos l (RailNode (r {connections = []})) r.pos) (Layout (layout { rails = JSM.empty, jointData = saEmpty})) (JSM.values layout.rails)
 
 removeSignal :: Layout -> IntNode -> IntJoint -> Layout
 removeSignal (Layout layout) nodeid jointid = 
@@ -224,17 +227,18 @@ addSignal (Layout layout) nodeid jointid = fromMaybe (Layout layout) $
 
 updateTraffic :: Layout -> Layout
 updateTraffic (Layout layout) =
-  let {traffic, isclear} = 
-        foldl (\{traffic, isclear} (Trainset trainset) ->
-            foldl (\{traffic, isclear} (TrainRoute route) ->
-                fromMaybe {traffic, isclear} do
-                  idx <- findIndexRail layout.rails route.nodeid
-                  traffic' <- modifyAt idx (\d -> fromMaybe d $ modifyAt (unwrap route.jointid) (_ <> [trainset.trainid]) d) traffic
-                  isclear' <- modifyAt idx (\_ -> false) isclear
-                  pure {traffic: traffic', isclear: isclear'}
-              ) {traffic, isclear} trainset.route
-          ) ({traffic: map (\(RailNode r) ->  replicate (length (unwrap r.rail).getJoints) []) layout.rails, isclear: replicate (length layout.rails) true}) layout.trains
-  in Layout $ layout {traffic = traffic, isclear = isclear}
+  let clearedRails = JSM.mapWithKey (\_ (RailNode r) -> RailNode $ r {traffic = replicate (length (unwrap r.rail).getJoints) [], isclear = true}) layout.rails
+      rails' = 
+        foldl (\rails (Trainset trainset) ->
+            foldl (\rails (TrainRoute route) ->
+                fromMaybe rails do
+                  (RailNode r) <- JSM.lookup route.nodeid rails
+                  traffic' <- modifyAt (unwrap route.jointid) (\d -> d <> [trainset.trainid]) r.traffic
+                  let newRail = RailNode $ r {traffic = traffic', isclear = false}
+                  pure $ JSM.insert route.nodeid newRail rails
+              ) rails trainset.route
+          ) clearedRails layout.trains
+  in Layout $ layout {rails = rails'}
 
 newreserve :: Int -> IntReserve -> Layout -> Layout
 newreserve reserver reserveid (Layout layout) =

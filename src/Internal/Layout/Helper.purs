@@ -18,16 +18,16 @@ module Internal.Layout.Helper
   , signalToSpeed
   , updateRailNode
   , selectRail
-  , findIndexRail
   )
   where
 
 import Prelude
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.Array (filter, foldM, index, find, findIndex, (!!))
+import Data.Array (filter, foldM, index, find, (!!))
 import Data.Int (round)
 import Data.Newtype (unwrap)
 import Data.Foldable (maximum)
+import JS.Map.Primitive as JSM
 import Internal.Layout.Types (IntNode(..), JointData, Layout(..), RailNode, RailNode_(..), Signal, signalStop) 
 import Internal.Layout.Params
 import Internal.Types (DrawInfo, IntJoint, Pos, RailShape, RealColor, RelPos(..), absDrawInfo, absShape, applyColorOption, brokenDrawInfo, canJoin, convertRelPos, poszero, reversePos, reverseRelPos, saIndex, toAbsPos)
@@ -47,11 +47,8 @@ getJointAbsPos (Layout layout) nodeid jointid =
 
 
 
-selectRail :: Array RailNode -> IntNode -> Maybe RailNode
-selectRail rails nodeid = find (\(RailNode r) -> r.nodeid == nodeid) rails
-
-findIndexRail :: Array RailNode -> IntNode -> Maybe Int
-findIndexRail rails nodeid = findIndex (\(RailNode r) -> r.nodeid == nodeid) rails
+selectRail :: JSM.Map IntNode RailNode -> IntNode -> Maybe RailNode
+selectRail rails nodeid = JSM.lookup nodeid rails
 
 
 
@@ -60,13 +57,13 @@ getRailNode (Layout l) nodeid = selectRail l.rails nodeid
 
 getRailTraffic ∷ Layout → IntNode → Maybe (Array (Array Int))
 getRailTraffic (Layout l) nodeid = do
-  idx <- findIndexRail l.rails nodeid
-  l.traffic !! idx
+  RailNode r <- JSM.lookup nodeid l.rails
+  Just r.traffic
 
 isRailClear ∷ Layout → IntNode → Maybe Boolean
 isRailClear (Layout l) nodeid = do
-  idx <- findIndexRail l.rails nodeid
-  l.isclear !! idx
+  RailNode r <- JSM.lookup nodeid l.rails
+  Just r.isclear
 
 getRouteInfo :: RailNode -> IntJoint -> {newjoint :: IntJoint, shapes :: Array (RailShape Pos)}
 getRouteInfo (RailNode ri) j =

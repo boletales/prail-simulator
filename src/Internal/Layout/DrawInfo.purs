@@ -14,6 +14,7 @@ import Data.Array (mapWithIndex, reverse, (!!))
 import Internal.Types (DrawAdditional, DrawInfo(..), DrawRail, Pos, RailShape(..), RealColor, getDividingPoint_rel, poszero)
 import Internal.Layout.Types (CarType, FloorData, InvalidRoute(..), Layout(..), RailNode, RailNode_(..), Signal(..), TrainRoute_(..), TrainTag, Trainset, Trainset_(..))
 import Internal.Layout.Helper (getJointAbsPos, getRailJointAbsPos, instanceDrawInfo)
+import JS.Map.Primitive as JSM
 import Internal.Layout.Params (carLength, carMargin, wheelMargin, wheelWidth)
 import Data.Int
 
@@ -33,18 +34,18 @@ layoutDrawInfo (Layout layout) =
                             , additionals: ide.additionals
                             , joints: getRailJointAbsPos r <$> (unwrap (unwrap r).rail).getJoints
                             , instance : r
-                          }) <$> layout.rails
+                          }) <$> JSM.values layout.rails
 
       , signals : (\(RailNode ri) -> map (\(Signal s) -> {
           indication : s.indication,
           pos    : fromMaybe poszero $ getJointAbsPos (Layout layout) s.nodeid s.jointid,
           signal : (Signal s)
-        }) ri.signals) <$> layout.rails
+        }) ri.signals) <$> JSM.values layout.rails
 
       , invalidRoutes : (\(RailNode ri) -> map (\(InvalidRoute s) -> {
           pos    : fromMaybe poszero $ getJointAbsPos (Layout layout) s.nodeid s.jointid,
           signal : (InvalidRoute s)
-        }) ri.invalidRoutes) <$> layout.rails
+        }) ri.invalidRoutes) <$> JSM.values layout.rails
 
       , trains : trainsetDrawInfo <$> layout.trains
       

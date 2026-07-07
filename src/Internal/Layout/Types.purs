@@ -42,6 +42,8 @@ import Data.Newtype (class Newtype, unwrap)
 import Data.String.Regex
 import Data.String.Regex.Flags (noFlags) as Re
 import Data.String.Regex.Unsafe (unsafeRegex) as Re
+import JS.Map.Primitive (Map) as JSM
+import JS.Map.Primitive.Key (class Key)
 
 newtype IntReserve = IntReserve Int
 derive instance Eq IntReserve 
@@ -59,7 +61,9 @@ newtype RailNode_ x = RailNode {
     pos  :: Pos,
     note :: String,
     color :: Array ColorOption,
-    drawinfos :: Array (DrawInfo Pos RealColor)
+    drawinfos :: Array (DrawInfo Pos RealColor),
+    traffic :: Array (Array Int),
+    isclear :: Boolean
   }
 derive instance Newtype (RailNode_ x) _
 
@@ -70,6 +74,8 @@ derive instance Ord IntNode
 derive instance Eq IntNode
 derive instance Newtype IntNode _
 
+instance Key IntNode
+
 newtype JointData = JointData {pos :: Pos, nodeid :: IntNode, jointid :: IntJoint}
 
 newtype FloorData = FloorData {height :: Number, width :: Number}
@@ -77,11 +83,9 @@ newtype FloorData = FloorData {height :: Number, width :: Number}
 newtype Layout = Layout {
     version :: Int,
     floor :: FloorData,
-    rails :: Array RailNode,
+    rails :: JSM.Map IntNode RailNode,
     trains :: Array Trainset,
     signalcolors :: Array (Array (Array SignalColor)),
-    traffic :: Traffic,
-    isclear :: Array Boolean,
     instancecount :: Int,
     traincount :: Int,
     updatecount :: Int,

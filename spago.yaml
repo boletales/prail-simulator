@@ -9,6 +9,7 @@ package:
     - foreign-object
     - identity
     - integers
+    - js-maps
     - lists
     - maybe
     - newtype

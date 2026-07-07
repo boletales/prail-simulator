@@ -234,7 +234,7 @@ function onclick(e){
   const intersects = raycaster.intersectObjects(scene.children.filter(e => e.isJoint));
 
   if (intersects.length) {
-    L.selectedJoint.nodeid  = L.layout.rails.find((v) => v.instanceid == intersects[0].object.jointInfo.instanceid).nodeid;
+    L.selectedJoint.nodeid  = L.layout.rails.get(intersects[0].object.jointInfo.instanceid).nodeid;
     L.selectedJoint.jointid = intersects[0].object.jointInfo.jointid;
   }
 }
@@ -260,7 +260,7 @@ function draw(layout){
 
     staticgeometrymemo.forEach(g => {g.dispose(); });
     staticgeometrymemo = [];
-    let activeInstances = new Set(layout.rails.map(r => r.instanceid));
+    let activeInstances = new Set(layout.rails.keys());
     meshrailmemo.forEach((rmemo, instId) => {
       if (!activeInstances.has(instId)) {
         rmemo.forEach(d => {
@@ -469,8 +469,8 @@ function updateRailNote(drawinfo){
     oldSprites.forEach(o=>scene.remove(o));
   }
   if(drawinfo.instance.note != ""){
-    let rail = L.layout.rails.find(r=>r.instanceid == drawinfo.instance.instanceid);
-    if(rail ==undefined) return;
+    let rail = L.layout.rails.get(drawinfo.instance.instanceid);
+    if(rail == undefined) return;
 
     let center = drawinfo.joints.map(j=>a3(j.coord)).reduce((a,c) => [a[0]+c[0], a[1]+c[1], a[2]+c[2]], [0,0,0]).map(x => x/drawinfo.joints.length);
 

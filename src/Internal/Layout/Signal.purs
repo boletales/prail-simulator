@@ -15,7 +15,8 @@ import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Array (all, any, elem, filter, find, head, insert, last, length, nubBy, reverse, zipWith, (!!))
 import Internal.Types (IntJoint(..), shapeLength)
 import Internal.Layout.Types (InvalidRoute(..), Layout(..), RailNode, RailNode_(..), Signal(..), SignalRoute(..), TrainRoute_(..), Trainset, Trainset_(..), isComplex, signalAlart, signalCaution, signalClear, signalReduce, signalStop)
-import Internal.Layout.Helper (getNextJoint, getRailNode, getRailTraffic, getRouteInfo, isRailClear, findIndexRail)
+import Internal.Layout.Helper (getNextJoint, getRailNode, getRailTraffic, getRouteInfo, isRailClear)
+import JS.Map.Primitive as JSM
 import Internal.Layout.Params
 import Data.Function (on)
 import Data.Foldable (maximum, sum)
@@ -206,10 +207,7 @@ updateSignalIndication changeManualStop (Layout layout) =
                     let go len {nodeid, jointid} =
                           if len >= brakePattern (indicationToSpeed signalClear) 0.0 then (Just signalClear)
                           else
-                            case (do
-                                     idx <- findIndexRail layout.rails nodeid
-                                     filtered !! idx
-                                  ) >>= (find (\bd' -> (unwrap bd'.signal).jointid == jointid)) of
+                            case (JSM.lookup nodeid filtered) >>= (find (\bd' -> (unwrap bd'.signal).jointid == jointid)) of
                               Just bd' ->
                                 case head bd'.routes of
                                   Just d' ->

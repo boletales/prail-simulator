@@ -14,10 +14,11 @@ module Internal.Layout.Train
 import Prelude (bind, map, max, min, negate, ($), (*), (+), (-), (/), (/=), (<), (<$>), (<=), (<>), (==), (>), (||))
 import Data.Newtype (unwrap)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
-import Data.Array (any, filter, find, foldl, head, unsnoc, updateAt)
+import Data.Array (any, filter, find, foldl, head, unsnoc)
 import Internal.Types (IntJoint, shapeLength)
 import Internal.Layout.Types (IntNode, Layout(..), RailNode, RailNode_(..), RouteQueueElement(..), Signal(..), SignalRule(..), TrainRoute_(..), TrainTag, Trainset, Trainset_(..), signalRulePhase_unfired)
-import Internal.Layout.Helper (getNextJoint, getRailNode, signalToSpeed, updateRailNode, findIndexRail)
+import Internal.Layout.Helper (getNextJoint, getRailNode, signalToSpeed, updateRailNode)
+import JS.Map.Primitive as JSM
 import Internal.Layout.Params (baseaccr, basedccr, brakePattern, speedScale, carLength, carMargin)
 import Internal.Layout.Signal (getNextSignal)
 import Data.Int (toNumber)
@@ -26,10 +27,10 @@ import Data.Foldable (sum, length)
 import Data.Number (infinity)
 import Data.Function (on)
 
-updateRailNodeAt :: RailNode -> IntNode -> Array RailNode -> Maybe (Array RailNode)
+updateRailNodeAt :: RailNode -> IntNode -> JSM.Map IntNode RailNode -> Maybe (JSM.Map IntNode RailNode)
 updateRailNodeAt newRail nodeid rails = do
-  idx <- findIndexRail rails nodeid
-  updateAt idx newRail rails
+  _ <- JSM.lookup nodeid rails
+  Just $ JSM.insert nodeid newRail rails
 
 
 

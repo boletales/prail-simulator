@@ -592,7 +592,7 @@ class Layout {
   }
 
   get selectedRailIndex() {
-    return this.layout.rails.findIndex(r => r.nodeid === this.selectedJoint.nodeid);
+    return Array.from(this.layout.rails.values()).findIndex(r => r.nodeid === this.selectedJoint.nodeid);
   }
 
   focusJoint(){
@@ -603,7 +603,8 @@ class Layout {
   }
   
   selectNewestRail(layout){
-    this.selectedJoint.nodeid = layout.rails[layout.rails.length-1].nodeid;
+    let railsArr = Array.from(layout.rails.values());
+    this.selectedJoint.nodeid = railsArr[railsArr.length-1].nodeid;
     this.selectedJoint.jointid = 0;
   }
   
@@ -652,7 +653,7 @@ class Layout {
   
   
   removeRail(){
-    if(this.layout.rails.length>1 && this.getSelectedRail() !== undefined){
+    if(this.layout.rails.size>1 && this.getSelectedRail() !== undefined){
       let layout_ = P.removeRail(this.layout)(this.selectedJoint.nodeid);
       let rail = this.getSelectedRail();
       let js = rail.connections.filter(j=>j.from == this.selectedJoint.jointid);
@@ -674,7 +675,7 @@ class Layout {
   
 
   flipRail(){
-    if(this.layout.rails.length>1){
+    if(this.layout.rails.size>1){
       let r = this.getSelectedRail();
       if(r !== undefined && r.connections[0] !== undefined){
         this.layout = P.autoAdd(P.removeRail(this.layout)(this.selectedJoint.nodeid))(r.connections[0].nodeid)(r.connections[0].jointid)(P.flipRail(r.rail))(r.connections[0].from);
@@ -686,7 +687,7 @@ class Layout {
   }
   
   rotateRail(){
-    if(this.layout.rails.length>1){
+    if(this.layout.rails.size>1){
       let r = this.getSelectedRail();
       if(r !== undefined && r.connections[0] !== undefined){
         this.layout = P.autoAdd(P.removeRail(this.layout)(this.selectedJoint.nodeid))(r.connections[0].nodeid)(r.connections[0].jointid)(r.rail)((r.connections[0].from + 1) % r.rail.getJoints.length);
@@ -779,21 +780,21 @@ class Layout {
   }
   
   flipTrain(){
-    if(this.layout.traffic[this.selectedRailIndex] !== undefined){
-      let tis = this.layout.traffic[this.selectedRailIndex].flat();
+    if(this.selectedRail && this.selectedRail.traffic !== undefined){
+      let tis = this.selectedRail.traffic.flat();
       this.layout.trains = this.layout.trains.map(c => tis.includes(c.trainid) ? P.flipTrain(c) : c);
     }
   }
   
   removeTrain(){
-    if(this.layout.traffic[this.selectedRailIndex] !== undefined){
-      let tis = this.layout.traffic[this.selectedRailIndex].flat();
+    if(this.selectedRail && this.selectedRail.traffic !== undefined){
+      let tis = this.selectedRail.traffic.flat();
       this.layout.trains = this.layout.trains.filter(c => !tis.includes(c.trainid));
     }
   }
   selectTrainOnRail(){
-    if(this.layout.traffic[this.selectedRailIndex] !== undefined){
-      let tis = this.layout.traffic[this.selectedRailIndex].flat();
+    if(this.selectedRail && this.selectedRail.traffic !== undefined){
+      let tis = this.selectedRail.traffic.flat();
       let trains = this.layout.trains.filter(c => tis.includes(c.trainid));
       if(trains.length > 0){
         this.selectedTrain = trains[0].trainid;
@@ -827,8 +828,8 @@ class Layout {
     }
   }
   editTrainNote(note){
-    if(this.layout.traffic[this.selectedRailIndex] !== undefined){
-      let tis = this.layout.traffic[this.selectedRailIndex].flat();
+    if(this.selectedRail && this.selectedRail.traffic !== undefined){
+      let tis = this.selectedRail.traffic.flat();
       this.layout.trains.filter(c => tis.includes(c.trainid)).forEach(c => {c.note = note;});
       this.requestSave();
     }
@@ -838,8 +839,8 @@ class Layout {
     return this.selectedRail;
   }
   getSelectedTrains(){
-    if(this.layout.traffic[this.selectedRailIndex] !== undefined){
-      let tis = this.layout.traffic[this.selectedRailIndex].flat();
+    if(this.selectedRail && this.selectedRail.traffic !== undefined){
+      let tis = this.selectedRail.traffic.flat();
       return this.layout.trains.filter(c => tis.includes(c.trainid));
     }
   }

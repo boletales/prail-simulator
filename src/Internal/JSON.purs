@@ -15,7 +15,7 @@ import Internal.Rails (autoTurnOutLPlusRail, converterRail, crossoverLRail, cros
 import Prelude (bind, identity, map, negate, pure, show, ($), (&&), (*), (+), (-), (/), (/=), (<$>), (<*>), (<<<), (<=), (<>), (=<<), (==), (>>>), (||))
 
 import Control.Monad.Except (runExceptT, ExceptT)
-import Data.Array (catMaybes, filter, find, foldl, length, mapWithIndex, reverse, sort, (!!))
+import Data.Array (catMaybes, filter, find, foldl, length, mapWithIndex, reverse, sort, replicate, (!!))
 import Data.Either (fromRight, hush)
 import Data.Function (on)
 import Data.Identity (Identity)
@@ -30,9 +30,11 @@ import Data.String.Regex.Flags (global, noFlags) as Re
 import Data.String.Regex.Unsafe (unsafeRegex) as Re
 import Data.String.Utils (trimStart) as St
 import Foreign (Foreign, ForeignError, isArray, isNull, isUndefined, readNumber, unsafeFromForeign, unsafeToForeign)
+import JS.Map.Primitive as JSM
 import Internal.Layout (FloorData(..), IntNode(..), IntReserve, InvalidRoute(..), Layout(..), RailNode, RailNode_(..), RouteQueueElement, Signal(..), SignalRule(..), TrainRoute, TrainRoute_(..), Trainset, Trainset_(..), addJoint, getJointAbsPos, recalcInstanceDrawInfo, removeRail, signalRulePhase_unfired, updateSignalRoutes, selectRail)
 import Internal.Types (Coord(..), IntJoint, IntState(..), Pos(..), Rail, RailGen(..), RailShape(..), flipRail, fromRadian, opposeRail, poszero, reverseAngle, reversePos, saEmpty, toRadian, ColorOption)
 import Prelude as Prelude
+import Data.Tuple (Tuple(..))
 
 
 ifUndefinedDefault :: forall a. a -> a -> a
@@ -55,7 +57,9 @@ defaultnode = RailNode {
             drawinfos : [],
             pos : reversePos poszero,
             note: "",
-            color: []
+            color: [],
+            traffic : [[], []],
+            isclear : true
           }
 
 defaultLayout ∷ Layout
@@ -68,10 +72,8 @@ defaultLayout =
           floor: FloorData {height: 500.0, width: 500.0},
           time : 0.0,
           speed : 1.0,
-          rails : [defaultnode],
+          rails : JSM.singleton (unwrap defaultnode).nodeid defaultnode,
           trains : [],
-          traffic : [],
-          isclear : [],
           signalcolors : [],
           routequeue : [],
           jointData : saEmpty,
@@ -251,7 +253,7 @@ encodeSignalRules = map encodeSignalRule
 
 encodeLayout :: Layout -> EncodedLayout
 encodeLayout (Layout layout) = {
-    rails: encodeRailNode <$> layout.rails,
+    rails: encodeRailNode <$> JSM.values layout.rails,
     trains: encodeTrainset <$> layout.trains,
     floor: layout.floor,
     time: layout.time,
@@ -283,10 +285,10 @@ decodeRailNode ({
     , pos
     , note
     , color
-  }) = recalcInstanceDrawInfo <$> RailNode <$> {
+  }) = (\r -> recalcInstanceDrawInfo $ RailNode {
       nodeid
     , instanceid
-    , rail:_
+    , rail: r
     , state
     , connections
     , signals: decodeSignal <$> ifUndefinedDefault [] signals
@@ -296,7 +298,9 @@ decodeRailNode ({
     , note: ifUndefinedDefault "" note
     , drawinfos: []
     , color: ifUndefinedDefault [] color
-  } <$> decodeRail rail
+    , traffic: replicate (length (unwrap r).getJoints) []
+    , isclear: true
+  }) <$> decodeRail rail
 
 decodeRailNode_v1 :: RailNode_ EncodedRail -> Maybe RailNode
 decodeRailNode_v1 (RailNode {
@@ -310,10 +314,10 @@ decodeRailNode_v1 (RailNode {
     , reserves
     , note
     , color
-  }) = recalcInstanceDrawInfo <$> RailNode <$> {
+  }) = (\r -> recalcInstanceDrawInfo $ RailNode {
       nodeid
     , instanceid
-    , rail:_
+    , rail: r
     , state
     , connections
     , signals: ifUndefinedDefault [] signals
@@ -323,7 +327,9 @@ decodeRailNode_v1 (RailNode {
     , drawinfos: []
     , note: ifUndefinedDefault "" note
     , color: ifUndefinedDefault [] color
-  } <$> decodeRail rail
+    , traffic: replicate (length (unwrap r).getJoints) []
+    , isclear: true
+  }) <$> decodeRail rail
 
 decodeRailInstance :: RailInstance_ EncodedRail -> Maybe RailNode
 decodeRailInstance (RailInstance {node:node, instanceid:instanceid, pos:pos}) = (\(RailNode n) -> RailNode (n {pos = pos, instanceid = instanceid})) <$> decodeRailNode_v1 node 
@@ -337,8 +343,8 @@ newtype RailInstance_ x = RailInstance {
   }
 derive instance Newtype (RailInstance_ x) _
 
-decodeTrainset :: Int -> Array RailNode -> EncodedTrainset -> Trainset
-decodeTrainset ver rs (Trainset {
+decodeTrainset :: Int -> Array RailNode -> JSM.Map IntNode RailNode -> EncodedTrainset -> Trainset
+decodeTrainset ver rsArray rsMap (Trainset {
       types
     , route
     , distanceToNext
@@ -355,7 +361,7 @@ decodeTrainset ver rs (Trainset {
     , signalRulePhase
   }) = Trainset {
       types
-    , route : decodeTrainRoute ver rs <$> route
+    , route : decodeTrainRoute ver rsArray rsMap <$> route
     , distanceToNext
     , distanceFromOldest
     , speed
@@ -371,8 +377,8 @@ decodeTrainset ver rs (Trainset {
   }
 
 
-decodeTrainRoute :: Int -> Array RailNode ->  EncodedRoute -> TrainRoute
-decodeTrainRoute ver rs (TrainRoute {
+decodeTrainRoute :: Int -> Array RailNode -> JSM.Map IntNode RailNode -> EncodedRoute -> TrainRoute
+decodeTrainRoute ver rsArray rsMap (TrainRoute {
       nodeid 
     , jointid
     , railinstance
@@ -383,8 +389,8 @@ decodeTrainRoute ver rs (TrainRoute {
           , jointid
           , railinstance : fromMaybe defaultnode $ 
               if ver <= 2
-                then rs !! railinstance
-                else selectRail rs (IntNode railinstance)
+                then rsArray !! railinstance
+                else selectRail rsMap (IntNode railinstance)
           , shapes
           , length
         }
@@ -450,11 +456,11 @@ decodeLayout' {floor: floor, rails: rarr, trains: tarr, time: traw, speed: sraw,
           else decodeRailNode <$> rarr
       deleted = (mapWithIndex (\i r -> {index: IntNode i, isdeleted: isNothing r}) >>> filter (\r -> r.isdeleted) >>> map (\r -> r.index)) rawrails
       rs = catMaybes rawrails
-      ts = decodeTrainset ver rs <$> tarr
+      ts = decodeTrainset ver rs (JSM.fromFoldable (map (\r@(RailNode rn) -> Tuple rn.nodeid r) rs)) <$> tarr
       l0 = Layout {
           floor: ifUndefinedDefault defaultFloorData floor,
           jointData : saEmpty, 
-          rails : rs,
+          rails : JSM.fromFoldable (map (\r@(RailNode rn) -> Tuple rn.nodeid r) rs),
           trains : ts,
           updatecount: 0,
           instancecount: 1 + foldl (\x (RailNode r) -> Prelude.max x r.instanceid) (-1) rs ,
@@ -462,9 +468,7 @@ decodeLayout' {floor: floor, rails: rarr, trains: tarr, time: traw, speed: sraw,
           version: 2,
           time  : ifUndefinedDefault 0.0 traw,
           speed : ifUndefinedDefault 1.0 sraw,
-          traffic : [],
           routequeue : ifUndefinedDefault [] routequeue,
-          isclear : [],
           signalcolors : [],
           activeReserves : ifUndefinedDefault [] activeReserves
 
@@ -508,7 +512,7 @@ decodeLayout' {floor: floor, rails: rarr, trains: tarr, time: traw, speed: sraw,
                   }
             in Trainset $ t { route = map migrateRoute t.route }
 
-          migratedRails = map migrateRail l.rails
+          migratedRails = JSM.fromFoldable (map (\r@(RailNode rn) -> Tuple rn.nodeid r) (map migrateRail (JSM.values l.rails)))
           migratedTrains = map migrateTrain l.trains
         in Layout $ l {
             rails = migratedRails
@@ -523,7 +527,7 @@ decodeLayout' {floor: floor, rails: rarr, trains: tarr, time: traw, speed: sraw,
 
       joints = (do
           let (Layout ml) = migratedLayout
-          (RailNode r) <- ml.rails
+          (RailNode r) <- JSM.values ml.rails
           let nodeid = r.nodeid
           jointid <- (unwrap r.rail).getJoints
           pos <- maybe [] pure $ getJointAbsPos migratedLayout nodeid jointid
@@ -532,7 +536,7 @@ decodeLayout' {floor: floor, rails: rarr, trains: tarr, time: traw, speed: sraw,
       (Layout layout') =
         updateSignalRoutes $
         foldl (\l j -> addJoint l j.pos j.nodeid j.jointid) migratedLayout joints
-  in  if length layout'.rails == 0 then defaultLayout else (Layout layout')
+  in  if JSM.size layout'.rails == 0 then defaultLayout else (Layout layout')
 
 isArc ::  RailShape Pos -> Boolean
 isArc shape = reverseAngle (unwrap (unwrap shape).start).angle /= (unwrap (unwrap shape).end).angle

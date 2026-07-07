@@ -603,7 +603,7 @@ class Layout {
   }
   
   selectNewestRail(layout){
-    this.selectedJoint.nodeid = layout.rails.length-1;
+    this.selectedJoint.nodeid = layout.rails[layout.rails.length-1].nodeid;
     this.selectedJoint.jointid = 0;
   }
   
@@ -658,10 +658,10 @@ class Layout {
       let js = rail.connections.filter(j=>j.from == this.selectedJoint.jointid);
       let cs = rail.connections.filter(j=>j !== undefined);
       if(js.length > 0){
-        this.selectedJoint.nodeid  = js[0].nodeid - (js[0].nodeid < this.selectedJoint.nodeid ? 0 : 1);
+        this.selectedJoint.nodeid  = js[0].nodeid;
         this.selectedJoint.jointid = js[0].jointid;
       }else if(cs.length > 0){
-        this.selectedJoint.nodeid  = cs[0].nodeid - (cs[0].nodeid < this.selectedJoint.nodeid ? 0 : 1);
+        this.selectedJoint.nodeid  = cs[0].nodeid;
         this.selectedJoint.jointid = cs[0].jointid;
       }
       this.layout = layout_;

@@ -16,8 +16,8 @@ import Data.Newtype (unwrap)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Array (any, filter, find, foldl, head, unsnoc, updateAt)
 import Internal.Types (IntJoint, shapeLength)
-import Internal.Layout.Types (IntNode, Layout(..), RailNode_(..), RouteQueueElement(..), Signal(..), SignalRule(..), TrainRoute_(..), TrainTag, Trainset, Trainset_(..), signalRulePhase_unfired)
-import Internal.Layout.Helper (getNextJoint, getRailNode, signalToSpeed, updateRailNode)
+import Internal.Layout.Types (IntNode, Layout(..), RailNode, RailNode_(..), RouteQueueElement(..), Signal(..), SignalRule(..), TrainRoute_(..), TrainTag, Trainset, Trainset_(..), signalRulePhase_unfired)
+import Internal.Layout.Helper (getNextJoint, getRailNode, signalToSpeed, updateRailNode, findIndexRail)
 import Internal.Layout.Params (baseaccr, basedccr, brakePattern, speedScale, carLength, carMargin)
 import Internal.Layout.Signal (getNextSignal)
 import Data.Int (toNumber)
@@ -25,6 +25,11 @@ import Data.String.Regex (test) as Re
 import Data.Foldable (sum, length)
 import Data.Number (infinity)
 import Data.Function (on)
+
+updateRailNodeAt :: RailNode -> IntNode -> Array RailNode -> Maybe (Array RailNode)
+updateRailNodeAt newRail nodeid rails = do
+  idx <- findIndexRail rails nodeid
+  updateAt idx newRail rails
 
 
 
@@ -137,12 +142,12 @@ movefoward (Layout layout) (Trainset t0) dt =
                   in  if on (==) (map (\x -> (unwrap x).state)) oldrail (Just updatedroute.instance)
                         then 
                           Layout $ layout {
-                            rails = fromMaybe layout.rails $ updateAt (unwrap cdata.nodeid) newinstance layout.rails
+                            rails = fromMaybe layout.rails $ updateRailNodeAt newinstance cdata.nodeid layout.rails
                           }
                         else 
                           Layout $ layout {
                               updatecount = layout.updatecount + 1
-                            , rails = fromMaybe layout.rails $ updateAt (unwrap cdata.nodeid) newinstance layout.rails
+                            , rails = fromMaybe layout.rails $ updateRailNodeAt newinstance cdata.nodeid layout.rails
                           }
                 , newtrainset : t3}
               ) of

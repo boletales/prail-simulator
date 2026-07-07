@@ -506,6 +506,7 @@ var mapMaybe = (f) => concatMap((x) => {
   }
   fail();
 });
+var any = ($0) => ($1) => anyImpl($0, $1);
 
 // output-es/Data.Number/foreign.js
 var infinity = Infinity;
@@ -1073,12 +1074,7 @@ var getRouteInfo = (v) => (j) => {
   const v1 = v.rail.getNewState(j)(v.state);
   return { newjoint: v1.newjoint, shapes: arrayMap(absShape(v.pos))(v1.shape) };
 };
-var getRailNode = (v) => (v1) => {
-  if (v1 >= 0 && v1 < v.rails.length) {
-    return $Maybe("Just", v.rails[v1]);
-  }
-  return Nothing;
-};
+var getRailNode = (v) => (nodeid) => find((v$1) => v$1.nodeid === nodeid)(v.rails);
 var getRailJointAbsPos = (v) => (jointid) => toAbsPos(v.pos)(v.rail.getJointPos(jointid));
 var getJoints = (v) => (joint) => arrayBind(arrayApply(arrayApply(arrayMap((x) => (y) => (z) => {
   const $0 = z - v.jointData.head | 0;
@@ -1121,8 +1117,9 @@ var getJoints = (v) => (joint) => arrayBind(arrayApply(arrayApply(arrayMap((x) =
   return [i];
 })()))(identity);
 var getJointAbsPos = (v) => (nodeid) => (jointid) => {
-  if (nodeid >= 0 && nodeid < v.rails.length) {
-    return $Maybe("Just", toAbsPos(v.rails[nodeid].pos)(v.rails[nodeid].rail.getJointPos(jointid)));
+  const $0 = find((v$1) => v$1.nodeid === nodeid)(v.rails);
+  if ($0.tag === "Just") {
+    return $Maybe("Just", toAbsPos($0._1.pos)($0._1.rail.getJointPos(jointid)));
   }
   return Nothing;
 };
@@ -1159,6 +1156,32 @@ var getNewRailPos = (v) => (v1) => {
   })(Nothing)(v1.connections);
   if ($0.tag === "Just") {
     return $0._1;
+  }
+  if ($0.tag === "Nothing") {
+    return Nothing;
+  }
+  fail();
+};
+var getRailTraffic = (v) => (nodeid) => {
+  const $0 = findIndexImpl(Just, Nothing, (v$1) => v$1.nodeid === nodeid, v.rails);
+  if ($0.tag === "Just") {
+    if ($0._1 >= 0 && $0._1 < v.traffic.length) {
+      return $Maybe("Just", v.traffic[$0._1]);
+    }
+    return Nothing;
+  }
+  if ($0.tag === "Nothing") {
+    return Nothing;
+  }
+  fail();
+};
+var isRailClear = (v) => (nodeid) => {
+  const $0 = findIndexImpl(Just, Nothing, (v$1) => v$1.nodeid === nodeid, v.rails);
+  if ($0.tag === "Just") {
+    if ($0._1 >= 0 && $0._1 < v.isclear.length) {
+      return $Maybe("Just", v.isclear[$0._1]);
+    }
+    return Nothing;
   }
   if ($0.tag === "Nothing") {
     return Nothing;
@@ -1315,7 +1338,17 @@ var updateSignalIndication = (changeManualStop) => (v) => {
       signal: v2,
       routes: arrayMap((v3) => {
         const routecond = allImpl(
-          (v4) => v4.nodeid >= 0 && v4.nodeid < v.rails.length && v.rails[v4.nodeid].rail.getNewState(v4.jointenter)(v.rails[v4.nodeid].state).newjoint === v4.jointexit && v.rails[v4.nodeid].rail.isLegal(v4.jointenter)(v.rails[v4.nodeid].state),
+          (v4) => {
+            const $0 = v4.nodeid;
+            const v5 = find((v$1) => v$1.nodeid === $0)(v.rails);
+            if (v5.tag === "Just") {
+              return v5._1.rail.getNewState(v4.jointenter)(v5._1.state).newjoint === v4.jointexit && v5._1.rail.isLegal(v4.jointenter)(v5._1.state);
+            }
+            if (v5.tag === "Nothing") {
+              return false;
+            }
+            fail();
+          },
           v3.rails
         );
         return {
@@ -1324,47 +1357,89 @@ var updateSignalIndication = (changeManualStop) => (v) => {
           manualStop: v2.manualStop,
           restraint: v2.restraint,
           cond: routecond && allImpl(
-            (v4) => v4.nodeid >= 0 && v4.nodeid < v.isclear.length && v.isclear[v4.nodeid] || v4.nodeid >= 0 && v4.nodeid < v.traffic.length && v4.nodeid >= 0 && v4.nodeid < v.rails.length && (() => {
-              const $0 = v.rails[v4.nodeid];
-              const state = $0.state;
-              const rail = $0.rail;
-              return allWithIndex((i) => (t) => t.length === 0 || !rail.isBlocked(i)(state)(v4.jointenter))(v.traffic[v4.nodeid]);
-            })(),
+            (v4) => {
+              if ((() => {
+                const $0 = isRailClear(v)(v4.nodeid);
+                if ($0.tag === "Nothing") {
+                  return false;
+                }
+                return $0.tag === "Just" && $0._1;
+              })()) {
+                return true;
+              }
+              const v5 = getRailTraffic(v)(v4.nodeid);
+              if (v5.tag === "Just") {
+                const $0 = find((v$1) => v$1.nodeid === v4.nodeid)(v.rails);
+                if ($0.tag === "Nothing") {
+                  return false;
+                }
+                if ($0.tag === "Just") {
+                  const state = $0._1.state;
+                  const rail = $0._1.rail;
+                  return allWithIndex((i) => (t) => t.length === 0 || !rail.isBlocked(i)(state)(v4.jointenter))(v5._1);
+                }
+                fail();
+              }
+              if (v5.tag === "Nothing") {
+                return false;
+              }
+              fail();
+            },
             v3.rails
           ) && (() => {
             const $0 = v3.rails.length - 1 | 0;
             const v4 = $0 >= 0 && $0 < v3.rails.length ? $Maybe("Just", v3.rails[$0]) : Nothing;
             if (v4.tag === "Just") {
               const $1 = v4._1.nodeid;
-              const go = (nid) => (jid) => (cnt) => cnt > 120 || nid >= 0 && nid < v.rails.length && (() => {
-                if (v.rails[nid].rail.isSimple) {
-                  const jidexit = v.rails[nid].rail.getNewState(jid)(v.rails[nid].state).newjoint;
-                  if (nid >= 0 && nid < v.isclear.length && v.isclear[nid]) {
-                    const v6 = find((c) => c.from === jidexit)(v.rails[nid].connections);
-                    if (v6.tag === "Nothing") {
-                      return true;
+              const go = (nid) => (jid) => (cnt) => {
+                if (cnt > 120) {
+                  return true;
+                }
+                const v5 = find((v$1) => v$1.nodeid === nid)(v.rails);
+                if (v5.tag === "Nothing") {
+                  return false;
+                }
+                if (v5.tag === "Just") {
+                  if (v5._1.rail.isSimple) {
+                    const jidexit = v5._1.rail.getNewState(jid)(v5._1.state).newjoint;
+                    if ((() => {
+                      const $22 = isRailClear(v)(nid);
+                      if ($22.tag === "Nothing") {
+                        return false;
+                      }
+                      return $22.tag === "Just" && $22._1;
+                    })()) {
+                      const v6 = find((c) => c.from === jidexit)(v5._1.connections);
+                      if (v6.tag === "Nothing") {
+                        return true;
+                      }
+                      if (v6.tag === "Just") {
+                        return go($1)(v6._1.jointid)(cnt + 1 | 0);
+                      }
+                      fail();
                     }
-                    if (v6.tag === "Just") {
-                      return go($1)(v6._1.jointid)(cnt + 1 | 0);
+                    const $2 = getRailTraffic(v)(nid);
+                    if ($2.tag === "Just") {
+                      return jidexit >= 0 && jidexit < $2._1.length && $2._1[jidexit].length === 0 && (() => {
+                        const v7 = find((c) => c.from === jidexit)(v5._1.connections);
+                        if (v7.tag === "Nothing") {
+                          return true;
+                        }
+                        if (v7.tag === "Just") {
+                          return go($1)(v7._1.jointid)(cnt + 1 | 0);
+                        }
+                        fail();
+                      })();
+                    }
+                    if ($2.tag === "Nothing") {
+                      return false;
                     }
                     fail();
                   }
-                  return nid >= 0 && nid < v.traffic.length && (() => {
-                    const $2 = v.traffic[nid];
-                    return jidexit >= 0 && jidexit < $2.length && $2[jidexit].length === 0 && (() => {
-                      const v7 = find((c) => c.from === jidexit)(v.rails[nid].connections);
-                      if (v7.tag === "Nothing") {
-                        return true;
-                      }
-                      if (v7.tag === "Just") {
-                        return go($1)(v7._1.jointid)(cnt + 1 | 0);
-                      }
-                      fail();
-                    })();
-                  })();
+                  return true;
                 }
-                return true;
-              })();
+                fail();
+              };
               return go($1)(v4._1.jointenter)(0);
             }
             if (v4.tag === "Nothing") {
@@ -1399,13 +1474,25 @@ var updateSignalIndication = (changeManualStop) => (v) => {
                   go$r = $Maybe("Just", 4);
                   continue;
                 }
-                const $02 = v3.nodeid >= 0 && v3.nodeid < filtered.length ? $Maybe("Just", filtered[v3.nodeid]) : Nothing;
-                const $1 = find((bd$p) => bd$p.signal.jointid === v3.jointid);
-                const v4 = (() => {
+                const $02 = findIndexImpl(Just, Nothing, (v$1) => v$1.nodeid === v3.nodeid, v.rails);
+                const $1 = (() => {
                   if ($02.tag === "Just") {
-                    return $1($02._1);
+                    if ($02._1 >= 0 && $02._1 < filtered.length) {
+                      return $Maybe("Just", filtered[$02._1]);
+                    }
+                    return Nothing;
                   }
                   if ($02.tag === "Nothing") {
+                    return Nothing;
+                  }
+                  fail();
+                })();
+                const $2 = find((bd$p) => bd$p.signal.jointid === v3.jointid);
+                const v4 = (() => {
+                  if ($1.tag === "Just") {
+                    return $2($1._1);
+                  }
+                  if ($1.tag === "Nothing") {
                     return Nothing;
                   }
                   fail();
@@ -1485,45 +1572,45 @@ var updateSignalRoutes = (v) => ({
     signals: arrayMap((v4) => ({
       ...v4,
       routes: (() => {
-        const go = (v6) => {
-          if (v6.rails.length > 30) {
+        const go = (v62) => {
+          if (v62.rails.length > 30) {
             return [];
           }
-          const v7 = v6.nid >= 0 && v6.nid < v.rails.length ? $Maybe("Just", v.rails[v6.nid]) : Nothing;
+          const v7 = find((v$1) => v$1.nodeid === v62.nid)(v.rails);
           if (v7.tag === "Nothing") {
             return [];
           }
           if (v7.tag === "Just") {
-            const $0 = v7._1;
-            return arrayBind(($0.rail.flipped ? reverse : identity5)(nubBy((x) => (y) => ordInt.compare(x.newjoint)(y.newjoint))(arrayMap($0.rail.getNewState(v6.jid))($0.rail.getStates))))((v8) => {
+            const $02 = v7._1;
+            return arrayBind(($02.rail.flipped ? reverse : identity5)(nubBy((x) => (y) => ordInt.compare(x.newjoint)(y.newjoint))(arrayMap($02.rail.getNewState(v62.jid))($02.rail.getStates))))((v8) => {
               const $1 = v8.newjoint;
-              const v9 = find((v10) => v10.jointid === $1)($0.invalidRoutes);
+              const v9 = find((v10) => v10.jointid === $1)($02.invalidRoutes);
               if (v9.tag === "Nothing") {
-                const newrails = [...v6.rails, { nodeid: v6.nid, jointenter: v6.jid, jointexit: $1 }];
-                const newlen = v6.len + sum(arrayMap((x) => x.length)(v8.shape));
-                const v10 = find((v11) => v11.jointid === $1)($0.signals);
+                const newrails = [...v62.rails, { nodeid: v62.nid, jointenter: v62.jid, jointexit: $1 }];
+                const newlen = v62.len + sum(arrayMap((x) => x.length)(v8.shape));
+                const v10 = find((v11) => v11.jointid === $1)($02.signals);
                 if (v10.tag === "Nothing") {
-                  const v11 = find((c) => c.from === $1)($0.connections);
+                  const v11 = find((c) => c.from === $1)($02.connections);
                   if (v11.tag === "Nothing") {
                     return [];
                   }
                   if (v11.tag === "Just") {
-                    if (elem(eqIntNode)(v11._1.nodeid)(v6.rids)) {
+                    if (elem(eqIntNode)(v11._1.nodeid)(v62.rids)) {
                       return [];
                     }
                     return go({
                       nid: v11._1.nodeid,
                       jid: v11._1.jointid,
                       rails: newrails,
-                      rids: insertBy(ordIntNode.compare)(v11._1.nodeid)(v6.rids),
-                      isSimple: v6.isSimple && $0.rail.isSimple,
+                      rids: insertBy(ordIntNode.compare)(v11._1.nodeid)(v62.rids),
+                      isSimple: v62.isSimple && $02.rail.isSimple,
                       len: newlen
                     });
                   }
                   fail();
                 }
                 if (v10.tag === "Just") {
-                  return [{ nextsignal: { nodeid: v6.nid, jointid: $1 }, rails: newrails, isSimple: v6.isSimple, length: newlen }];
+                  return [{ nextsignal: { nodeid: v62.nid, jointid: $1 }, rails: newrails, isSimple: v62.isSimple, length: newlen }];
                 }
                 fail();
               }
@@ -1535,48 +1622,73 @@ var updateSignalRoutes = (v) => ({
           }
           fail();
         };
-        if (v4.nodeid >= 0 && v4.nodeid < v.rails.length) {
-          const v7 = find((c) => c.from === v4.jointid)(v.rails[v4.nodeid].connections);
+        const $0 = v4.nodeid;
+        const v6 = find((v$1) => v$1.nodeid === $0)(v.rails);
+        if (v6.tag === "Nothing") {
+          return [];
+        }
+        if (v6.tag === "Just") {
+          const v7 = find((c) => c.from === v4.jointid)(v6._1.connections);
           if (v7.tag === "Nothing") {
             return [];
           }
           if (v7.tag === "Just") {
             return go({ nid: v7._1.nodeid, jid: v7._1.jointid, rails: [], rids: [], isSimple: true, len: 0 });
           }
-          fail();
         }
-        return [];
+        fail();
       })()
     }))(v2.signals)
   }))(v.rails)
 });
 var hasTraffic = (v) => (v1) => {
-  if (v1.nodeid >= 0 && v1.nodeid < v.traffic.length && anyImpl((t) => t.length > 0, v.traffic[v1.nodeid])) {
+  if ((() => {
+    const $0 = any((t) => t.length > 0);
+    const $1 = getRailTraffic(v)(v1.nodeid);
+    if ($1.tag === "Nothing") {
+      return false;
+    }
+    if ($1.tag === "Just") {
+      return $0($1._1);
+    }
+    fail();
+  })()) {
     return true;
   }
   const go = (nid) => (jid) => (depth) => {
     if (depth > 30) {
       return false;
     }
-    return nid >= 0 && nid < v.rails.length && (() => {
-      if (anyImpl((x) => x.jointid === jid, v.rails[nid].signals) || anyImpl((x) => x.jointid === jid, v.rails[nid].invalidRoutes)) {
+    const v2 = find((v$1) => v$1.nodeid === nid)(v.rails);
+    if (v2.tag === "Nothing") {
+      return false;
+    }
+    if (v2.tag === "Just") {
+      if (anyImpl((x) => x.jointid === jid, v2._1.signals) || anyImpl((x) => x.jointid === jid, v2._1.invalidRoutes)) {
         return false;
       }
-      const jointexit = getRouteInfo(v.rails[nid])(jid).newjoint;
-      return nid >= 0 && nid < v.traffic.length && jointexit >= 0 && jointexit < v.traffic[nid].length && (() => {
-        if (v.traffic[nid][jointexit].length > 0) {
-          return true;
-        }
-        const v5 = find((c) => c.from === jointexit)(v.rails[nid].connections);
-        if (v5.tag === "Nothing") {
-          return false;
-        }
-        if (v5.tag === "Just") {
-          return go(v5._1.nodeid)(v5._1.jointid)(depth + 1 | 0);
-        }
-        fail();
-      })();
-    })();
+      const jointexit = getRouteInfo(v2._1)(jid).newjoint;
+      const v3 = getRailTraffic(v)(nid);
+      if (v3.tag === "Nothing") {
+        return false;
+      }
+      if (v3.tag === "Just") {
+        return jointexit >= 0 && jointexit < v3._1.length && (() => {
+          if (v3._1[jointexit].length > 0) {
+            return true;
+          }
+          const v5 = find((c) => c.from === jointexit)(v2._1.connections);
+          if (v5.tag === "Nothing") {
+            return false;
+          }
+          if (v5.tag === "Just") {
+            return go(v5._1.nodeid)(v5._1.jointid)(depth + 1 | 0);
+          }
+          fail();
+        })();
+      }
+    }
+    fail();
   };
   return anyImpl(identity5, arrayMap((cdata) => go(cdata.nodeid)(cdata.jointid)(0))(v1.connections));
 };
@@ -1595,15 +1707,21 @@ var getNextSignal = (v) => (v1) => {
           go$r = { signal: Nothing, sections: sectionsold, distance: distanceold };
           continue;
         }
-        if (nid >= 0 && nid < v.rails.length) {
+        const v3 = find((v$1) => v$1.nodeid === nid)(v.rails);
+        if (v3.tag === "Nothing") {
+          go$c = false;
+          go$r = { signal: Nothing, sections: sectionsold, distance: distanceold };
+          continue;
+        }
+        if (v3.tag === "Just") {
           const sections = sectionsold + 1 | 0;
-          const next = getRouteInfo(v.rails[nid])(jid);
+          const next = getRouteInfo(v3._1)(jid);
           const distance = isfirst ? distanceold : distanceold + sum(arrayMap(shapeLength)(next.shapes));
-          const v4 = find((v5) => v5.jointid === next.newjoint)(v.rails[nid].invalidRoutes);
+          const v4 = find((v5) => v5.jointid === next.newjoint)(v3._1.invalidRoutes);
           if (v4.tag === "Nothing") {
-            const v5 = find((v6) => v6.jointid === next.newjoint)(v.rails[nid].signals);
+            const v5 = find((v6) => v6.jointid === next.newjoint)(v3._1.signals);
             if (v5.tag === "Nothing") {
-              const v6 = find((c) => c.from === next.newjoint)(v.rails[nid].connections);
+              const v6 = find((c) => c.from === next.newjoint)(v3._1.connections);
               if (v6.tag === "Nothing") {
                 go$c = false;
                 go$r = { signal: Nothing, sections, distance };
@@ -1631,10 +1749,8 @@ var getNextSignal = (v) => (v1) => {
             go$r = { signal: Nothing, sections, distance };
             continue;
           }
-          fail();
         }
-        go$c = false;
-        go$r = { signal: Nothing, sections: sectionsold, distance: distanceold };
+        fail();
       }
       return go$r;
     };
@@ -1693,37 +1809,40 @@ var updateTraffic = (v) => {
     return (v3) => foldlArray((v4) => {
       const $2 = v4.isclear;
       const $3 = v4.traffic;
-      return (v5) => ({
-        traffic: (() => {
-          const $4 = modifyAt(v5.nodeid)((d) => {
-            const $42 = modifyAt(v5.jointid)((v6) => [...v6, v3.trainid])(d);
-            if ($42.tag === "Nothing") {
+      return (v5) => {
+        const $4 = v5.nodeid;
+        const $5 = findIndexImpl(Just, Nothing, (v$1) => v$1.nodeid === $4, v.rails);
+        if ($5.tag === "Just") {
+          const $6 = modifyAt($5._1)((d) => {
+            const $62 = modifyAt(v5.jointid)((v6) => [...v6, v3.trainid])(d);
+            if ($62.tag === "Nothing") {
               return d;
             }
-            if ($42.tag === "Just") {
-              return $42._1;
+            if ($62.tag === "Just") {
+              return $62._1;
             }
             fail();
           })($3);
-          if ($4.tag === "Nothing") {
-            return $3;
+          if ($6.tag === "Just") {
+            const $7 = modifyAt($5._1)((v6) => false)($2);
+            if ($7.tag === "Just") {
+              return { traffic: $6._1, isclear: $7._1 };
+            }
+            if ($7.tag === "Nothing") {
+              return { traffic: $3, isclear: $2 };
+            }
+            fail();
           }
-          if ($4.tag === "Just") {
-            return $4._1;
-          }
-          fail();
-        })(),
-        isclear: (() => {
-          const $4 = modifyAt(v5.nodeid)((v6) => false)($2);
-          if ($4.tag === "Nothing") {
-            return $2;
-          }
-          if ($4.tag === "Just") {
-            return $4._1;
+          if ($6.tag === "Nothing") {
+            return { traffic: $3, isclear: $2 };
           }
           fail();
-        })()
-      });
+        }
+        if ($5.tag === "Nothing") {
+          return { traffic: $3, isclear: $2 };
+        }
+        fail();
+      };
     })({ traffic: $1, isclear: $0 })(v3.route);
   })({ traffic: arrayMap((v2) => replicateImpl(v2.rail.getJoints.length, []))(v.rails), isclear: replicateImpl(v.rails.length, true) })(v.trains);
   return { ...v, traffic: v1.traffic, isclear: v1.isclear };
@@ -1732,22 +1851,24 @@ var updateReserves = (v) => ({
   ...v,
   activeReserves: mapMaybe((x) => x)(arrayMap((reserver) => find((reserve) => reserve.reserver === reserver)(v.activeReserves))(arrayMap((x) => x.trainid)(v.trains)))
 });
-var shiftRailIndex_Node = (deleted) => (v) => ({
-  ...v,
-  nodeid: v.nodeid < deleted ? v.nodeid : v.nodeid - 1 | 0,
-  connections: arrayMap((c) => ({ ...c, nodeid: c.nodeid < deleted ? c.nodeid : c.nodeid - 1 | 0 }))(v.connections),
-  signals: arrayMap((v2) => ({ ...v2, nodeid: v2.nodeid < deleted ? v2.nodeid : v2.nodeid - 1 | 0 }))(v.signals),
-  invalidRoutes: arrayMap((v2) => ({ ...v2, nodeid: v2.nodeid < deleted ? v2.nodeid : v2.nodeid - 1 | 0 }))(v.invalidRoutes)
-});
-var shiftRailIndex_Train = (deleted) => (v) => ({ ...v, route: arrayMap((v2) => ({ ...v2, nodeid: v2.nodeid < deleted ? v2.nodeid : v2.nodeid - 1 | 0 }))(v.route) });
+var updateRailNodeAt = (newRail) => (nodeid) => (rails2) => {
+  const $0 = findIndexImpl(Just, Nothing, (v) => v.nodeid === nodeid, rails2);
+  if ($0.tag === "Just") {
+    return _updateAt(Just, Nothing, $0._1, newRail, rails2);
+  }
+  if ($0.tag === "Nothing") {
+    return Nothing;
+  }
+  fail();
+};
 var setManualStop = (v) => (nodeid) => (jointid) => (stop) => {
-  if (nodeid >= 0 && nodeid < v.rails.length) {
-    const $0 = v.rails[nodeid];
-    const $1 = findWithIndex((v2) => (v3) => v3.jointid === jointid)($0.signals);
+  const $0 = find((v$1) => v$1.nodeid === nodeid)(v.rails);
+  if ($0.tag === "Just") {
+    const $1 = findWithIndex((v2) => (v3) => v3.jointid === jointid)($0._1.signals);
     if ($1.tag === "Just") {
-      const $2 = _updateAt(Just, Nothing, $1._1.index, { ...$1._1.value, manualStop: stop }, $0.signals);
+      const $2 = _updateAt(Just, Nothing, $1._1.index, { ...$1._1.value, manualStop: stop }, $0._1.signals);
       if ($2.tag === "Just") {
-        const $3 = _updateAt(Just, Nothing, nodeid, { ...$0, signals: $2._1 }, v.rails);
+        const $3 = updateRailNodeAt({ ...$0._1, signals: $2._1 })(nodeid)(v.rails);
         if ($3.tag === "Just") {
           return { ...v, rails: $3._1 };
         }
@@ -1766,13 +1887,26 @@ var setManualStop = (v) => (nodeid) => (jointid) => (stop) => {
     }
     fail();
   }
-  return v;
+  if ($0.tag === "Nothing") {
+    return v;
+  }
+  fail();
+};
+var modifyRailNode = (f) => (nodeid) => (rails2) => {
+  const $0 = findIndexImpl(Just, Nothing, (v) => v.nodeid === nodeid, rails2);
+  if ($0.tag === "Just") {
+    return modifyAt($0._1)(f)(rails2);
+  }
+  if ($0.tag === "Nothing") {
+    return Nothing;
+  }
+  fail();
 };
 var removeSignal = (v) => (nodeid) => (jointid) => updateSignalRoutes({
   ...v,
   updatecount: v.updatecount + 1 | 0,
   rails: (() => {
-    const $0 = modifyAt(nodeid)((v2) => ({ ...v2, signals: filterImpl((v4) => v4.jointid !== jointid, v2.signals), invalidRoutes: filterImpl((v4) => v4.jointid !== jointid, v2.invalidRoutes) }))(v.rails);
+    const $0 = modifyRailNode((v2) => ({ ...v2, signals: filterImpl((v4) => v4.jointid !== jointid, v2.signals), invalidRoutes: filterImpl((v4) => v4.jointid !== jointid, v2.invalidRoutes) }))(nodeid)(v.rails);
     if ($0.tag === "Nothing") {
       return v.rails;
     }
@@ -1783,7 +1917,7 @@ var removeSignal = (v) => (nodeid) => (jointid) => updateSignalRoutes({
   })()
 });
 var removeRail = (v) => (nodeid) => {
-  const v1 = nodeid >= 0 && nodeid < v.rails.length ? $Maybe("Just", v.rails[nodeid]) : Nothing;
+  const v1 = find((v$1) => v$1.nodeid === nodeid)(v.rails);
   const layout$p = (() => {
     if (v1.tag === "Just") {
       return foldlArray((l) => (j) => removeSignal(l)(nodeid)(j))(v)(v1._1.rail.getJoints);
@@ -1796,26 +1930,31 @@ var removeRail = (v) => (nodeid) => {
   return updateSignalRoutes({
     ...layout$p,
     updatecount: layout$p.updatecount + 1 | 0,
-    rails: arrayMap((v2) => shiftRailIndex_Node(nodeid)({ ...v2, connections: filterImpl((v4) => v4.nodeid !== nodeid, v2.connections) }))((() => {
-      const $0 = _deleteAt(Just, Nothing, nodeid, layout$p.rails);
-      if ($0.tag === "Nothing") {
+    rails: arrayMap((v2) => ({ ...v2, connections: filterImpl((v4) => v4.nodeid !== nodeid, v2.connections) }))((() => {
+      const $0 = findIndexImpl(Just, Nothing, (v$1) => v$1.nodeid === nodeid, layout$p.rails);
+      const $1 = (() => {
+        if ($0.tag === "Just") {
+          return _deleteAt(Just, Nothing, $0._1, layout$p.rails);
+        }
+        if ($0.tag === "Nothing") {
+          return Nothing;
+        }
+        fail();
+      })();
+      if ($1.tag === "Nothing") {
         return layout$p.rails;
       }
-      if ($0.tag === "Just") {
-        return $0._1;
+      if ($1.tag === "Just") {
+        return $1._1;
       }
       fail();
     })()),
     jointData: {
-      arraydata: arrayMap(functorSectionArray.map(functorSectionArray.map((() => {
-        const $0 = filter((v2) => v2.nodeid !== nodeid);
-        const $1 = arrayMap((v2) => ({ ...v2, nodeid: v2.nodeid < nodeid ? v2.nodeid : v2.nodeid - 1 | 0 }));
-        return (x) => $1($0(x));
-      })())))(layout$p.jointData.arraydata),
+      arraydata: arrayMap(functorSectionArray.map(functorSectionArray.map(filter((v2) => v2.nodeid !== nodeid))))(layout$p.jointData.arraydata),
       head: layout$p.jointData.head,
       end: layout$p.jointData.end
     },
-    trains: arrayMap(shiftRailIndex_Train(nodeid))(layout$p.trains)
+    trains: layout$p.trains
   });
 };
 var layoutUpdate_NoManualStop = (x) => updateSignalIndication(false)(updateReserves(updateTraffic(x)));
@@ -1824,10 +1963,10 @@ var forceUpdate = (v) => ({ ...v, updatecount: v.updatecount + 1 | 0 });
 var setRailColor = (v) => (nodeid) => (coloroption) => ({
   ...v,
   rails: (() => {
-    const $0 = modifyAt(nodeid)((v2) => {
+    const $0 = modifyRailNode((v2) => {
       const $02 = { ...v2, color: coloroption };
       return { ...$02, drawinfos: instanceDrawInfos($02) };
-    })(v.rails);
+    })(nodeid)(v.rails);
     if ($0.tag === "Nothing") {
       return v.rails;
     }
@@ -1839,7 +1978,7 @@ var setRailColor = (v) => (nodeid) => (coloroption) => ({
   updatecount: v.updatecount + 1 | 0
 });
 var tryOpenRouteFor = (v) => (nodeidHere) => (jointidHere) => (routeid) => (reserver) => {
-  const $0 = nodeidHere >= 0 && nodeidHere < v.rails.length ? $Maybe("Just", v.rails[nodeidHere]) : Nothing;
+  const $0 = find((v$1) => v$1.nodeid === nodeidHere)(v.rails);
   if ($0.tag === "Just") {
     const $1 = find((v2) => v2.jointid === jointidHere)($0._1.signals);
     if ($1.tag === "Just") {
@@ -1851,35 +1990,41 @@ var tryOpenRouteFor = (v) => (nodeidHere) => (jointidHere) => (routeid) => (rese
           let go$a0 = go$a0$copy, go$a1 = go$a1$copy, go$c = true, go$r;
           while (go$c) {
             const v4 = go$a0, rs = go$a1;
-            if (v4.nodeid >= 0 && v4.nodeid < v.rails.length) {
-              const v5 = find((v7) => v7.jointid === v4.jointid)(v.rails[v4.nodeid].signals);
-              if (v5.tag === "Nothing") {
+            const $32 = v4.nodeid;
+            const $4 = find((v$1) => v$1.nodeid === $32)(v.rails);
+            const v5 = (() => {
+              if ($4.tag === "Just") {
+                return find((v7) => v7.jointid === v4.jointid)($4._1.signals);
+              }
+              if ($4.tag === "Nothing") {
+                return Nothing;
+              }
+              fail();
+            })();
+            if (v5.tag === "Nothing") {
+              go$c = false;
+              go$r = rs;
+              continue;
+            }
+            if (v5.tag === "Just") {
+              const v6 = unconsImpl((v$1) => Nothing, (x) => (xs) => $Maybe("Just", { head: x, tail: xs }), v5._1.routes);
+              if (v6.tag === "Nothing") {
                 go$c = false;
                 go$r = rs;
                 continue;
               }
-              if (v5.tag === "Just") {
-                const v6 = unconsImpl((v$1) => Nothing, (x) => (xs) => $Maybe("Just", { head: x, tail: xs }), v5._1.routes);
-                if (v6.tag === "Nothing") {
+              if (v6.tag === "Just") {
+                if (v6._1.tail.length > 0 || !v6._1.head.isSimple) {
                   go$c = false;
                   go$r = rs;
                   continue;
                 }
-                if (v6.tag === "Just") {
-                  if (v6._1.tail.length > 0 || !v6._1.head.isSimple) {
-                    go$c = false;
-                    go$r = rs;
-                    continue;
-                  }
-                  go$a0 = v6._1.head.nextsignal;
-                  go$a1 = [...rs, ...v6._1.head.rails];
-                  continue;
-                }
+                go$a0 = v6._1.head.nextsignal;
+                go$a1 = [...rs, ...v6._1.head.rails];
+                continue;
               }
-              fail();
             }
-            go$c = false;
-            go$r = rs;
+            fail();
           }
           return go$r;
         };
@@ -1887,41 +2032,36 @@ var tryOpenRouteFor = (v) => (nodeidHere) => (jointidHere) => (routeid) => (rese
           const $32 = v4.newrails;
           const $4 = v4.traffic;
           return (v5) => {
-            const $5 = v5.nodeid >= 0 && v5.nodeid < v.rails.length ? $Maybe("Just", v.rails[v5.nodeid]) : Nothing;
-            if ($5.tag === "Just") {
-              const traffic$p = $4 || hasTraffic(v)($5._1);
-              const $6 = $5._1.rail.getRoute($5._1.state)(v5.jointenter)(v5.jointexit);
-              if ($6.tag === "Just") {
-                const $7 = _updateAt(
-                  Just,
-                  Nothing,
-                  v5.nodeid,
-                  { ...$5._1, state: $6._1, reserves: [...$5._1.reserves, { jointid: v5.jointenter, reserveid: reserveidHere }] },
-                  $32
-                );
-                if ($7.tag === "Just") {
-                  if ($6._1 !== $5._1.state && traffic$p || programmedroute && ($1._1.restraint || anyImpl(
+            const $5 = v5.nodeid;
+            const $6 = find((v$1) => v$1.nodeid === $5)(v.rails);
+            if ($6.tag === "Just") {
+              const traffic$p = $4 || hasTraffic(v)($6._1);
+              const $7 = $6._1.rail.getRoute($6._1.state)(v5.jointenter)(v5.jointexit);
+              if ($7.tag === "Just") {
+                const $8 = updateRailNodeAt({ ...$6._1, state: $7._1, reserves: [...$6._1.reserves, { jointid: v5.jointenter, reserveid: reserveidHere }] })($5)($32);
+                if ($8.tag === "Just") {
+                  if ($7._1 !== $6._1.state && traffic$p || programmedroute && ($1._1.restraint || anyImpl(
                     (v7) => {
-                      const $8 = v7.reserveid;
-                      return v5.jointenter !== v7.jointid && ($5._1.rail.isBlocked(v5.jointenter)($5._1.state)(v7.jointid) || $5._1.rail.isBlocked(v5.jointenter)($6._1)(v7.jointid)) && anyImpl((a) => a.reserveid === $8, v.activeReserves);
+                      const $9 = v7.reserveid;
+                      return v5.jointenter !== v7.jointid && ($6._1.rail.isBlocked(v5.jointenter)($6._1.state)(v7.jointid) || $6._1.rail.isBlocked(v5.jointenter)($7._1)(v7.jointid)) && anyImpl((a) => a.reserveid === $9, v.activeReserves);
                     },
-                    $5._1.reserves
+                    $6._1.reserves
                   ))) {
                     return Nothing;
                   }
-                  return $Maybe("Just", { traffic: traffic$p, newrails: $7._1 });
+                  return $Maybe("Just", { traffic: traffic$p, newrails: $8._1 });
                 }
-                if ($7.tag === "Nothing") {
+                if ($8.tag === "Nothing") {
                   return Nothing;
                 }
                 fail();
               }
-              if ($6.tag === "Nothing") {
+              if ($7.tag === "Nothing") {
                 return Nothing;
               }
               fail();
             }
-            if ($5.tag === "Nothing") {
+            if ($6.tag === "Nothing") {
               return Nothing;
             }
             fail();
@@ -1997,14 +2137,14 @@ var addTrainset = (v) => (nodeid) => (jointid) => (types) => {
     let go$a0 = go$a0$copy, go$a1 = go$a1$copy, go$a2 = go$a2$copy, go$a3 = go$a3$copy, go$c = true, go$r;
     while (go$c) {
       const rs = go$a0, nid = go$a1, jid = go$a2, len = go$a3;
-      if (nid >= 0 && nid < v.rails.length) {
-        const $0 = v.rails[nid];
-        const info = getRouteInfo($0)(jid);
+      const $02 = find((v$1) => v$1.nodeid === nid)(v.rails);
+      if ($02.tag === "Just") {
+        const info = getRouteInfo($02._1)(jid);
         const lenhere = sum2(arrayMap(shapeLength)(info.shapes));
         if (lenhere < len) {
-          const $1 = find((c) => c.from === info.newjoint)($0.connections);
+          const $1 = find((c) => c.from === info.newjoint)($02._1.connections);
           if ($1.tag === "Just") {
-            go$a0 = [{ nodeid: nid, jointid: jid, railinstance: $0, shapes: info.shapes, length: lenhere }, ...rs];
+            go$a0 = [{ nodeid: nid, jointid: jid, railinstance: $02._1, shapes: info.shapes, length: lenhere }, ...rs];
             go$a1 = $1._1.nodeid;
             go$a2 = $1._1.jointid;
             go$a3 = len - lenhere;
@@ -2022,7 +2162,7 @@ var addTrainset = (v) => (nodeid) => (jointid) => (types) => {
           "Just",
           {
             types,
-            route: [{ nodeid: nid, jointid: jid, railinstance: $0, shapes: info.shapes, length: lenhere }, ...rs],
+            route: [{ nodeid: nid, jointid: jid, railinstance: $02._1, shapes: info.shapes, length: lenhere }, ...rs],
             distanceToNext: lenhere - len,
             distanceFromOldest: 0,
             speed: 0,
@@ -2039,29 +2179,37 @@ var addTrainset = (v) => (nodeid) => (jointid) => (types) => {
         );
         continue;
       }
-      go$c = false;
-      go$r = Nothing;
+      if ($02.tag === "Nothing") {
+        go$c = false;
+        go$r = Nothing;
+        continue;
+      }
+      fail();
     }
     return go$r;
   };
-  if (nodeid >= 0 && nodeid < v.rails.length) {
-    const $0 = find((c) => c.from === jointid)(v.rails[nodeid].connections);
-    if ($0.tag === "Just") {
-      const $1 = go([])($0._1.nodeid)($0._1.jointid)(toNumber(types.length) * 0.5140186915887851 - 0.04672897196261683);
-      if ($1.tag === "Just") {
-        return { ...v, traincount: v.traincount + 1 | 0, trains: [...v.trains, $1._1] };
+  const $0 = find((v$1) => v$1.nodeid === nodeid)(v.rails);
+  if ($0.tag === "Just") {
+    const $1 = find((c) => c.from === jointid)($0._1.connections);
+    if ($1.tag === "Just") {
+      const $2 = go([])($1._1.nodeid)($1._1.jointid)(toNumber(types.length) * 0.5140186915887851 - 0.04672897196261683);
+      if ($2.tag === "Just") {
+        return { ...v, traincount: v.traincount + 1 | 0, trains: [...v.trains, $2._1] };
       }
-      if ($1.tag === "Nothing") {
+      if ($2.tag === "Nothing") {
         return v;
       }
       fail();
     }
-    if ($0.tag === "Nothing") {
+    if ($1.tag === "Nothing") {
       return v;
     }
     fail();
   }
-  return v;
+  if ($0.tag === "Nothing") {
+    return v;
+  }
+  fail();
 };
 var addSignal = (v) => (nodeid) => (jointid) => {
   const signal = {
@@ -2076,12 +2224,12 @@ var addSignal = (v) => (nodeid) => (jointid) => {
     manualStop: false,
     restraint: false
   };
-  if (nodeid >= 0 && nodeid < v.rails.length) {
-    const $0 = v.rails[nodeid];
-    if (anyImpl((v2) => v2.jointid === jointid, $0.signals) || anyImpl((v2) => v2.jointid === jointid, $0.invalidRoutes)) {
+  const $0 = find((v$1) => v$1.nodeid === nodeid)(v.rails);
+  if ($0.tag === "Just") {
+    if (anyImpl((v2) => v2.jointid === jointid, $0._1.signals) || anyImpl((v2) => v2.jointid === jointid, $0._1.invalidRoutes)) {
       return v;
     }
-    const $1 = modifyAt(nodeid)((v2) => ({ ...v2, signals: [...v2.signals, signal] }))(v.rails);
+    const $1 = modifyRailNode((v2) => ({ ...v2, signals: [...v2.signals, signal] }))(nodeid)(v.rails);
     if ($1.tag === "Just") {
       return updateSignalRoutes({ ...v, updatecount: v.updatecount + 1 | 0, rails: $1._1 });
     }
@@ -2090,7 +2238,10 @@ var addSignal = (v) => (nodeid) => (jointid) => {
     }
     fail();
   }
-  return v;
+  if ($0.tag === "Nothing") {
+    return v;
+  }
+  fail();
 };
 var addJoint = (v) => (pos) => (nodeid) => (jointid) => ({
   ...v,
@@ -2147,21 +2298,24 @@ var addRailWithPos = (v) => (v1) => (pos) => {
     ...newconnections
   ];
   if (foldlArray(boolConj)(true)(arrayMap((v2) => {
-    if (v2.jointData.nodeid >= 0 && v2.jointData.nodeid < v.rails.length) {
-      return allImpl((c) => c.from !== v2.jointData.jointid, v.rails[v2.jointData.nodeid].connections);
+    const $0 = v2.jointData.nodeid;
+    const $1 = find((v$1) => v$1.nodeid === $0)(v.rails);
+    if ($1.tag === "Just") {
+      return allImpl((c) => c.from !== v2.jointData.jointid, $1._1.connections);
     }
     return true;
   })(connections))) {
+    const newnodeId = v.instancecount;
     return $Maybe(
       "Just",
-      updateSignalRoutes(foldlArray((l$p) => (v2) => addJoint(l$p)(v2.pos)(v1.nodeid)(v2.jointid))({
+      updateSignalRoutes(foldlArray((l$p) => (v2) => addJoint(l$p)(v2.pos)(newnodeId)(v2.jointid))({
         ...v,
         updatecount: v.updatecount + 1 | 0,
         rails: [
           ...foldlArray((rs) => (v2) => {
             const $0 = v2.jointid;
             const $1 = v2.jointData.jointid;
-            const $2 = modifyAt(v2.jointData.nodeid)((v3) => ({ ...v3, connections: [...v3.connections, { from: $1, nodeid: v1.nodeid, jointid: $0 }] }))(rs);
+            const $2 = modifyRailNode((v3) => ({ ...v3, connections: [...v3.connections, { from: $1, nodeid: newnodeId, jointid: $0 }] }))(v2.jointData.nodeid)(rs);
             if ($2.tag === "Nothing") {
               return rs;
             }
@@ -2173,6 +2327,7 @@ var addRailWithPos = (v) => (v1) => (pos) => {
           (() => {
             const $0 = {
               ...v1,
+              nodeid: newnodeId,
               connections: [...v1.connections, ...arrayMap((v3) => ({ from: v3.jointid, nodeid: v3.jointData.nodeid, jointid: v3.jointData.jointid }))(newconnections)],
               instanceid: v.instancecount,
               pos
@@ -2202,8 +2357,8 @@ var autoAdd = (v) => (selectednode) => (selectedjoint) => (rail) => (from) => {
     if ($0.tag === "Just") {
       const rail$p = $0._1.isPlus === rail.getJointPos(from).isPlus ? memorizeRail(opposeRail_(rail)) : rail;
       return addRail(v)({
-        nodeid: v.rails.length,
-        instanceid: 0,
+        nodeid: v.instancecount,
+        instanceid: v.instancecount,
         state: rail$p.defaultState,
         rail: rail$p,
         connections: [{ from, nodeid: selectednode, jointid: selectedjoint }],
@@ -2240,12 +2395,12 @@ var fixBrokenConnections = (v) => foldlArray((l) => (v1) => {
   fail();
 })({ ...v, rails: [], jointData: saEmpty })(v.rails);
 var addInvalidRoute = (v) => (nodeid) => (jointid) => {
-  if (nodeid >= 0 && nodeid < v.rails.length) {
-    const $0 = v.rails[nodeid];
-    if (anyImpl((v2) => v2.jointid === jointid, $0.signals) || anyImpl((v2) => v2.jointid === jointid, $0.invalidRoutes)) {
+  const $0 = find((v$1) => v$1.nodeid === nodeid)(v.rails);
+  if ($0.tag === "Just") {
+    if (anyImpl((v2) => v2.jointid === jointid, $0._1.signals) || anyImpl((v2) => v2.jointid === jointid, $0._1.invalidRoutes)) {
       return v;
     }
-    const $1 = modifyAt(nodeid)((v2) => ({ ...v2, invalidRoutes: [...v2.invalidRoutes, { nodeid, jointid }] }))(v.rails);
+    const $1 = modifyRailNode((v2) => ({ ...v2, invalidRoutes: [...v2.invalidRoutes, { nodeid, jointid }] }))(nodeid)(v.rails);
     if ($1.tag === "Just") {
       return updateSignalRoutes({ ...v, updatecount: v.updatecount + 1 | 0, rails: $1._1 });
     }
@@ -2254,7 +2409,10 @@ var addInvalidRoute = (v) => (nodeid) => (jointid) => {
     }
     fail();
   }
-  return v;
+  if ($0.tag === "Nothing") {
+    return v;
+  }
+  fail();
 };
 
 // output-es/Data.EuclideanRing/foreign.js
@@ -5502,10 +5660,30 @@ var defaultLayout = /* @__PURE__ */ (() => foldlArray((l$p) => (j) => addJoint(l
   activeReserves: []
 })(straightRail.getJoints))();
 var defaultFloorData = { height: 500, width: 500 };
-var decodeTrainRoute = (rs) => (v) => ({ nodeid: v.nodeid, jointid: v.jointid, railinstance: v.railinstance >= 0 && v.railinstance < rs.length ? rs[v.railinstance] : defaultnode, shapes: v.shapes, length: v.length });
-var decodeTrainset = (rs) => (v) => ({
+var decodeTrainRoute = (ver) => (rs) => (v) => ({
+  nodeid: v.nodeid,
+  jointid: v.jointid,
+  railinstance: (() => {
+    if (ver <= 2) {
+      if (v.railinstance >= 0 && v.railinstance < rs.length) {
+        return rs[v.railinstance];
+      }
+      return defaultnode;
+    }
+    if (find((v$1) => v$1.nodeid === v.railinstance)(rs).tag === "Nothing") {
+      return defaultnode;
+    }
+    if (find((v$1) => v$1.nodeid === v.railinstance)(rs).tag === "Just") {
+      return find((v$1) => v$1.nodeid === v.railinstance)(rs)._1;
+    }
+    fail();
+  })(),
+  shapes: v.shapes,
+  length: v.length
+});
+var decodeTrainset = (ver) => (rs) => (v) => ({
   types: v.types,
-  route: arrayMap(decodeTrainRoute(rs))(v.route),
+  route: arrayMap(decodeTrainRoute(ver)(rs))(v.route),
   distanceToNext: v.distanceToNext,
   distanceFromOldest: v.distanceFromOldest,
   speed: v.speed,
@@ -5810,7 +5988,7 @@ var decodeRailInstance = (v) => {
 var decodeLayout$p = (v) => {
   const rawrails = v.version <= 1 ? arrayMap((x) => decodeRailInstance(x))(v.rails) : arrayMap(decodeRailNode)(v.rails);
   const rs = mapMaybe((x) => x)(rawrails);
-  const ts = arrayMap(decodeTrainset(rs))(v.trains);
+  const ts = arrayMap(decodeTrainset(v.version)(rs))(v.trains);
   const $0 = foldlArray(removeRail)({
     floor: isUndefined(v.floor) || isNull(v.floor) ? defaultFloorData : v.floor,
     jointData: saEmpty,
@@ -5842,10 +6020,57 @@ var decodeLayout$p = (v) => {
       })()
     }))(rawrails)
   )))));
-  const $1 = updateSignalRoutes(foldlArray((l) => (j) => addJoint(l)(j.pos)(j.nodeid)(j.jointid))($0)(arrayBind($0.rails)((v2) => {
+  const migratedLayout = (() => {
+    if (v.version <= 2) {
+      const findInstanceId = (origNodeId) => {
+        const v3 = find((v$1) => v$1.nodeid === origNodeId)($0.rails);
+        if (v3.tag === "Just") {
+          return v3._1.instanceid;
+        }
+        if (v3.tag === "Nothing") {
+          return origNodeId;
+        }
+        fail();
+      };
+      const migratedRails = arrayMap((v3) => ({
+        ...v3,
+        nodeid: v3.instanceid,
+        connections: arrayMap((c) => ({ ...c, nodeid: findInstanceId(c.nodeid) }))(v3.connections),
+        signals: arrayMap((v4) => ({ ...v4, nodeid: v3.instanceid }))(v3.signals),
+        invalidRoutes: arrayMap((v4) => ({ ...v4, nodeid: v3.instanceid }))(v3.invalidRoutes)
+      }))($0.rails);
+      return {
+        ...$0,
+        rails: migratedRails,
+        trains: arrayMap((v3) => ({
+          ...v3,
+          route: arrayMap((v4) => {
+            const newId = findInstanceId(v4.nodeid);
+            return {
+              ...v4,
+              nodeid: newId,
+              railinstance: (() => {
+                const v5 = find((v$1) => v$1.nodeid === newId)(migratedRails);
+                if (v5.tag === "Just") {
+                  return v5._1;
+                }
+                if (v5.tag === "Nothing") {
+                  return v4.railinstance;
+                }
+                fail();
+              })()
+            };
+          })(v3.route)
+        }))($0.trains),
+        version: 3
+      };
+    }
+    return $0;
+  })();
+  const $1 = updateSignalRoutes(foldlArray((l) => (j) => addJoint(l)(j.pos)(j.nodeid)(j.jointid))(migratedLayout)(arrayBind(migratedLayout.rails)((v2) => {
     const nodeid = v2.nodeid;
     return arrayBind(v2.rail.getJoints)((jointid) => arrayBind((() => {
-      const $12 = getJointAbsPos($0)(nodeid)(jointid);
+      const $12 = getJointAbsPos(migratedLayout)(nodeid)(jointid);
       if ($12.tag === "Nothing") {
         return [];
       }
@@ -5988,6 +6213,16 @@ var max4 = (x) => (y) => {
   }
   fail();
 };
+var updateRailNodeAt2 = (newRail) => (nodeid) => (rails2) => {
+  const $0 = findIndexImpl(Just, Nothing, (v) => v.nodeid === nodeid, rails2);
+  if ($0.tag === "Just") {
+    return _updateAt(Just, Nothing, $0._1, newRail, rails2);
+  }
+  if ($0.tag === "Nothing") {
+    return Nothing;
+  }
+  fail();
+};
 var trainsetLength = (v) => toNumber(length3(v.types)) * 0.5140186915887851 - 0.04672897196261683;
 var getRestriction = (tags) => (signal) => foldlArray((s) => (r) => {
   if (r.tag === "RuleSpeed" && anyImpl(test(r._1), arrayMap(unsafeCoerce)(tags))) {
@@ -6024,22 +6259,27 @@ var movefoward = (movefoward$a0$copy) => (movefoward$a1$copy) => (movefoward$a2$
       const jointexit = $2._1.railinstance.rail.getNewState($2._1.jointid)($2._1.railinstance.state).newjoint;
       const $3 = find((c) => c.from === jointexit)($2._1.railinstance.connections);
       if ($3.tag === "Just") {
-        const $4 = $3._1.nodeid >= 0 && $3._1.nodeid < v.rails.length ? $Maybe("Just", v.rails[$3._1.nodeid]) : Nothing;
-        if ($4.tag === "Just") {
-          const updatedroute = updateRailNode($4._1)($3._1.jointid);
+        const $4 = $3._1.nodeid;
+        const $5 = find((v$1) => v$1.nodeid === $4)(v.rails);
+        if ($5.tag === "Just") {
+          const updatedroute = updateRailNode($5._1)($3._1.jointid);
           const newinstance = { ...updatedroute.instance, reserves: filterImpl((r$p) => r$p.jointid !== $3._1.jointid, updatedroute.instance.reserves) };
           const slength = sum3(arrayMap(shapeLength)(updatedroute.shapes));
           movefoward$c = false;
           movefoward$r = {
-            newlayout: $3._1.nodeid >= 0 && $3._1.nodeid < v.rails.length && v.rails[$3._1.nodeid].state === updatedroute.instance.state ? {
+            newlayout: (() => {
+              const $6 = $3._1.nodeid;
+              const $7 = find((v$1) => v$1.nodeid === $6)(v.rails);
+              return $7.tag === "Just" && $7._1.state === updatedroute.instance.state;
+            })() ? {
               ...v,
               rails: (() => {
-                const $5 = _updateAt(Just, Nothing, $3._1.nodeid, newinstance, v.rails);
-                if ($5.tag === "Nothing") {
+                const $6 = updateRailNodeAt2(newinstance)($3._1.nodeid)(v.rails);
+                if ($6.tag === "Nothing") {
                   return v.rails;
                 }
-                if ($5.tag === "Just") {
-                  return $5._1;
+                if ($6.tag === "Just") {
+                  return $6._1;
                 }
                 fail();
               })()
@@ -6047,27 +6287,27 @@ var movefoward = (movefoward$a0$copy) => (movefoward$a1$copy) => (movefoward$a2$
               ...v,
               updatecount: v.updatecount + 1 | 0,
               rails: (() => {
-                const $5 = _updateAt(Just, Nothing, $3._1.nodeid, newinstance, v.rails);
-                if ($5.tag === "Nothing") {
+                const $6 = updateRailNodeAt2(newinstance)($3._1.nodeid)(v.rails);
+                if ($6.tag === "Nothing") {
                   return v.rails;
                 }
-                if ($5.tag === "Just") {
-                  return $5._1;
+                if ($6.tag === "Just") {
+                  return $6._1;
                 }
                 fail();
               })()
             },
             newtrainset: {
               ...$1,
-              route: [{ nodeid: $3._1.nodeid, jointid: $3._1.jointid, railinstance: $4._1, shapes: updatedroute.shapes, length: slength }, ...$1.route],
+              route: [{ nodeid: $3._1.nodeid, jointid: $3._1.jointid, railinstance: $5._1, shapes: updatedroute.shapes, length: slength }, ...$1.route],
               distanceToNext: $1.distanceToNext + slength,
               signalRestriction: max4(0.375)((() => {
-                const $5 = find((v7) => v7.jointid === jointexit)($2._1.railinstance.signals);
-                if ($5.tag === "Nothing") {
+                const $6 = find((v7) => v7.jointid === jointexit)($2._1.railinstance.signals);
+                if ($6.tag === "Nothing") {
                   return $1.signalRestriction;
                 }
-                if ($5.tag === "Just") {
-                  return getRestriction($1.tags)($5._1);
+                if ($6.tag === "Just") {
+                  return getRestriction($1.tags)($6._1);
                 }
                 fail();
               })()),
@@ -6076,7 +6316,7 @@ var movefoward = (movefoward$a0$copy) => (movefoward$a1$copy) => (movefoward$a2$
           };
           continue;
         }
-        if ($4.tag === "Nothing") {
+        if ($5.tag === "Nothing") {
           if ($1.distanceToNext <= 0) {
             movefoward$c = false;
             movefoward$r = { newlayout: v, newtrainset: v1 };
@@ -6214,8 +6454,10 @@ var trainTick = (v) => (v1) => (dt) => {
     return movefoward(v)({
       ...$1,
       route: mapMaybe((x) => x)(arrayMap((v7) => {
-        if (v7.nodeid >= 0 && v7.nodeid < v.rails.length) {
-          return $Maybe("Just", { ...v7, railinstance: v.rails[v7.nodeid] });
+        const $2 = v7.nodeid;
+        const $3 = find((v$1) => v$1.nodeid === $2)(v.rails);
+        if ($3.tag === "Just") {
+          return $Maybe("Just", { ...v7, railinstance: $3._1 });
         }
         return Nothing;
       })($1.route))
@@ -6284,8 +6526,10 @@ var trainTick = (v) => (v1) => (dt) => {
       return movefoward($12)({
         ...$3,
         route: mapMaybe((x) => x)(arrayMap((v7) => {
-          if (v7.nodeid >= 0 && v7.nodeid < $12.rails.length) {
-            return $Maybe("Just", { ...v7, railinstance: $12.rails[v7.nodeid] });
+          const $4 = v7.nodeid;
+          const $5 = find((v$1) => v$1.nodeid === $4)($12.rails);
+          if ($5.tag === "Just") {
+            return $Maybe("Just", { ...v7, railinstance: $5._1 });
           }
           return Nothing;
         })($3.route))
@@ -6355,8 +6599,10 @@ var trainTick = (v) => (v1) => (dt) => {
       return movefoward($12)({
         ...$3,
         route: mapMaybe((x) => x)(arrayMap((v7) => {
-          if (v7.nodeid >= 0 && v7.nodeid < $12.rails.length) {
-            return $Maybe("Just", { ...v7, railinstance: $12.rails[v7.nodeid] });
+          const $4 = v7.nodeid;
+          const $5 = find((v$1) => v$1.nodeid === $4)($12.rails);
+          if ($5.tag === "Just") {
+            return $Maybe("Just", { ...v7, railinstance: $5._1 });
           }
           return Nothing;
         })($3.route))
@@ -6379,8 +6625,10 @@ var trainTick = (v) => (v1) => (dt) => {
     return movefoward(v)({
       ...$1,
       route: mapMaybe((x) => x)(arrayMap((v7) => {
-        if (v7.nodeid >= 0 && v7.nodeid < v.rails.length) {
-          return $Maybe("Just", { ...v7, railinstance: v.rails[v7.nodeid] });
+        const $2 = v7.nodeid;
+        const $3 = find((v$1) => v$1.nodeid === $2)(v.rails);
+        if ($3.tag === "Just") {
+          return $Maybe("Just", { ...v7, railinstance: $3._1 });
         }
         return Nothing;
       })($1.route))

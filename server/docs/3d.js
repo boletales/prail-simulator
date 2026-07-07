@@ -241,10 +241,7 @@ function onclick(e){
 
 const layerheight = 0.002;
 function draw(layout){
-  let rails_old = Object.assign(scenememo.rails);
   scenememo.rails = [];
-  let existancememo_rails_old = [];
-  let existancememo_rails = [];
 
   let trains_old = Object.assign(scenememo.trains);
   scenememo.trains = [];

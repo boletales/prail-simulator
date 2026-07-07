@@ -17,12 +17,14 @@ module Internal.Layout.Helper
   , recalcInstanceDrawInfo
   , signalToSpeed
   , updateRailNode
+  , selectRail
+  , findIndexRail
   )
   where
 
-import Prelude (join, pure, ($), (+), (-), (<), (<$>), (<*>), (>=>), (>>>), (||), (/=))
+import Prelude
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.Array (filter, foldM, index, (!!))
+import Data.Array (filter, foldM, index, find, findIndex, (!!))
 import Data.Int (round)
 import Data.Newtype (unwrap)
 import Data.Foldable (maximum)
@@ -45,14 +47,26 @@ getJointAbsPos (Layout layout) nodeid jointid =
 
 
 
+selectRail :: Array RailNode -> IntNode -> Maybe RailNode
+selectRail rails nodeid = find (\(RailNode r) -> r.nodeid == nodeid) rails
+
+findIndexRail :: Array RailNode -> IntNode -> Maybe Int
+findIndexRail rails nodeid = findIndex (\(RailNode r) -> r.nodeid == nodeid) rails
+
+
+
 getRailNode :: Layout -> IntNode -> Maybe RailNode
-getRailNode (Layout l) (IntNode i) = l.rails !! i
+getRailNode (Layout l) nodeid = selectRail l.rails nodeid
 
 getRailTraffic ∷ Layout → IntNode → Maybe (Array (Array Int))
-getRailTraffic (Layout l) (IntNode i) = l.traffic !! i
+getRailTraffic (Layout l) nodeid = do
+  idx <- findIndexRail l.rails nodeid
+  l.traffic !! idx
 
 isRailClear ∷ Layout → IntNode → Maybe Boolean
-isRailClear (Layout l) (IntNode i) = l.isclear !! i
+isRailClear (Layout l) nodeid = do
+  idx <- findIndexRail l.rails nodeid
+  l.isclear !! idx
 
 getRouteInfo :: RailNode -> IntJoint -> {newjoint :: IntJoint, shapes :: Array (RailShape Pos)}
 getRouteInfo (RailNode ri) j =

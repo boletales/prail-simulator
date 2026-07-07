@@ -295,7 +295,7 @@ tryOpenRouteFor_ffi (Layout layout) nodeid jointid routeid = maybe {layout : (La
 
 
 
-addTrainset :: Layout -> Int -> IntJoint -> Array CarType -> Layout
+addTrainset :: Layout -> IntNode -> IntJoint -> Array CarType -> Layout
 addTrainset (Layout layout) nodeid jointid types =
     let go rs nid jid len = do
           rail <- getRailNode (Layout layout) nid
@@ -338,7 +338,7 @@ addTrainset (Layout layout) nodeid jointid types =
               }
           
   in  fromMaybe (Layout layout) (do
-        rail <- layout.rails !! nodeid
+        rail <- layout.rails !! (unwrap nodeid)
         start <- find (\c -> c.from == jointid) $ (unwrap rail).connections
         newtrain <- go [] start.nodeid start.jointid ((toNumber $ length types) * (carLength + carMargin) - carMargin)
         Just $ Layout $ layout {traincount = layout.traincount + 1, trains = layout.trains <> [newtrain]}

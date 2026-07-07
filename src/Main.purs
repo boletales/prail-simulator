@@ -42,6 +42,7 @@ module Main
   , getMaxNotch
   , getNewRailPos
   , getNextSignal
+  , getRailNode
   , halfRail
   , halfScissorsLRail
   , halfScissorsRRail
@@ -94,7 +95,7 @@ import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype)
 import Foreign
 
-type SerializableRail = RailGen IntJoint IntState
+type Rail = RailGen IntJoint IntState
 
 fromJust ∷ ∀ (a ∷ Type). Partial ⇒ Maybe a → a
 fromJust = Ex.fromJust
@@ -121,19 +122,19 @@ addInvalidRoute ∷ Layout → IntNode → IntJoint → Layout
 addInvalidRoute           = Ex.addInvalidRoute           
 addJoint ∷ Layout → Pos → IntNode → IntJoint → Layout
 addJoint                  = Ex.addJoint                  
-addRail ∷ Layout → RailNode_ (SerializableRail) → Maybe Layout
+addRail ∷ Layout → RailNode_ (Rail) → Maybe Layout
 addRail                   = Ex.addRail                   
 addSignal ∷ Layout → IntNode → IntJoint → Layout
 addSignal                 = Ex.addSignal                 
-addTrainset ∷ Layout → Int → IntJoint → Array CarType → Layout
+addTrainset ∷ Layout → IntNode → IntJoint → Array CarType → Layout
 addTrainset               = Ex.addTrainset               
-autoAdd ∷ Layout → IntNode → IntJoint → SerializableRail → IntJoint → Layout
+autoAdd ∷ Layout → IntNode → IntJoint → Rail → IntJoint → Layout
 autoAdd                   = Ex.autoAdd                   
 brakePattern ∷ Number → Number → Number
 brakePattern              = Ex.brakePattern              
 fixBrokenConnections ∷ Layout → Layout
 fixBrokenConnections      = Ex.fixBrokenConnections      
-flipTrain ∷ Trainset_ (RailNode_ (SerializableRail)) → Trainset_ (RailNode_ (SerializableRail))
+flipTrain ∷ Trainset_ (RailNode_ (Rail)) → Trainset_ (RailNode_ (Rail))
 flipTrain                 = Ex.flipTrain                 
 forceUpdate ∷ Layout → Layout
 forceUpdate               = Ex.forceUpdate               
@@ -141,15 +142,17 @@ getJointAbsPos ∷ Layout → IntNode → IntJoint → Maybe Pos
 getJointAbsPos            = Ex.getJointAbsPos            
 getJoints ∷ Layout → Pos → Array JointData
 getJoints                 = Ex.getJoints                 
-getMaxNotch ∷ Layout → Trainset_ (RailNode_ (SerializableRail)) → Int
+getMaxNotch ∷ Layout → Trainset_ (RailNode_ (Rail)) → Int
 getMaxNotch               = Ex.getMaxNotch               
-getNewRailPos ∷ Layout → RailNode_ (SerializableRail) → Maybe Pos
+getNewRailPos ∷ Layout → RailNode_ (Rail) → Maybe Pos
 getNewRailPos             = Ex.getNewRailPos             
-getNextSignal ∷ Layout → Trainset_ (RailNode_ (SerializableRail)) → { distance ∷ Number , sections ∷ Int , signal ∷ Maybe Signal }
+getRailNode ∷ Layout → IntNode → Maybe (RailNode_ Rail)
+getRailNode               = Ex.getRailNode
+getNextSignal ∷ Layout → Trainset_ (RailNode_ (Rail)) → { distance ∷ Number , sections ∷ Int , signal ∷ Maybe Signal }
 getNextSignal             = Ex.getNextSignal             
-getMarginFromBrakePattern ∷ Layout → Trainset_ (RailNode_ (SerializableRail)) → Number
+getMarginFromBrakePattern ∷ Layout → Trainset_ (RailNode_ (Rail)) → Number
 getMarginFromBrakePattern = Ex.getMarginFromBrakePattern
-layoutDrawInfo ∷ Layout → { floor ∷ FloorData , invalidRoutes ∷ Array (Array { pos :: Pos , signal :: InvalidRoute } ) , rails ∷ Array { additionals :: Array (DrawAdditional Pos) , instance :: RailNode_ (SerializableRail) , joints :: Array Pos , rails :: Array (DrawRail Pos String) } , signals ∷ Array (Array { indication :: Array Int , pos :: Pos , signal :: Signal } ) , trains ∷ Array TrainsetDrawInfo }
+layoutDrawInfo ∷ Layout → { floor ∷ FloorData , invalidRoutes ∷ Array (Array { pos :: Pos , signal :: InvalidRoute } ) , rails ∷ Array { additionals :: Array (DrawAdditional Pos) , instance :: RailNode_ (Rail) , joints :: Array Pos , rails :: Array (DrawRail Pos String) } , signals ∷ Array (Array { indication :: Array Int , pos :: Pos , signal :: Signal } ) , trains ∷ Array TrainsetDrawInfo }
 layoutDrawInfo            = Ex.layoutDrawInfo            
 layoutTick ∷ Layout → Layout
 layoutTick                = Ex.layoutTick                
@@ -165,7 +168,7 @@ speedScale ∷ Number
 speedScale                = Ex.speedScale                
 setRailColor ∷ Layout → IntNode → Array ColorOption → Layout
 setRailColor              = Ex.setRailColor
-trainsetDrawInfo ∷ Trainset_ (RailNode_ (SerializableRail)) → TrainsetDrawInfo
+trainsetDrawInfo ∷ Trainset_ (RailNode_ (Rail)) → TrainsetDrawInfo
 trainsetDrawInfo          = Ex.trainsetDrawInfo          
 trainsetLength ∷ ∀ (t ∷ Type). Trainset_ t → Number
 trainsetLength            = Ex.trainsetLength            
@@ -173,87 +176,87 @@ tryOpenRouteFor_ffi ∷ Layout → IntNode → IntJoint → Int → { layout ∷
 tryOpenRouteFor_ffi       = Ex.tryOpenRouteFor_ffi       
 
 -- Internal.Rails
-autoTurnOutLPlusRail ∷ SerializableRail
+autoTurnOutLPlusRail ∷ Rail
 autoTurnOutLPlusRail      = Ex.autoTurnOutLPlusRail      
-autoTurnOutRPlusRail ∷ SerializableRail
+autoTurnOutRPlusRail ∷ Rail
 autoTurnOutRPlusRail      = Ex.autoTurnOutRPlusRail      
-converterRail ∷ SerializableRail
+converterRail ∷ Rail
 converterRail             = Ex.converterRail             
-crossoverLRail ∷ SerializableRail
+crossoverLRail ∷ Rail
 crossoverLRail            = Ex.crossoverLRail            
-crossoverRRail ∷ SerializableRail
+crossoverRRail ∷ Rail
 crossoverRRail            = Ex.crossoverRRail            
-crossoverShortLRail ∷ SerializableRail
+crossoverShortLRail ∷ Rail
 crossoverShortLRail      = Ex.crossoverShortLRail
-crossoverShortRRail ∷ SerializableRail
+crossoverShortRRail ∷ Rail
 crossoverShortRRail      = Ex.crossoverShortRRail
-crossoverTripleLRail ∷ SerializableRail
+crossoverTripleLRail ∷ Rail
 crossoverTripleLRail      = Ex.crossoverTripleLRail
-crossoverTripleRRail ∷ SerializableRail
+crossoverTripleRRail ∷ Rail
 crossoverTripleRRail      = Ex.crossoverTripleRRail
-curveLRail ∷ SerializableRail
+curveLRail ∷ Rail
 curveLRail                = Ex.curveLRail                
-curveRRail ∷ SerializableRail
+curveRRail ∷ Rail
 curveRRail                = Ex.curveRRail                
-diamondRail ∷ SerializableRail
+diamondRail ∷ Rail
 diamondRail               = Ex.diamondRail               
-doubleToWideLRail ∷ SerializableRail
+doubleToWideLRail ∷ Rail
 doubleToWideLRail         = Ex.doubleToWideLRail         
-doubleToWideRRail ∷ SerializableRail
+doubleToWideRRail ∷ Rail
 doubleToWideRRail         = Ex.doubleToWideRRail         
-doubleTurnoutLPlusRail ∷ SerializableRail
+doubleTurnoutLPlusRail ∷ Rail
 doubleTurnoutLPlusRail    = Ex.doubleTurnoutLPlusRail    
-doubleTurnoutRPlusRail ∷ SerializableRail
+doubleTurnoutRPlusRail ∷ Rail
 doubleTurnoutRPlusRail    = Ex.doubleTurnoutRPlusRail    
-doubleWidthSLRail ∷ SerializableRail
+doubleWidthSLRail ∷ Rail
 doubleWidthSLRail         = Ex.doubleWidthSLRail         
-doubleWidthSRRail ∷ SerializableRail
+doubleWidthSRRail ∷ Rail
 doubleWidthSRRail         = Ex.doubleWidthSRRail         
-halfRail ∷ SerializableRail
+halfRail ∷ Rail
 halfRail                  = Ex.halfRail                  
-longRail ∷ SerializableRail
+longRail ∷ Rail
 longRail                  = Ex.longRail                  
-outerCurveLRail ∷ SerializableRail
+outerCurveLRail ∷ Rail
 outerCurveLRail           = Ex.outerCurveLRail           
-outerCurveRRail ∷ SerializableRail
+outerCurveRRail ∷ Rail
 outerCurveRRail           = Ex.outerCurveRRail           
-quarterRail ∷ SerializableRail
+quarterRail ∷ Rail
 quarterRail               = Ex.quarterRail               
-scissorsRail ∷ SerializableRail
+scissorsRail ∷ Rail
 scissorsRail              = Ex.scissorsRail              
-slopeCurveLRail ∷ SerializableRail
+slopeCurveLRail ∷ Rail
 slopeCurveLRail           = Ex.slopeCurveLRail           
-slopeCurveRRail ∷ SerializableRail
+slopeCurveRRail ∷ Rail
 slopeCurveRRail           = Ex.slopeCurveRRail           
-slopeRail ∷ SerializableRail
+slopeRail ∷ Rail
 slopeRail                 = Ex.slopeRail                 
-straightRail ∷ SerializableRail
+straightRail ∷ Rail
 straightRail              = Ex.straightRail              
-toDoubleLPlusRail ∷ SerializableRail
+toDoubleLPlusRail ∷ Rail
 toDoubleLPlusRail         = Ex.toDoubleLPlusRail         
-toDoubleRPlusRail ∷ SerializableRail
+toDoubleRPlusRail ∷ Rail
 toDoubleRPlusRail         = Ex.toDoubleRPlusRail         
-toDoubleShortLPlusRail ∷ SerializableRail
+toDoubleShortLPlusRail ∷ Rail
 toDoubleShortLPlusRail    = Ex.toDoubleShortLPlusRail
-toDoubleShortRPlusRail ∷ SerializableRail
+toDoubleShortRPlusRail ∷ Rail
 toDoubleShortRPlusRail    = Ex.toDoubleShortRPlusRail
-halfScissorsLRail ∷ SerializableRail
+halfScissorsLRail ∷ Rail
 halfScissorsLRail         = Ex.halfScissorsLRail
-halfScissorsRRail ∷ SerializableRail
+halfScissorsRRail ∷ Rail
 halfScissorsRRail         = Ex.halfScissorsRRail
-turnOutLPlusRail ∷ SerializableRail
+turnOutLPlusRail ∷ Rail
 turnOutLPlusRail          = Ex.turnOutLPlusRail          
-turnOutRPlusRail ∷ SerializableRail
+turnOutRPlusRail ∷ Rail
 turnOutRPlusRail          = Ex.turnOutRPlusRail          
-halfSlopeRail ∷ SerializableRail
+halfSlopeRail ∷ Rail
 halfSlopeRail             = Ex.halfSlopeRail
-quarterSlopeRail ∷ SerializableRail
+quarterSlopeRail ∷ Rail
 quarterSlopeRail          = Ex.quarterSlopeRail
 
 -- Internal.Types         = Ex.-- Internal.Types         
 canJoin ∷ Pos → Pos → Boolean
 canJoin                   = Ex.canJoin                   
-flipRail ∷ SerializableRail → SerializableRail
+flipRail ∷ Rail → Rail
 flipRail                  = Ex.flipRail                  
 getDividingPoint_rel ∷ Pos → Pos → Number → Number → Pos
 getDividingPoint_rel      = Ex.getDividingPoint_rel      

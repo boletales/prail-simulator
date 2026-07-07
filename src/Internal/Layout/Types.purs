@@ -51,7 +51,6 @@ derive instance Eq IntReserve
 type RailNode = RailNode_ Rail
 newtype RailNode_ x = RailNode {
     nodeid :: IntNode,
-    instanceid :: Int,
     rail :: x,
     state :: IntState,
     signals :: Array (Signal),

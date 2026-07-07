@@ -234,7 +234,7 @@ function onclick(e){
   const intersects = raycaster.intersectObjects(scene.children.filter(e => e.isJoint));
 
   if (intersects.length) {
-    L.selectedJoint.nodeid  = L.layout.rails.get(intersects[0].object.jointInfo.instanceid).nodeid;
+    L.selectedJoint.nodeid  = intersects[0].object.jointInfo.nodeid;
     L.selectedJoint.jointid = intersects[0].object.jointInfo.jointid;
   }
 }
@@ -261,27 +261,27 @@ function draw(layout){
     staticgeometrymemo.forEach(g => {g.dispose(); });
     staticgeometrymemo = [];
     let activeInstances = new Set(layout.rails.keys());
-    meshrailmemo.forEach((rmemo, instId) => {
-      if (!activeInstances.has(instId)) {
+    meshrailmemo.forEach((rmemo, nodeid) => {
+      if (!activeInstances.has(nodeid)) {
         rmemo.forEach(d => {
           Object.keys(d.geometry).forEach(c => d.geometry[c].forEach(g => g.dispose()));
           d.mesh.forEach(m => m.geometry.dispose());
         });
-        meshrailmemo.delete(instId);
-        delete railcolormemo[instId];
+        meshrailmemo.delete(nodeid);
+        delete railcolormemo[nodeid];
       }
     });
     layout.rails.forEach(r => {
       let colorstr = JSON.stringify(r.color);
-      if(railcolormemo[r.instanceid] !== colorstr){
-        railcolormemo[r.instanceid] = colorstr;
-        let rmemo = meshrailmemo.get(r.instanceid);
+      if(railcolormemo[r.nodeid] !== colorstr){
+        railcolormemo[r.nodeid] = colorstr;
+        let rmemo = meshrailmemo.get(r.nodeid);
         if(rmemo !== undefined) rmemo.forEach(d => {
           Object.keys(d.geometry).forEach(c => d.geometry[c].forEach(g => g.dispose()));
           Object.keys(d.geometryshadow).forEach(c => d.geometryshadow[c].forEach(g => g.dispose()));
           d.mesh.forEach(m => {scene.remove(m); m.geometry.dispose();});
         });
-        meshrailmemo.set(r.instanceid, []);
+        meshrailmemo.set(r.nodeid, []);
       }
     });
     staticmeshmemo.forEach(m => {scene.remove(m); });
@@ -333,9 +333,9 @@ function draw(layout){
     }));
   
   ldi.rails.forEach((di) => {
-    if(railnotestrmemo[di.instance.instanceid] !== di.instance.note){
+    if(railnotestrmemo[di.instance.nodeid] !== di.instance.note){
       updateRailNote(di);
-      railnotestrmemo[di.instance.instanceid] = di.instance.note;
+      railnotestrmemo[di.instance.nodeid] = di.instance.note;
     }
   });
   ldi.trains.forEach((di) => {
@@ -464,12 +464,12 @@ function speedStr(train){
 }
 
 function updateRailNote(drawinfo){
-  let oldSprites = railnotespritememo.get(drawinfo.instance.instanceid);
+  let oldSprites = railnotespritememo.get(drawinfo.instance.nodeid);
   if(oldSprites !== undefined){
     oldSprites.forEach(o=>scene.remove(o));
   }
   if(drawinfo.instance.note != ""){
-    let rail = L.layout.rails.get(drawinfo.instance.instanceid);
+    let rail = L.layout.rails.get(drawinfo.instance.nodeid);
     if(rail == undefined) return;
 
     let center = drawinfo.joints.map(j=>a3(j.coord)).reduce((a,c) => [a[0]+c[0], a[1]+c[1], a[2]+c[2]], [0,0,0]).map(x => x/drawinfo.joints.length);
@@ -482,7 +482,7 @@ function updateRailNote(drawinfo){
     let cone = meshNote(center);
     scene.add(cone);
     sprite.position.set(center[0], center[1]+20, center[2]);
-    railnotespritememo.set(drawinfo.instance.instanceid, [sprite, cone]);
+    railnotespritememo.set(drawinfo.instance.nodeid, [sprite, cone]);
   }
 }
 
@@ -506,12 +506,12 @@ function updateTrainNote(drawinfo, note){
 }
 
 function updateRailGeometory({rails : rails, additionals: additionals, joints : joints, instance: instance}){
-  let instanceid = instance.instanceid;
+  let nodeid = instance.nodeid;
   let state = instance.state;
-  let rmemo = meshrailmemo.get(instanceid);
+  let rmemo = meshrailmemo.get(nodeid);
   if(rmemo === undefined){
     rmemo = [];
-    meshrailmemo.set(instanceid, rmemo);
+    meshrailmemo.set(nodeid, rmemo);
   }
 
   if(rmemo[state] !== undefined){
@@ -521,7 +521,7 @@ function updateRailGeometory({rails : rails, additionals: additionals, joints : 
   rails.forEach((p, i) => data.push(meshRailPart(p, i)));
   joints.forEach((p) => {if(p.isPlus) data.push(meshJoint(p)) });
   joints.forEach((p) => {data.push(meshsPier(p))});
-  joints.forEach((p, i) => {data.push(meshJointButton(p, instanceid, i))});
+  joints.forEach((p, i) => {data.push(meshJointButton(p, nodeid, i))});
 
   rmemo[state] = mergeMeshData(data.flat());
   data = null;
@@ -600,7 +600,7 @@ function meshJoint(p){
 }
 
 let transparentButtonMaterial = new THREE.MeshBasicMaterial({visible: false, side: THREE.DoubleSide});
-function meshJointButton(p, instanceid, jointid){
+function meshJointButton(p, nodeid, jointid){
     let w = C.RAILWIDTH/C.RAILLENGTH;
     let h = 0.2;
     let d = -0.2;
@@ -621,7 +621,7 @@ function meshJointButton(p, instanceid, jointid){
     mesh.matrixAutoUpdate = false;
 
     mesh.isJoint = true;
-    mesh.jointInfo = {instanceid: instanceid, jointid:jointid};
+    mesh.jointInfo = {nodeid: nodeid, jointid:jointid};
 
     let data = {mesh: [mesh], geometry: {}, geometryshadow:{}};
     return data;

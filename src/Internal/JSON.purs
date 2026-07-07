@@ -47,7 +47,6 @@ ifUndefinedDefault d x =
 defaultnode :: RailNode
 defaultnode = RailNode {
             nodeid : IntNode 0,
-            instanceid : 0,
             state : IntState 0,
             rail : straightRail,
             connections : [],
@@ -120,10 +119,10 @@ rails = [
 type EncodedSignalRule = String
 type EncodedSignal = { signalname :: String, nodeid :: IntNode, jointid :: IntJoint, manualStop :: Boolean, restraint :: Boolean, rules :: Array EncodedSignalRule}
 type EncodedRail = {name :: String, flipped :: Boolean, opposed :: Boolean}
-type EncodedRailNode = {nodeid :: IntNode, instanceid :: Int, rail :: EncodedRail, state :: IntState, signals :: Array EncodedSignal, invalidRoutes :: Array (InvalidRoute), connections :: Array ({from :: IntJoint, nodeid :: IntNode, jointid :: IntJoint}), reserves :: Array ({reserveid :: IntReserve, jointid :: IntJoint}), pos  :: Pos, note :: String, color :: Array ColorOption}
+type EncodedRailNode = {nodeid :: IntNode, rail :: EncodedRail, state :: IntState, signals :: Array EncodedSignal, invalidRoutes :: Array (InvalidRoute), connections :: Array ({from :: IntJoint, nodeid :: IntNode, jointid :: IntJoint}), reserves :: Array ({reserveid :: IntReserve, jointid :: IntJoint}), pos  :: Pos, note :: String, color :: Array ColorOption}
 type EncodedLayout = {floor :: FloorData , rails :: Array EncodedRailNode, trains :: Array EncodedTrainset, time :: Number, speed :: Number, version :: Int, routequeue :: Array RouteQueueElement, activeReserves :: Array {reserveid :: IntReserve, reserver :: Int}}
-type EncodedTrainset = Trainset_ Int
-type EncodedRoute = TrainRoute_ Int
+type EncodedTrainset = Trainset_ IntNode
+type EncodedRoute = TrainRoute_ IntNode
 
 encodeRail :: Rail -> EncodedRail
 encodeRail (RailGen r) = {
@@ -145,7 +144,6 @@ roundPos (Pos {coord: Coord coord, angle, isPlus}) = Pos {
 encodeRailNode :: RailNode -> EncodedRailNode
 encodeRailNode (RailNode {
       nodeid
-    , instanceid
     , rail
     , state
     , connections
@@ -157,7 +155,6 @@ encodeRailNode (RailNode {
     , color
   }) = {
       nodeid
-    , instanceid
     , rail:encodeRail rail
     , state
     , connections
@@ -212,7 +209,7 @@ encodeTrainRoute (TrainRoute {
   }) = TrainRoute {
       nodeid 
     , jointid
-    , railinstance : (unwrap railinstance).instanceid
+    , railinstance : (unwrap railinstance).nodeid
     , shapes
     , length
   }
@@ -275,7 +272,6 @@ decodeRail {name: name, flipped: flipped, opposed: opposed} =
 decodeRailNode :: EncodedRailNode -> Maybe RailNode
 decodeRailNode ({
       nodeid
-    , instanceid
     , rail
     , state
     , connections
@@ -287,7 +283,6 @@ decodeRailNode ({
     , color
   }) = (\r -> recalcInstanceDrawInfo $ RailNode {
       nodeid
-    , instanceid
     , rail: r
     , state
     , connections
@@ -305,7 +300,6 @@ decodeRailNode ({
 decodeRailNode_v1 :: RailNode_ EncodedRail -> Maybe RailNode
 decodeRailNode_v1 (RailNode {
       nodeid
-    , instanceid
     , rail
     , state
     , connections
@@ -316,7 +310,6 @@ decodeRailNode_v1 (RailNode {
     , color
   }) = (\r -> recalcInstanceDrawInfo $ RailNode {
       nodeid
-    , instanceid
     , rail: r
     , state
     , connections
@@ -332,13 +325,12 @@ decodeRailNode_v1 (RailNode {
   }) <$> decodeRail rail
 
 decodeRailInstance :: RailInstance_ EncodedRail -> Maybe RailNode
-decodeRailInstance (RailInstance {node:node, instanceid:instanceid, pos:pos}) = (\(RailNode n) -> RailNode (n {pos = pos, instanceid = instanceid})) <$> decodeRailNode_v1 node 
+decodeRailInstance (RailInstance {node:node, pos:pos}) = (\(RailNode n) -> RailNode (n {pos = pos})) <$> decodeRailNode_v1 node 
 
 
 type RailInstance = RailInstance_ Rail
 newtype RailInstance_ x = RailInstance {
     node :: RailNode_ x,
-    instanceid :: Int,
     pos  :: Pos
   }
 derive instance Newtype (RailInstance_ x) _
@@ -389,8 +381,8 @@ decodeTrainRoute ver rsArray rsMap (TrainRoute {
           , jointid
           , railinstance : fromMaybe defaultnode $ 
               if ver <= 2
-                then rsArray !! railinstance
-                else selectRail rsMap (IntNode railinstance)
+                then rsArray !! (unwrap railinstance)
+                else selectRail rsMap railinstance
           , shapes
           , length
         }
@@ -463,7 +455,7 @@ decodeLayout' {floor: floor, rails: rarr, trains: tarr, time: traw, speed: sraw,
           rails : JSM.fromFoldable (map (\r@(RailNode rn) -> Tuple rn.nodeid r) rs),
           trains : ts,
           updatecount: 0,
-          instancecount: 1 + foldl (\x (RailNode r) -> Prelude.max x r.instanceid) (-1) rs ,
+          instancecount: 1 + foldl (\x (RailNode r) -> Prelude.max x (unwrap r.nodeid)) (-1) rs ,
           traincount: 1 + foldl (\x (Trainset t) -> Prelude.max x t.trainid) (-1) ts,
           version: 2,
           time  : ifUndefinedDefault 0.0 traw,
@@ -481,17 +473,17 @@ decodeLayout' {floor: floor, rails: rarr, trains: tarr, time: traw, speed: sraw,
           findInstanceId :: IntNode -> IntNode
           findInstanceId origNodeId =
             case selectRail l.rails origNodeId of
-              Just (RailNode r) -> IntNode r.instanceid
+              Just (RailNode r) -> r.nodeid
               Nothing -> origNodeId
 
           migrateRail :: RailNode -> RailNode
           migrateRail (RailNode r) =
             let
               newConnections = map (\c -> c { nodeid = findInstanceId c.nodeid }) r.connections
-              newSignals = map (\(Signal s) -> Signal $ s { nodeid = IntNode r.instanceid }) r.signals
-              newInvalidRoutes = map (\(InvalidRoute s) -> InvalidRoute $ s { nodeid = IntNode r.instanceid }) r.invalidRoutes
+              newSignals = map (\(Signal s) -> Signal $ s { nodeid = r.nodeid }) r.signals
+              newInvalidRoutes = map (\(InvalidRoute s) -> InvalidRoute $ s { nodeid = r.nodeid }) r.invalidRoutes
             in RailNode $ r {
-                nodeid = IntNode r.instanceid
+                nodeid = r.nodeid
               , connections = newConnections
               , signals = newSignals
               , invalidRoutes = newInvalidRoutes

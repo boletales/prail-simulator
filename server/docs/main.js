@@ -2357,7 +2357,6 @@ var addRailWithPos = (v) => (v1) => (pos) => {
             ...v1,
             nodeid: newnodeId,
             connections: [...v1.connections, ...arrayMap((v3) => ({ from: v3.jointid, nodeid: v3.jointData.nodeid, jointid: v3.jointData.jointid }))(newconnections)],
-            instanceid: v.instancecount,
             pos,
             traffic: replicateImpl(v1.rail.getJoints.length, []),
             isclear: true
@@ -2401,7 +2400,6 @@ var autoAdd = (v) => (selectednode) => (selectedjoint) => (rail) => (from) => {
       const rail$p = $0._1.isPlus === rail.getJointPos(from).isPlus ? memorizeRail(opposeRail_(rail)) : rail;
       return addRail(v)({
         nodeid: v.instancecount,
-        instanceid: v.instancecount,
         state: rail$p.defaultState,
         rail: rail$p,
         connections: [{ from, nodeid: selectednode, jointid: selectedjoint }],
@@ -5599,7 +5597,7 @@ var rails = [
   quarterSlopeRail
 ];
 var isArc = (shape) => !eqAngle.eq(shape.start.angle + 3.141592653589793)(shape.end.angle);
-var encodeTrainRoute = (v) => ({ nodeid: v.nodeid, jointid: v.jointid, railinstance: v.railinstance.instanceid, shapes: v.shapes, length: v.length });
+var encodeTrainRoute = (v) => ({ nodeid: v.nodeid, jointid: v.jointid, railinstance: v.railinstance.nodeid, shapes: v.shapes, length: v.length });
 var encodeTrainset = (v) => ({
   types: v.types,
   route: arrayMap(encodeTrainRoute)(v.route),
@@ -5653,7 +5651,6 @@ var encodeSignalRules = /* @__PURE__ */ arrayMap(encodeSignalRule);
 var encodeSignal = (v) => ({ signalname: v.signalname, nodeid: v.nodeid, jointid: v.jointid, manualStop: v.manualStop, restraint: v.restraint, rules: arrayMap(encodeSignalRule)(v.rules) });
 var encodeRailNode = (v) => ({
   nodeid: v.nodeid,
-  instanceid: v.instanceid,
   rail: { name: v.rail.name, flipped: v.rail.flipped, opposed: v.rail.opposed },
   state: v.state,
   connections: v.connections,
@@ -5676,7 +5673,6 @@ var encodeLayout = (v) => ({
 });
 var defaultnode = {
   nodeid: 0,
-  instanceid: 0,
   state: 0,
   rail: straightRail,
   connections: [],
@@ -5984,7 +5980,6 @@ var decodeRailNode = (v) => {
       (() => {
         const $1 = {
           nodeid: v.nodeid,
-          instanceid: v.instanceid,
           rail: $0._1,
           state: v.state,
           connections: v.connections,
@@ -6012,7 +6007,6 @@ var decodeRailNode_v1 = (v) => {
       (() => {
         const $1 = {
           nodeid: v.nodeid,
-          instanceid: v.instanceid,
           rail: $0._1,
           state: v.state,
           connections: v.connections,
@@ -6035,7 +6029,7 @@ var decodeRailNode_v1 = (v) => {
 var decodeRailInstance = (v) => {
   const $0 = decodeRailNode_v1(v.node);
   if ($0.tag === "Just") {
-    return $Maybe("Just", { ...$0._1, pos: v.pos, instanceid: v.instanceid });
+    return $Maybe("Just", { ...$0._1, pos: v.pos });
   }
   return Nothing;
 };
@@ -6049,7 +6043,7 @@ var decodeLayout$p = (v) => {
     rails: fromFoldable2(arrayMap((v1) => $Tuple(v1.nodeid, v1))(rs)),
     trains: ts,
     updatecount: 0,
-    instancecount: 1 + foldlArray((x) => (v1) => max3(x)(v1.instanceid))(-1)(rs) | 0,
+    instancecount: 1 + foldlArray((x) => (v1) => max3(x)(v1.nodeid))(-1)(rs) | 0,
     traincount: 1 + foldlArray((x) => (v1) => max3(x)(v1.trainid))(-1)(ts) | 0,
     version: 2,
     time: isUndefined(v.time) || isNull(v.time) ? 0 : v.time,
@@ -6077,7 +6071,7 @@ var decodeLayout$p = (v) => {
       const findInstanceId = (origNodeId) => {
         const v3 = _lookup(Nothing, Just, origNodeId, $0.rails);
         if (v3.tag === "Just") {
-          return v3._1.instanceid;
+          return v3._1.nodeid;
         }
         if (v3.tag === "Nothing") {
           return origNodeId;
@@ -6086,10 +6080,10 @@ var decodeLayout$p = (v) => {
       };
       const migratedRails = fromFoldable2(arrayMap((v3) => $Tuple(v3.nodeid, v3))(arrayMap((v3) => ({
         ...v3,
-        nodeid: v3.instanceid,
+        nodeid: v3.nodeid,
         connections: arrayMap((c) => ({ ...c, nodeid: findInstanceId(c.nodeid) }))(v3.connections),
-        signals: arrayMap((v4) => ({ ...v4, nodeid: v3.instanceid }))(v3.signals),
-        invalidRoutes: arrayMap((v4) => ({ ...v4, nodeid: v3.instanceid }))(v3.invalidRoutes)
+        signals: arrayMap((v4) => ({ ...v4, nodeid: v3.nodeid }))(v3.signals),
+        invalidRoutes: arrayMap((v4) => ({ ...v4, nodeid: v3.nodeid }))(v3.invalidRoutes)
       }))(values($0.rails))));
       return {
         ...$0,

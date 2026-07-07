@@ -55,7 +55,6 @@ autoAdd (Layout layout) selectednode selectedjoint rail from =
             else rail
       let node = RailNode {
               nodeid : IntNode layout.instancecount,
-              instanceid : layout.instancecount,
               state : (unwrap rail').defaultState,
               rail : rail',
               connections : [{from: from, nodeid: selectednode, jointid: selectedjoint}],
@@ -140,7 +139,6 @@ addRailWithPos (Layout layout) (RailNode node) pos =
                   <> ((\{jointData:(JointData {pos: _, nodeid: nodeid, jointid: jointid}), jointid:j} 
                           -> {from: j, nodeid: nodeid, jointid: jointid}
                       ) <$> newconnections),
-                instanceid = layout.instancecount,
                 pos = pos,
                 traffic = replicate (length (unwrap node.rail).getJoints) [],
                 isclear = true

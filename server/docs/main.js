@@ -1073,6 +1073,12 @@ var getRouteInfo = (v) => (j) => {
   const v1 = v.rail.getNewState(j)(v.state);
   return { newjoint: v1.newjoint, shapes: arrayMap(absShape(v.pos))(v1.shape) };
 };
+var getRailNode = (v) => (v1) => {
+  if (v1 >= 0 && v1 < v.rails.length) {
+    return $Maybe("Just", v.rails[v1]);
+  }
+  return Nothing;
+};
 var getRailJointAbsPos = (v) => (jointid) => toAbsPos(v.pos)(v.rail.getJointPos(jointid));
 var getJoints = (v) => (joint) => arrayBind(arrayApply(arrayApply(arrayMap((x) => (y) => (z) => {
   const $0 = z - v.jointData.head | 0;
@@ -6452,6 +6458,7 @@ var halfSlopeRail2 = halfSlopeRail;
 var halfScissorsRRail2 = halfScissorsRRail;
 var halfScissorsLRail2 = halfScissorsLRail;
 var halfRail2 = halfRail;
+var getRailNode2 = getRailNode;
 var getNextSignal2 = getNextSignal;
 var getNewRailPos2 = getNewRailPos;
 var getMaxNotch2 = getMaxNotch;
@@ -6540,6 +6547,7 @@ export {
   getMaxNotch2 as getMaxNotch,
   getNewRailPos2 as getNewRailPos,
   getNextSignal2 as getNextSignal,
+  getRailNode2 as getRailNode,
   halfRail2 as halfRail,
   halfScissorsLRail2 as halfScissorsLRail,
   halfScissorsRRail2 as halfScissorsRRail,

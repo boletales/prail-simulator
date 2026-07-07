@@ -415,12 +415,12 @@ function draw(layout){
     document.getElementById("applyrule").disabled = true;
   }
 
-  if(L.layout.rails[L.selectedJoint.nodeid] !== undefined){
-    document.getElementById("railnote").value   = L.layout.rails[L.selectedJoint.nodeid].note;
+  if(L.selectedRail !== undefined){
+    document.getElementById("railnote").value   = L.selectedRail.note;
     document.getElementById("railnote").oninput      = ()=> L.onkey({key: L.keycontrols.signal.keys.editRailNote.key[0]}, {note: document.getElementById("railnote").value});
-    document.getElementById("railcolor").value = (c => c ? c.color : "")(L.layout.rails[L.selectedJoint.nodeid].color.find(e => e.colortype == "active"));
+    document.getElementById("railcolor").value = (c => c ? c.color : "")(L.selectedRail.color.find(e => e.colortype == "active"));
     document.getElementById("railcolor").oninput = ()=> L.onkey({key: L.keycontrols.control.keys.setRailColor.key[0]}, {color: document.getElementById("railcolor").value});
-    let signal = L.layout.rails[L.selectedJoint.nodeid].signals.find(s => s.jointid == L.selectedJoint.jointid);
+    let signal = L.selectedRail.signals.find(s => s.jointid == L.selectedJoint.jointid);
     if(signal !== undefined){
       document.getElementById("signalrules").value   = P.encodeSignalRules(signal.rules).join("\n");
       document.getElementById("signalrules").oninput = ()=> L.onkey({key: L.keycontrols.signal.keys.setSignalRules.key[0]}, {rules: document.getElementById("signalrules").value});

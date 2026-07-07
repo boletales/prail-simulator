@@ -69,21 +69,21 @@ L.setOnTrainSelect((tid) => {
 });
 document.getElementById("trainid").onchange = (e => L.selectTrainById(document.getElementById("trainid").value));
 
-let meshrailmemo = [];
-let railcolormemo = [];
+let meshrailmemo = new Map();
+let railcolormemo = {};
 let geometryrailmemo = [];
 let meshtrainmemo = [];
 let materialmemo = [];
 let staticgeometrymemo = [];
 let staticmeshmemo = [];
-let meshsignalmemo = [];
-let meshsignalplatememo = [];
-let meshinvalidroutememo = [];
-let trainnotestrmemo = [];
-let railnotestrmemo = [];
-let trainflipmemo = [];
-let trainnotespritememo = [];
-let railnotespritememo = [];
+let meshsignalmemo = new Map();
+let meshsignalplatememo = new Map();
+let meshinvalidroutememo = new Map();
+let trainnotestrmemo = {};
+let railnotestrmemo = {};
+let trainflipmemo = {};
+let trainnotespritememo = new Map();
+let railnotespritememo = new Map();
 let floormemo = [];
 let floormeshmemo = [];
 
@@ -121,27 +121,27 @@ export function clearCache() {
   }));
   staticgeometrymemo.forEach(g => {g.dispose(); });
   staticmeshmemo.forEach(m => {scene.remove(m); });
-  meshsignalmemo.forEach(mss => mss.forEach(ms => ms.forEach(m => {scene.remove(m); m.geometry.dispose()})));
-  meshsignalplatememo.forEach(ms => ms.forEach(m => {scene.remove(m); m.geometry.dispose()}));
-  meshinvalidroutememo.forEach(ms => ms.forEach(m => {scene.remove(m); m.geometry.dispose()}));
+  meshsignalmemo.forEach(m => {scene.remove(m); m.geometry.dispose()});
+  meshsignalplatememo.forEach(m => {scene.remove(m); m.geometry.dispose()});
+  meshinvalidroutememo.forEach(m => {scene.remove(m); m.geometry.dispose()});
   meshtrainmemo.forEach(t => t.forEach(c => {scene.remove(c);}));
   railnotespritememo.forEach(x=>x.forEach(o=>scene.remove(o)));
   trainnotespritememo.forEach(o=>scene.remove(o));
   floormeshmemo.forEach(o=>scene.remove(o));
-  meshrailmemo = [];
-  railcolormemo = [];
+  meshrailmemo.clear();
+  railcolormemo = {};
   geometryrailmemo = [];
   meshtrainmemo = [];
   staticgeometrymemo = [];
   staticmeshmemo = [];
-  meshsignalmemo = [];
-  meshsignalplatememo = [];
-  meshinvalidroutememo = [];
-  trainnotestrmemo = [];
-  railnotestrmemo = [];
-  trainnotespritememo = [];
-  railnotespritememo = [];
-  trainflipmemo = [];
+  meshsignalmemo.clear();
+  meshsignalplatememo.clear();
+  meshinvalidroutememo.clear();
+  trainnotestrmemo = {};
+  railnotestrmemo = {};
+  trainnotespritememo.clear();
+  railnotespritememo.clear();
+  trainflipmemo = {};
   floormeshmemo = [];
   floormemo = [];
   scenememo = {rails:[], trains: []};
@@ -263,22 +263,28 @@ function draw(layout){
 
     staticgeometrymemo.forEach(g => {g.dispose(); });
     staticgeometrymemo = [];
-    let railexists = Array(layout.instancecount).fill(false);
-    layout.rails.forEach(r=>railexists[r.instanceid] = true);
-    railexists.forEach((e,i) => {if(!e && meshrailmemo[i] !== undefined) meshrailmemo[i].forEach(d => {
-      Object.keys(d.geometry).forEach(c => d.geometry[c].forEach(g => g.dispose()));
-      d.mesh.forEach(m => m.geometry.dispose());
-    })});
+    let activeInstances = new Set(layout.rails.map(r => r.instanceid));
+    meshrailmemo.forEach((rmemo, instId) => {
+      if (!activeInstances.has(instId)) {
+        rmemo.forEach(d => {
+          Object.keys(d.geometry).forEach(c => d.geometry[c].forEach(g => g.dispose()));
+          d.mesh.forEach(m => m.geometry.dispose());
+        });
+        meshrailmemo.delete(instId);
+        delete railcolormemo[instId];
+      }
+    });
     layout.rails.forEach(r => {
       let colorstr = JSON.stringify(r.color);
       if(railcolormemo[r.instanceid] !== colorstr){
         railcolormemo[r.instanceid] = colorstr;
-        if(meshrailmemo[r.instanceid] !== undefined) meshrailmemo[r.instanceid].forEach(d => {
+        let rmemo = meshrailmemo.get(r.instanceid);
+        if(rmemo !== undefined) rmemo.forEach(d => {
           Object.keys(d.geometry).forEach(c => d.geometry[c].forEach(g => g.dispose()));
           Object.keys(d.geometryshadow).forEach(c => d.geometryshadow[c].forEach(g => g.dispose()));
           d.mesh.forEach(m => {scene.remove(m); m.geometry.dispose();});
         });
-        meshrailmemo[r.instanceid] = [];
+        meshrailmemo.set(r.instanceid, []);
       }
     });
     staticmeshmemo.forEach(m => {scene.remove(m); });
@@ -310,16 +316,23 @@ function draw(layout){
       staticmeshmemo.push(mesh);
       scene.add(mesh);
     });
-    meshsignalmemo.forEach(mss => mss.forEach(ms => ms.forEach(m => {scene.remove(m); m.geometry.dispose()})));
-    meshsignalplatememo.forEach(ms => ms.forEach(m => {scene.remove(m); m.geometry.dispose()}));
-    meshinvalidroutememo.forEach(ms => ms.forEach(m => {scene.remove(m); m.geometry.dispose()}));
+    meshsignalmemo.forEach(m => {scene.remove(m); m.geometry.dispose()});
+    meshsignalmemo.clear();
+    meshsignalplatememo.forEach(m => {scene.remove(m); m.geometry.dispose()});
+    meshsignalplatememo.clear();
+    meshinvalidroutememo.forEach(m => {scene.remove(m); m.geometry.dispose()});
+    meshinvalidroutememo.clear();
     ldi.signals.forEach(r => r.forEach(({indication, pos, signal}) => {scene.add(meshSignalPlate(pos, signal.nodeid, signal.jointid)) ;indication.forEach((c,i) => scene.add(meshSignal(pos, signal.nodeid, signal.jointid, i)))}));
     ldi.invalidRoutes.forEach(r => r.forEach(({indication, pos, signal}) => {scene.add(meshInvalidRoute(pos, signal.nodeid, signal.jointid)) ;}));
   }
   
   ldi.signals.forEach(s => s.forEach(({indication, pos, signal}) => {
-      indication.forEach((color, i) => meshsignalmemo[signal.nodeid][signal.jointid][i].material = signalMaterials[color]);
-      meshsignalplatememo[signal.nodeid][signal.jointid].material = signal.restraint ? signalPlateRestraintMaterial : (signal.manualStop ? signalPlateStoppedMaterial : signalPlateMaterial);
+      indication.forEach((color, i) => {
+        let mesh = meshsignalmemo.get(`${signal.nodeid}_${signal.jointid}_${i}`);
+        if (mesh) mesh.material = signalMaterials[color];
+      });
+      let plateMesh = meshsignalplatememo.get(`${signal.nodeid}_${signal.jointid}`);
+      if (plateMesh) plateMesh.material = signal.restraint ? signalPlateRestraintMaterial : (signal.manualStop ? signalPlateStoppedMaterial : signalPlateMaterial);
     }));
   
   ldi.rails.forEach((di) => {
@@ -337,9 +350,9 @@ function draw(layout){
       focusToPos({coord: di.cars[0].head.m.coord, angle: Math.atan2(-n.x, -n.z)});
     }
     
-    if(railnotestrmemo[di.trainid] !== note){
+    if(trainnotestrmemo[di.trainid] !== note){
       updateTrainNote(di, note);
-      railnotestrmemo[di.trainid] = note;
+      trainnotestrmemo[di.trainid] = note;
     }
     if(trainflipmemo[di.trainid] != di.flipped){
       updateTrainNote(di, note);
@@ -454,8 +467,9 @@ function speedStr(train){
 }
 
 function updateRailNote(drawinfo){
-  if(railnotespritememo[drawinfo.instance.instanceid] !== undefined){
-    railnotespritememo[drawinfo.instance.instanceid].forEach(o=>scene.remove(o));
+  let oldSprites = railnotespritememo.get(drawinfo.instance.instanceid);
+  if(oldSprites !== undefined){
+    oldSprites.forEach(o=>scene.remove(o));
   }
   if(drawinfo.instance.note != ""){
     let rail = L.layout.rails.find(r=>r.instanceid == drawinfo.instance.instanceid);
@@ -471,15 +485,16 @@ function updateRailNote(drawinfo){
     let cone = meshNote(center);
     scene.add(cone);
     sprite.position.set(center[0], center[1]+20, center[2]);
-    railnotespritememo[drawinfo.instance.instanceid] = [sprite, cone];
+    railnotespritememo.set(drawinfo.instance.instanceid, [sprite, cone]);
   }
 }
 
 function updateTrainNote(drawinfo, note){
   let mesh = meshtrainmemo[drawinfo.trainid][drawinfo.flipped ? drawinfo.cars.length-1 : 0];
   if(mesh !== undefined){
-    if(trainnotespritememo[drawinfo.trainid] !== undefined){
-      meshtrainmemo[drawinfo.trainid].forEach(m => m.remove(trainnotespritememo[drawinfo.trainid]));
+    let oldSprite = trainnotespritememo.get(drawinfo.trainid);
+    if(oldSprite !== undefined){
+      meshtrainmemo[drawinfo.trainid].forEach(m => m.remove(oldSprite));
     }
     if(note != ""){
       let sprite = new SpriteText(note, 5, "#fff");
@@ -488,7 +503,7 @@ function updateTrainNote(drawinfo, note){
       sprite.material.opacity = 0.3;
       sprite.position.set(0, 10, 0);
       mesh.add(sprite);
-      trainnotespritememo[drawinfo.trainid] = sprite;
+      trainnotespritememo.set(drawinfo.trainid, sprite);
     }
   }
 }
@@ -496,12 +511,14 @@ function updateTrainNote(drawinfo, note){
 function updateRailGeometory({rails : rails, additionals: additionals, joints : joints, instance: instance}){
   let instanceid = instance.instanceid;
   let state = instance.state;
-  if(meshrailmemo.length <= instanceid){
-    for(let i=meshrailmemo.length-1; i<=instanceid; i++) meshrailmemo.push([]);
+  let rmemo = meshrailmemo.get(instanceid);
+  if(rmemo === undefined){
+    rmemo = [];
+    meshrailmemo.set(instanceid, rmemo);
   }
 
-  if(meshrailmemo[instanceid][state] !== undefined){
-    return meshrailmemo[instanceid][state];
+  if(rmemo[state] !== undefined){
+    return rmemo[state];
   }
   let data = [];
   rails.forEach((p, i) => data.push(meshRailPart(p, i)));
@@ -509,9 +526,9 @@ function updateRailGeometory({rails : rails, additionals: additionals, joints : 
   joints.forEach((p) => {data.push(meshsPier(p))});
   joints.forEach((p, i) => {data.push(meshJointButton(p, instanceid, i))});
 
-  meshrailmemo[instanceid][state] = mergeMeshData(data.flat());
+  rmemo[state] = mergeMeshData(data.flat());
   data = null;
-  return meshrailmemo[instanceid][state];
+  return rmemo[state];
 }
 
 function meshRailPart(part, index){
@@ -662,13 +679,7 @@ function meshSignal(p, nodeid, jointid, routeid){
     mesh.matrixAutoUpdate = false;
 
 
-    if(meshsignalmemo.length <= nodeid){
-      for(let i=meshsignalmemo.length; i<=nodeid; i++) meshsignalmemo.push([]);
-    }
-    if(meshsignalmemo[nodeid].length <= jointid){
-      for(let i=meshsignalmemo[nodeid].length; i<=jointid; i++) meshsignalmemo[nodeid].push([]);
-    }
-    meshsignalmemo[nodeid][jointid][routeid] = mesh;
+    meshsignalmemo.set(`${nodeid}_${jointid}_${routeid}`, mesh);
 
     return mesh;
 }
@@ -693,10 +704,7 @@ function meshSignalPlate(p, nodeid, jointid){
     mesh.matrixAutoUpdate = false;
 
 
-    if(meshsignalplatememo.length <= nodeid){
-      for(let i=meshsignalplatememo.length; i<=nodeid; i++) meshsignalplatememo.push([]);
-    }
-    meshsignalplatememo[nodeid][jointid] = mesh;
+    meshsignalplatememo.set(`${nodeid}_${jointid}`, mesh);
 
     return mesh;
 }
@@ -722,10 +730,7 @@ function meshInvalidRoute(p, nodeid, jointid){
     mesh.matrixAutoUpdate = false;
 
 
-    if(meshinvalidroutememo.length <= nodeid){
-      for(let i=meshinvalidroutememo.length; i<=nodeid; i++) meshinvalidroutememo.push([]);
-    }
-    meshinvalidroutememo[nodeid][jointid] = mesh;
+    meshinvalidroutememo.set(`${nodeid}_${jointid}`, mesh);
 
     return mesh;
 }

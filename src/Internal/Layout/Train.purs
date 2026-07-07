@@ -7,23 +7,24 @@ module Internal.Layout.Train
   , getMaxNotch
   , getMaxNotchWithNextSignal
   , movefoward
+  , signalToSpeed
   , trainsetLength
   )
   where
 
-import Prelude (bind, map, max, min, negate, ($), (*), (+), (-), (/), (/=), (<), (<$>), (<=), (<>), (==), (>), (||))
+import Prelude (bind, map, max, min, negate, ($), (*), (+), (-), (/), (/=), (<), (<$>), (<=), (<>), (==), (>), (||), (>>>))
 import Data.Newtype (unwrap)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Array (any, filter, find, foldl, head, unsnoc)
 import Internal.Types
-import Internal.Layout.Types (IntNode, Layout(..), RailNode, RailNode_(..), RouteQueueElement(..), Signal(..), SignalRule(..), TrainRoute_(..), TrainTag, Trainset, Trainset_(..), signalRulePhase_unfired)
-import Internal.Layout.Helper (getNextJoint, getRailNode, signalToSpeed)
+import Internal.Layout.Types (IntNode, Layout(..), RailNode, RailNode_(..), RouteQueueElement(..), Signal(..), SignalRule(..), TrainRoute_(..), TrainTag, Trainset, Trainset_(..), signalRulePhase_unfired, signalStop)
+import Internal.Layout.Helper (getNextJoint, getRailNode)
 import JS.Map.Primitive as JSM
-import Internal.Layout.Params (baseaccr, basedccr, brakePattern, speedScale, carLength, carMargin)
-import Internal.Layout.Signal (getNextSignal)
+import Internal.Layout.Params (baseaccr, basedccr, brakePattern, speedScale, carLength, carMargin, indicationToSpeed)
+import Internal.Layout.SignalLogic (getNextSignal)
 import Data.Int (toNumber)
 import Data.String.Regex (test) as Re
-import Data.Foldable (sum, length)
+import Data.Foldable (sum, length, maximum)
 import Data.Number (infinity)
 import Data.Function (on)
 
@@ -165,3 +166,10 @@ movefoward (Layout layout) (Trainset t0) dt =
 
 trainsetLength ∷ forall t. Trainset_ t → Number
 trainsetLength (Trainset t) = (toNumber $ length t.types) * (carLength + carMargin) - carMargin
+
+
+signalToSpeed :: Signal -> Number 
+signalToSpeed = digestIndication >>> indicationToSpeed
+
+digestIndication :: Signal -> Int
+digestIndication signal = if (unwrap signal).manualStop || (unwrap signal).restraint then signalStop else fromMaybe signalStop $ maximum ((unwrap signal).indication)

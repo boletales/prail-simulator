@@ -31,7 +31,7 @@ import Data.String.Regex.Unsafe (unsafeRegex) as Re
 import Data.String.Utils (trimStart) as St
 import Foreign (Foreign, ForeignError, isArray, isNull, isUndefined, readNumber, unsafeFromForeign, unsafeToForeign)
 import JS.Map.Primitive as JSM
-import Internal.Layout (FloorData(..), IntNode(..), IntReserve, InvalidRoute(..), Layout(..), RailNode, RailNode_(..), RouteQueueElement, Signal(..), SignalRule(..), TrainRoute, TrainRoute_(..), Trainset, Trainset_(..), addJoint, getJointAbsPos, recalcInstanceDrawInfo, removeRail, signalRulePhase_unfired, updateSignalRoutes, selectRail)
+import Internal.Layout (FloorData(..), IntNode(..), IntReserve, InvalidRoute(..), Layout(..), RailNode, RailNode_(..), RouteQueueElement, Signal(..), SignalRule(..), TrainRoute, TrainRoute_(..), Trainset, Trainset_(..), addJoint, getJointAbsPos, removeRail, signalRulePhase_unfired, updateSignalRoutes, selectRail, refreshNodeDrawInfo)
 import Internal.Types (Coord(..), IntJoint, IntState(..), Pos(..), Rail, RailGen(..), RailShape(..), flipRail, fromRadian, opposeRail, poszero, reverseAngle, reversePos, saEmpty, toRadian, ColorOption)
 import Prelude as Prelude
 import Data.Tuple (Tuple(..))
@@ -281,7 +281,7 @@ decodeRailNode ({
     , pos
     , note
     , color
-  }) = (\r -> recalcInstanceDrawInfo $ RailNode {
+  }) = (\r -> refreshNodeDrawInfo $ RailNode {
       nodeid
     , rail: r
     , state
@@ -308,7 +308,7 @@ decodeRailNode_v1 (RailNode {
     , reserves
     , note
     , color
-  }) = (\r -> recalcInstanceDrawInfo $ RailNode {
+  }) = (\r -> refreshNodeDrawInfo $ RailNode {
       nodeid
     , rail: r
     , state

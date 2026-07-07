@@ -26,10 +26,10 @@ import Data.Newtype (unwrap)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Array (all, any, catMaybes, elem, filter, find, foldl, head, length, modifyAt, replicate, reverse, uncons, updateAt, (!!))
 import Internal.Types (ColorOption, IntJoint, Pos(..), Rail, canJoin, opposeRail, poszero, reverseShapes, saEmpty, saModifyAt, shapeLength, toAbsPos)
-import Internal.Layout.Types (CarType, IntNode(..), IntReserve(..), InvalidRoute(..), JointData(..), Layout(..), RailNode, RailNode_(..), Signal(..), SignalRoute(..), TrainRoute_(..), Trainset, Trainset_(..), signalAlart, signalCaution, signalReduce, signalRulePhase_unfired, signalStop)
-import Internal.Layout.Helper (getJointAbsPos, getJoints, getNewRailPos, getNextJoint, getRailNode, getRouteInfo, recalcInstanceDrawInfo)
+import Internal.Layout.Types (CarType, IntNode(..), IntReserve(..), InvalidRoute(..), JointData(..), Layout(..), RailNode, RailNode_(..), Signal(..), SignalRoute(..), TrainRoute_(..), Trainset, Trainset_(..), signalAlart, signalCaution, signalReduce, signalRulePhase_unfired, signalStop, refreshNodeDrawInfo)
+import Internal.Layout.Helper (getJointAbsPos, getJoints, getNewRailPos, getNextJoint, getRailNode, getRouteInfo)
 import JS.Map.Primitive as JSM
-import Internal.Layout.Signal (hasTraffic, updateSignalIndication, updateSignalRoutes)
+import Internal.Layout.SignalLogic (hasTraffic, updateSignalIndication, updateSignalRoutes)
 import Internal.Layout.Params (carLength, carMargin)
 import Data.Int
 import Data.Foldable (foldM, sum)
@@ -132,7 +132,7 @@ addRailWithPos (Layout layout) (RailNode node) pos =
           ) connections
   in if cond then
         let newnodeId = IntNode layout.instancecount
-            newnode = recalcInstanceDrawInfo $ RailNode $ node {
+            newnode = refreshNodeDrawInfo $ RailNode $ node {
                 nodeid = newnodeId,
                 connections =
                   node.connections
@@ -346,7 +346,7 @@ addTrainset (Layout layout) nodeid jointid types =
 setRailColor :: Layout -> IntNode -> Array ColorOption -> Layout
 setRailColor (Layout layout) nodeid coloroption = forceUpdate $
     Layout $ layout {
-        rails = (fromMaybe layout.rails $ modifyRailNode (\(RailNode ri) -> recalcInstanceDrawInfo $ RailNode $ ri {color = coloroption}) nodeid layout.rails)
+        rails = (fromMaybe layout.rails $ modifyRailNode (\(RailNode ri) -> refreshNodeDrawInfo $ RailNode $ ri {color = coloroption}) nodeid layout.rails)
       }
 
 addInvalidRoute :: Layout -> IntNode -> IntJoint -> Layout

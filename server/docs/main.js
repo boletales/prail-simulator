@@ -1165,13 +1165,6 @@ var isRailClear = (v) => (nodeid) => {
   }
   fail();
 };
-var instanceDrawInfos = (v) => arrayMap((x) => absDrawInfo(v.pos)(applyColorOption(v.color)(v.rail.getDrawInfo(x))))(v.rail.getStates);
-var instanceDrawInfo = (v) => {
-  if (v.state >= 0 && v.state < v.drawinfos.length) {
-    return v.drawinfos[v.state];
-  }
-  return brokenDrawInfo;
-};
 var getRouteInfo = (v) => (j) => {
   const v1 = v.rail.getNewState(j)(v.state);
   return { newjoint: v1.newjoint, shapes: arrayMap(absShape(v.pos))(v1.shape) };
@@ -1343,6 +1336,7 @@ var showIntNode = { show: (x) => showIntImpl(x) };
 var eqIntNode = { eq: (x) => (y) => x === y };
 var ordIntNode = { compare: (x) => (y) => ordInt.compare(x)(y), Eq0: () => eqIntNode };
 var keyIntNode = { Eq0: () => eqIntNode, Ord1: () => ordIntNode, Show2: () => showIntNode };
+var refreshNodeDrawInfo = (v) => ({ ...v, drawinfos: arrayMap((x) => absDrawInfo(v.pos)(applyColorOption(v.color)(v.rail.getDrawInfo(x))))(v.rail.getStates) });
 var getTag = (rule) => {
   if (rule.tag === "RuleComment") {
     return unsafeRegex("(?!.*)")(noFlags);
@@ -1376,8 +1370,14 @@ var getTag = (rule) => {
   }
   fail();
 };
+var getNodeDrawInfo = (v) => {
+  if (v.state >= 0 && v.state < v.drawinfos.length) {
+    return v.drawinfos[v.state];
+  }
+  return brokenDrawInfo;
+};
 
-// output-es/Internal.Layout.Signal/index.js
+// output-es/Internal.Layout.SignalLogic/index.js
 var allWithIndex = /* @__PURE__ */ (() => {
   const foldMapWithIndex2 = foldableWithIndexArray.foldMapWithIndex(/* @__PURE__ */ (() => {
     const semigroupConj1 = { append: (v) => (v1) => v && v1 };
@@ -1996,10 +1996,7 @@ var forceUpdate = (v) => ({ ...v, updatecount: v.updatecount + 1 | 0 });
 var setRailColor = (v) => (nodeid) => (coloroption) => ({
   ...v,
   rails: (() => {
-    const $0 = modifyRailNode((v2) => {
-      const $02 = { ...v2, color: coloroption };
-      return { ...$02, drawinfos: instanceDrawInfos($02) };
-    })(nodeid)(v.rails);
+    const $0 = modifyRailNode((v2) => refreshNodeDrawInfo({ ...v2, color: coloroption }))(nodeid)(v.rails);
     if ($0.tag === "Nothing") {
       return v.rails;
     }
@@ -2344,31 +2341,25 @@ var addRailWithPos = (v) => (v1) => (pos) => {
       updateSignalRoutes(foldlArray((l$p) => (v2) => addJoint(l$p)(v2.pos)(newnodeId)(v2.jointid))({
         ...v,
         updatecount: v.updatecount + 1 | 0,
-        rails: (() => {
-          const $0 = {
-            ...v1,
-            nodeid: newnodeId,
-            connections: [...v1.connections, ...arrayMap((v3) => ({ from: v3.jointid, nodeid: v3.jointData.nodeid, jointid: v3.jointData.jointid }))(newconnections)],
-            pos,
-            traffic: replicateImpl(v1.rail.getJoints.length, []),
-            isclear: true
-          };
-          return mutate(keyIntNode)(poke(keyIntNode)(newnodeId)({
-            ...$0,
-            drawinfos: instanceDrawInfos($0)
-          }))(foldlArray((rs) => (v2) => {
-            const $1 = v2.jointid;
-            const $2 = v2.jointData.jointid;
-            const $3 = modifyRailNode((v3) => ({ ...v3, connections: [...v3.connections, { from: $2, nodeid: newnodeId, jointid: $1 }] }))(v2.jointData.nodeid)(rs);
-            if ($3.tag === "Nothing") {
-              return rs;
-            }
-            if ($3.tag === "Just") {
-              return $3._1;
-            }
-            fail();
-          })(v.rails)(connections));
-        })(),
+        rails: mutate(keyIntNode)(poke(keyIntNode)(newnodeId)(refreshNodeDrawInfo({
+          ...v1,
+          nodeid: newnodeId,
+          connections: [...v1.connections, ...arrayMap((v3) => ({ from: v3.jointid, nodeid: v3.jointData.nodeid, jointid: v3.jointData.jointid }))(newconnections)],
+          pos,
+          traffic: replicateImpl(v1.rail.getJoints.length, []),
+          isclear: true
+        })))(foldlArray((rs) => (v2) => {
+          const $0 = v2.jointid;
+          const $1 = v2.jointData.jointid;
+          const $2 = modifyRailNode((v3) => ({ ...v3, connections: [...v3.connections, { from: $1, nodeid: newnodeId, jointid: $0 }] }))(v2.jointData.nodeid)(rs);
+          if ($2.tag === "Nothing") {
+            return rs;
+          }
+          if ($2.tag === "Just") {
+            return $2._1;
+          }
+          fail();
+        })(v.rails)(connections)),
         instancecount: v.instancecount + 1 | 0
       })(joints))
     );
@@ -5969,24 +5960,21 @@ var decodeRailNode = (v) => {
   if ($0.tag === "Just") {
     return $Maybe(
       "Just",
-      (() => {
-        const $1 = {
-          nodeid: v.nodeid,
-          rail: $0._1,
-          state: v.state,
-          connections: v.connections,
-          signals: arrayMap(decodeSignal)(isUndefined(v.signals) || isNull(v.signals) ? [] : v.signals),
-          invalidRoutes: isUndefined(v.invalidRoutes) || isNull(v.invalidRoutes) ? [] : v.invalidRoutes,
-          reserves: isUndefined(v.reserves) || isNull(v.reserves) ? [] : v.reserves,
-          pos: v.pos,
-          note: isUndefined(v.note) || isNull(v.note) ? "" : v.note,
-          drawinfos: [],
-          color: isUndefined(v.color) || isNull(v.color) ? [] : v.color,
-          traffic: replicateImpl($0._1.getJoints.length, []),
-          isclear: true
-        };
-        return { ...$1, drawinfos: instanceDrawInfos($1) };
-      })()
+      refreshNodeDrawInfo({
+        nodeid: v.nodeid,
+        rail: $0._1,
+        state: v.state,
+        connections: v.connections,
+        signals: arrayMap(decodeSignal)(isUndefined(v.signals) || isNull(v.signals) ? [] : v.signals),
+        invalidRoutes: isUndefined(v.invalidRoutes) || isNull(v.invalidRoutes) ? [] : v.invalidRoutes,
+        reserves: isUndefined(v.reserves) || isNull(v.reserves) ? [] : v.reserves,
+        pos: v.pos,
+        note: isUndefined(v.note) || isNull(v.note) ? "" : v.note,
+        drawinfos: [],
+        color: isUndefined(v.color) || isNull(v.color) ? [] : v.color,
+        traffic: replicateImpl($0._1.getJoints.length, []),
+        isclear: true
+      })
     );
   }
   return Nothing;
@@ -5996,24 +5984,21 @@ var decodeRailNode_v1 = (v) => {
   if ($0.tag === "Just") {
     return $Maybe(
       "Just",
-      (() => {
-        const $1 = {
-          nodeid: v.nodeid,
-          rail: $0._1,
-          state: v.state,
-          connections: v.connections,
-          signals: isUndefined(v.signals) || isNull(v.signals) ? [] : v.signals,
-          invalidRoutes: isUndefined(v.invalidRoutes) || isNull(v.invalidRoutes) ? [] : v.invalidRoutes,
-          reserves: isUndefined(v.reserves) || isNull(v.reserves) ? [] : v.reserves,
-          pos: poszero,
-          drawinfos: [],
-          note: isUndefined(v.note) || isNull(v.note) ? "" : v.note,
-          color: isUndefined(v.color) || isNull(v.color) ? [] : v.color,
-          traffic: replicateImpl($0._1.getJoints.length, []),
-          isclear: true
-        };
-        return { ...$1, drawinfos: instanceDrawInfos($1) };
-      })()
+      refreshNodeDrawInfo({
+        nodeid: v.nodeid,
+        rail: $0._1,
+        state: v.state,
+        connections: v.connections,
+        signals: isUndefined(v.signals) || isNull(v.signals) ? [] : v.signals,
+        invalidRoutes: isUndefined(v.invalidRoutes) || isNull(v.invalidRoutes) ? [] : v.invalidRoutes,
+        reserves: isUndefined(v.reserves) || isNull(v.reserves) ? [] : v.reserves,
+        pos: poszero,
+        drawinfos: [],
+        note: isUndefined(v.note) || isNull(v.note) ? "" : v.note,
+        color: isUndefined(v.color) || isNull(v.color) ? [] : v.color,
+        traffic: replicateImpl($0._1.getJoints.length, []),
+        isclear: true
+      })
     );
   }
   return Nothing;
@@ -6188,7 +6173,7 @@ var trainsetDrawInfo = (v) => {
 };
 var layoutDrawInfo = (v) => ({
   rails: arrayMap((r) => {
-    const $0 = instanceDrawInfo(r);
+    const $0 = getNodeDrawInfo(r);
     return { rails: $0.rails, additionals: $0.additionals, joints: arrayMap(getRailJointAbsPos(r))(r.rail.getJoints), instance: r };
   })(values(v.rails)),
   signals: arrayMap((v1) => arrayMap((v2) => ({

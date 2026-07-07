@@ -24,7 +24,9 @@ module Internal.Layout.Types
   , Trainset
   , Trainset_(..)
   , getTag
+  , getNodeDrawInfo
   , isComplex
+  , refreshNodeDrawInfo
   , signalAlart
   , signalCaution
   , signalClear
@@ -36,14 +38,16 @@ module Internal.Layout.Types
   )
   where
 
-import Prelude (class Eq, class Ord, class Show, show, (>>>))
-import Internal.Types (ColorOption, DrawInfo, IntJoint, IntState, Pos, Rail, RailShape, RealColor, SectionArray)
+import Prelude (class Eq, class Ord, class Show, show, (>>>), ($), (<$>))
+import Internal.Types
 import Data.Newtype (class Newtype, unwrap)
-import Data.String.Regex
+import Data.String.Regex (Regex)
 import Data.String.Regex.Flags (noFlags) as Re
 import Data.String.Regex.Unsafe (unsafeRegex) as Re
 import JS.Map.Primitive (Map) as JSM
-import JS.Map.Primitive.Key (class Key)
+import JS.Map.Primitive.Key (class Key) 
+import Data.Maybe (fromMaybe)
+import Data.Array ((!!))
 
 newtype IntReserve = IntReserve Int
 derive instance Eq IntReserve 
@@ -65,6 +69,18 @@ newtype RailNode_ x = RailNode {
     isclear :: Boolean
   }
 derive instance Newtype (RailNode_ x) _
+
+getNodeDrawInfo :: RailNode -> DrawInfo Pos RealColor
+getNodeDrawInfo (RailNode node) =
+  fromMaybe brokenDrawInfo $ node.drawinfos !! (unwrap node.state)
+
+refreshNodeDrawInfo :: RailNode -> RailNode
+refreshNodeDrawInfo (RailNode node) =
+  RailNode $ node {drawinfos = ((unwrap node.rail).getDrawInfo
+    >>> applyColorOption (node.color) 
+    >>> absDrawInfo node.pos
+  ) <$> (unwrap node.rail).getStates
+  }
 
 newtype IntNode = IntNode Int
 instance Show IntNode where

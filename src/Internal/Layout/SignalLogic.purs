@@ -1,6 +1,6 @@
 -- 信号ロジック
 
-module Internal.Layout.Signal
+module Internal.Layout.SignalLogic
   ( getNextSignal
   , hasTraffic
   , signalSearchDepth

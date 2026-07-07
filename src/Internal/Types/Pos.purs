@@ -1,23 +1,13 @@
 module Internal.Types.Pos where
 
-import Internal.Types.Serial
 
-import Data.Generic.Rep
-import Data.Int
-import Data.Maybe
-import Data.Newtype
-import Data.Number
+import Data.Int (toNumber)
+import Data.Newtype (class Newtype, over2, unwrap)
+import Data.Number (abs, cos, pi, sign, sin, sqrt)
 import Data.Number as Number
-import Prelude
-import Prelude
-import Type.Proxy
+import Prelude (class Eq, add, sub, ($), (&&), (*), (+), (-), (/), (/=), (<), (==), (>), (||))
 
 import Data.Function
-import Data.Symbol (class IsSymbol)
-import Data.Traversable (scanl)
-import Record as R
-import Type.Row as R
-import Type.RowList as RL
 
 newtype Angle = Angle Number
 derive instance Newtype Angle _
@@ -50,6 +40,7 @@ reverseAngle (Angle i) = Angle (i + angleSize / 2.0)
 toRadian :: Angle -> Number
 toRadian (Angle i) = i
 
+fromRadian ∷ Number → Angle
 fromRadian = Angle
 
 newtype Pos = Pos {
@@ -140,7 +131,7 @@ getDividingPoint_rel (Pos p1) (Pos p2) width t =
     else  let _r  = (cos a1 * ((unwrap p2.coord).x - (unwrap p1.coord).x) + sin a1 * ((unwrap p2.coord).y - (unwrap p1.coord).y)) / sin (a2 - a1)
               r   = abs _r
               a1' = a1 - pi/2.0 * sign _r
-              a2' = a2 - pi/2.0 * sign _r
+              -- a2' = a2 - pi/2.0 * sign _r
               at' = at - pi/2.0 * sign _r
               x0  = (unwrap p1.coord).x - r * cos a1'
               y0  = (unwrap p1.coord).y - r * sin a1'

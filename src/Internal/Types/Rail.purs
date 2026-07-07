@@ -1,15 +1,15 @@
 module Internal.Types.Rail where
 
-import Data.Maybe
-import Data.Newtype
-import Data.Number
-import Internal.Types.Pos
-import Internal.Types.Serial
-import Prelude
+import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Newtype (class Newtype, over, unwrap, wrap)
+import Data.Number (asin, cos, pow, sin)
+import Internal.Types.Pos (Angle(..), Coord(..), Pos(..), RelPos(..), fromRadian, getDividingPoint_rel, partLength, poszero, reversePos, toAbsPos, toRadian)
+import Internal.Types.Serial (class IntSerialize, fromSerial, toSerial)
+import Prelude (class Eq, class Ord, class Show, map, negate, not, show, ($), (*), (+), (-), (/), (<), (<#>), (<$>), (<*>), (==), (>>>))
 
 
-import Partial.Unsafe
-import Data.Array
+import Partial.Unsafe (unsafePartial)
+import Data.Array (find, length, reverse, unsafeIndex)
 
 
 

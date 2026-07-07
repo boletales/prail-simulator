@@ -1,20 +1,19 @@
 module Internal.Types.Serial where
 
-import Prelude
+import Prelude (const, div, mod, ($), (&&), (*), (+), (-), (<), (<$>), (<*>), (<<<), (<=), (>>>))
 
-import Data.Generic.Rep
-import Data.Maybe
-import Data.Array
-import Data.Maybe
-import Prelude
-import Type.Proxy
+import Data.Generic.Rep (class Generic, Argument(..), Constructor(..), NoArguments(..), Product(..), Sum(..), from, to)
+import Data.Maybe (Maybe(..), fromJust)
+import Data.Array (catMaybes, range)
+import Type.Proxy (Proxy(..))
 
 import Data.Symbol (class IsSymbol)
-import Record as R
-import Type.Row as R
+import Record (delete, get, insert) as R
+import Type.Row (class Cons, class Lacks) as R
 import Type.RowList as RL
 
 
+unsafeToSerial ∷ ∀ (d156 ∷ Type). Partial ⇒ IntSerialize d156 ⇒ Int → d156
 unsafeToSerial = fromJust <<< fromSerial
 
 proxy :: forall a. a -> Proxy a

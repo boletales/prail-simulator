@@ -8,9 +8,7 @@ module Internal.Types.SectionArray
 
 
 import Prelude
-import Data.Int
-import Data.Maybe
-import Data.Newtype
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Array (modifyAt, replicate, (!!))
 
 newtype SectionArray a = SectionArray {

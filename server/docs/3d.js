@@ -71,7 +71,6 @@ document.getElementById("trainid").onchange = (e => L.selectTrainById(document.g
 
 let meshrailmemo = new Map();
 let railcolormemo = {};
-let geometryrailmemo = [];
 let meshtrainmemo = [];
 let materialmemo = [];
 let staticgeometrymemo = [];
@@ -84,7 +83,6 @@ let railnotestrmemo = {};
 let trainflipmemo = {};
 let trainnotespritememo = new Map();
 let railnotespritememo = new Map();
-let floormemo = [];
 let floormeshmemo = [];
 
 function mergeMeshData(mds){
@@ -107,7 +105,7 @@ function mergeMeshData(mds){
 }
 
 let lastupdate = -1;
-let scenememo = {rails: [], trains: []};
+let scenememo = {trains: []};
 
 export function forceUpdateModel(){
   lastupdate = -1;
@@ -130,7 +128,6 @@ export function clearCache() {
   floormeshmemo.forEach(o=>scene.remove(o));
   meshrailmemo.clear();
   railcolormemo = {};
-  geometryrailmemo = [];
   meshtrainmemo = [];
   staticgeometrymemo = [];
   staticmeshmemo = [];
@@ -143,7 +140,6 @@ export function clearCache() {
   railnotespritememo.clear();
   trainflipmemo = {};
   floormeshmemo = [];
-  floormemo = [];
   scenememo = {rails:[], trains: []};
   lastupdate = -1;
 }
@@ -241,8 +237,6 @@ function onclick(e){
 
 const layerheight = 0.002;
 function draw(layout){
-  scenememo.rails = [];
-
   let trains_old = Object.assign(scenememo.trains);
   scenememo.trains = [];
   let existancememo_trains_old = [];

@@ -16,19 +16,18 @@ module Internal.Layout.Helper
   , isRailClear
   , recalcInstanceDrawInfo
   , signalToSpeed
-  , updateRailNode
   , selectRail
   )
   where
 
-import Prelude
+import Prelude (bind, join, pure, ($), (+), (-), (<), (<$>), (<*>), (>=>), (>>>), (||))
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.Array (filter, foldM, index, find, (!!))
+import Data.Array (foldM, index, (!!))
 import Data.Int (round)
 import Data.Newtype (unwrap)
 import Data.Foldable (maximum)
 import JS.Map.Primitive as JSM
-import Internal.Layout.Types (IntNode(..), JointData, Layout(..), RailNode, RailNode_(..), Signal, signalStop) 
+import Internal.Layout.Types (IntNode, JointData, Layout(..), RailNode, RailNode_(..), Signal, signalStop)
 import Internal.Layout.Params
 import Internal.Types (DrawInfo, IntJoint, Pos, RailShape, RealColor, RelPos(..), absDrawInfo, absShape, applyColorOption, brokenDrawInfo, canJoin, convertRelPos, poszero, reversePos, reverseRelPos, saIndex, toAbsPos)
 

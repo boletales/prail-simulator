@@ -149,7 +149,7 @@ getNewRailPos             = Ex.getNewRailPos
 getRailNode ∷ Layout → IntNode → Maybe (RailNode_ Rail)
 getRailNode               = Ex.getRailNode
 getNextSignal ∷ Layout → Trainset_ (RailNode_ (Rail)) → { distance ∷ Number , sections ∷ Int , signal ∷ Maybe Signal }
-getNextSignal             = Ex.getNextSignal             
+getNextSignal             = Ex.searchNextSignal             
 getMarginFromBrakePattern ∷ Layout → Trainset_ (RailNode_ (Rail)) → Number
 getMarginFromBrakePattern = Ex.getMarginFromBrakePattern
 layoutDrawInfo ∷ Layout → { floor ∷ FloorData , invalidRoutes ∷ Array (Array { pos :: Pos , signal :: InvalidRoute } ) , rails ∷ Array { additionals :: Array (DrawAdditional Pos) , instance :: RailNode_ (Rail) , joints :: Array Pos , rails :: Array (DrawRail Pos String) } , signals ∷ Array (Array { indication :: Array Int , pos :: Pos , signal :: Signal } ) , trains ∷ Array TrainsetDrawInfo }

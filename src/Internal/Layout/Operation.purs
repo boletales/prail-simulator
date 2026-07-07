@@ -26,14 +26,17 @@ import Data.Newtype (unwrap)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Array (all, any, catMaybes, elem, filter, find, foldl, head, length, modifyAt, replicate, reverse, uncons, updateAt, (!!))
 import Internal.Types (ColorOption, IntJoint, Pos(..), Rail, canJoin, opposeRail, poszero, reverseShapes, saEmpty, saModifyAt, shapeLength, toAbsPos)
-import Internal.Layout.Types (CarType, IntNode(..), IntReserve(..), InvalidRoute(..), JointData(..), Layout(..), RailNode, RailNode_(..), Signal(..), SignalRoute(..), TrainRoute_(..), Trainset, Trainset_(..), signalAlart, signalCaution, signalReduce, signalRulePhase_unfired, signalStop, refreshNodeDrawInfo)
-import Internal.Layout.Helper (getJointAbsPos, getJoints, getNewRailPos, getNextJoint, getRailNode, getRouteInfo)
 import JS.Map.Primitive as JSM
 import Internal.Layout.SignalLogic (hasTraffic, updateSignalIndication, updateSignalRoutes)
 import Internal.Layout.Params (carLength, carMargin)
-import Data.Int
+import Data.Int (round, toNumber)
 import Data.Foldable (foldM, sum)
 import Data.FoldableWithIndex (findWithIndex)
+import Internal.Layout.Types.Base (IntNode(..), IntReserve(..))
+import Internal.Layout.Types.Layout (JointData(..), Layout(..), getJointAbsPos, getJoints, getNewRailPos, getRailNode, modifyRailNode, updateRailNodeAt)
+import Internal.Layout.Types.RailNode (RailNode, RailNode_(..), getNextJoint, getRouteInfo, refreshNodeDrawInfo)
+import Internal.Layout.Types.Signal (InvalidRoute(..), Signal(..), SignalRoute(..), signalAlart, signalCaution, signalReduce, signalStop)
+import Internal.Layout.Types.Train (CarType, TrainRoute_(..), Trainset, Trainset_(..), signalRulePhase_unfired)
 
 flipTrain :: Trainset -> Trainset
 flipTrain (Trainset t0) = Trainset $ t0 {
@@ -70,16 +73,6 @@ autoAdd (Layout layout) selectednode selectedjoint rail from =
             }
       addRail (Layout layout) node
     )
-
-modifyRailNode :: (RailNode -> RailNode) -> IntNode -> JSM.Map IntNode RailNode -> Maybe (JSM.Map IntNode RailNode)
-modifyRailNode f nodeid rails = do
-  r <- JSM.lookup nodeid rails
-  Just $ JSM.insert nodeid (f r) rails
-
-updateRailNodeAt :: RailNode -> IntNode -> JSM.Map IntNode RailNode -> Maybe (JSM.Map IntNode RailNode)
-updateRailNodeAt newRail nodeid rails = do
-  _ <- JSM.lookup nodeid rails
-  Just $ JSM.insert nodeid newRail rails
 
 
 removeRail :: Layout -> IntNode -> Layout

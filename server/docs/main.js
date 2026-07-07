@@ -6207,7 +6207,7 @@ var layoutDrawInfo = (v) => ({
   floor: v.floor
 });
 
-// output-es/Internal.Layout.Train/index.js
+// output-es/Internal.Layout.TrainMovement/index.js
 var length3 = /* @__PURE__ */ foldlArray((c) => (v) => 1 + c | 0)(0);
 var min2 = (x) => (y) => {
   const v = ordNumber.compare(x)(y);

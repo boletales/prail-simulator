@@ -31,7 +31,7 @@ import Data.String.Regex.Unsafe (unsafeRegex) as Re
 import Data.String.Utils (trimStart) as St
 import Foreign (Foreign, ForeignError, isArray, isNull, isUndefined, readNumber, unsafeFromForeign, unsafeToForeign)
 import JS.Map.Primitive as JSM
-import Internal.Layout (FloorData(..), IntNode(..), IntReserve, InvalidRoute(..), Layout(..), RailNode, RailNode_(..), RouteQueueElement, Signal(..), SignalRule(..), TrainRoute, TrainRoute_(..), Trainset, Trainset_(..), addJoint, getJointAbsPos, removeRail, signalRulePhase_unfired, updateSignalRoutes, selectRail, refreshNodeDrawInfo)
+import Internal.Layout (FloorData(..), IntNode(..), IntReserve, InvalidRoute(..), Layout(..), RailNode, RailNode_(..), RouteQueueElement, Signal(..), SignalRule(..), TrainRoute, TrainRoute_(..), Trainset, Trainset_(..), addJoint, getJointAbsPos, removeRail, signalRulePhase_unfired, updateSignalRoutes, selectRailNode, refreshNodeDrawInfo)
 import Internal.Types (Coord(..), IntJoint, IntState(..), Pos(..), Rail, RailGen(..), RailShape(..), flipRail, fromRadian, opposeRail, poszero, reverseAngle, reversePos, saEmpty, toRadian, ColorOption)
 import Prelude as Prelude
 import Data.Tuple (Tuple(..))
@@ -382,7 +382,7 @@ decodeTrainRoute ver rsArray rsMap (TrainRoute {
           , railinstance : fromMaybe defaultnode $ 
               if ver <= 2
                 then rsArray !! (unwrap railinstance)
-                else selectRail rsMap railinstance
+                else selectRailNode rsMap railinstance
           , shapes
           , length
         }
@@ -472,7 +472,7 @@ decodeLayout' {floor: floor, rails: rarr, trains: tarr, time: traw, speed: sraw,
         let
           findInstanceId :: IntNode -> IntNode
           findInstanceId origNodeId =
-            case selectRail l.rails origNodeId of
+            case selectRailNode l.rails origNodeId of
               Just (RailNode r) -> r.nodeid
               Nothing -> origNodeId
 
@@ -495,7 +495,7 @@ decodeLayout' {floor: floor, rails: rarr, trains: tarr, time: traw, speed: sraw,
               migrateRoute (TrainRoute r) =
                 let
                   newId = findInstanceId r.nodeid
-                  newRail = case selectRail migratedRails newId of
+                  newRail = case selectRailNode migratedRails newId of
                               Just rl -> rl
                               Nothing -> r.railinstance
                 in TrainRoute $ r {

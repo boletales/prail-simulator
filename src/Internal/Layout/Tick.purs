@@ -10,18 +10,19 @@ import Prelude (identity, map, max, min, ($), (&&), (*), (+), (/), (<), (<$>), (
 import Data.Newtype (unwrap, wrap)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Array (any, catMaybes, foldl)
-import Internal.Layout.Types (Layout(..), RouteQueueElement(..), Signal(..), SignalRule(..), TrainRoute_(..), Trainset, Trainset_(..), getTag, signalRulePhase_fired, signalRulePhase_stoppedFired, signalRulePhase_unfired)
-import Internal.Layout.Helper (getRailNode)
 import Internal.Layout.Params (speedScale)
-import Internal.Layout.SignalLogic (getNextSignal)
+import Internal.Layout.SignalLogic (searchNextSignal)
 import Internal.Layout.Operation (flipTrain, layoutUpdate, setManualStop, tryOpenRouteFor)
-import Internal.Layout.Train (acceralate, addRouteQueue, getMaxNotchWithNextSignal, movefoward, signalToSpeed)
+import Internal.Layout.TrainMovement (acceralate, addRouteQueue, getMaxNotchWithNextSignal, movefoward, signalToSpeed)
 import Data.String.Regex (replace, test)
+import Internal.Layout.Types.Signal (Signal(..), SignalRule(..), getTag)
+import Internal.Layout.Types.Train (TrainRoute_(..), Trainset, Trainset_(..), signalRulePhase_fired, signalRulePhase_stoppedFired, signalRulePhase_unfired)
+import Internal.Layout.Types.Layout (Layout(..), RouteQueueElement(..), getRailNode)
 
 
 trainTick :: Layout -> Trainset -> Number -> {newlayout :: Layout, newtrainset :: Trainset}
 trainTick (Layout layout) (Trainset t0) dt =
-  let nextsignal = getNextSignal (Layout layout) (Trainset t0)
+  let nextsignal = searchNextSignal (Layout layout) (Trainset t0)
       {firedlayout, firedtrain: Trainset t1} =
         case nextsignal.signal of
           Nothing     -> {firedlayout:Layout layout, firedtrain:Trainset t0}

@@ -12,12 +12,13 @@ import Data.Newtype (unwrap)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Array (mapWithIndex, reverse, (!!))
 import Internal.Types (DrawAdditional, DrawInfo(..), DrawRail, Pos, RailShape(..), RealColor, getDividingPoint_rel, poszero)
-import Internal.Layout.Types (CarType, FloorData, InvalidRoute(..), Layout(..), RailNode, RailNode_(..), Signal(..), TrainRoute_(..), TrainTag, Trainset, Trainset_(..), getNodeDrawInfo)
-import Internal.Layout.Helper (getJointAbsPos, getRailJointAbsPos)
 import JS.Map.Primitive as JSM
 import Internal.Layout.Params (carLength, carMargin, wheelMargin, wheelWidth)
-import Data.Int
-
+import Data.Int (toNumber)
+import Internal.Layout.Types.Layout (FloorData, Layout(..), getJointAbsPos)
+import Internal.Layout.Types.RailNode (RailNode, RailNode_(..), getNodeDrawInfo, getRailJointAbsPos)
+import Internal.Layout.Types.Signal (InvalidRoute(..), Signal(..))
+import Internal.Layout.Types.Train (CarType, TrainRoute_(..), TrainTag, Trainset, Trainset_(..))
 
 layoutDrawInfo :: Layout -> {
       rails :: Array {rails :: Array (DrawRail Pos RealColor), additionals :: Array (DrawAdditional Pos), joints :: Array Pos, instance :: RailNode}

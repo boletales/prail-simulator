@@ -1,7 +1,7 @@
 -- 信号ロジック
 
 module Internal.Layout.SignalLogic
-  ( getNextSignal
+  ( searchNextSignal
   , hasTraffic
   , signalSearchDepth
   , updateSignalIndication
@@ -14,13 +14,15 @@ import Data.Newtype (unwrap)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Array (all, any, elem, filter, find, head, insert, last, length, nubBy, reverse, zipWith, (!!))
 import Internal.Types (IntJoint(..), shapeLength)
-import Internal.Layout.Types (InvalidRoute(..), Layout(..), RailNode, RailNode_(..), Signal(..), SignalRoute(..), TrainRoute_(..), Trainset, Trainset_(..), isComplex, signalAlart, signalCaution, signalClear, signalReduce, signalStop)
-import Internal.Layout.Helper (getNextJoint, getRailNode, getRailTraffic, getRouteInfo, isRailClear)
 import JS.Map.Primitive as JSM
-import Internal.Layout.Params
+import Internal.Layout.Params (brakePattern, indicationToSpeed)
 import Data.Function (on)
 import Data.Foldable (maximum, sum)
 import Data.FoldableWithIndex (allWithIndex)
+import Internal.Layout.Types.Signal (InvalidRoute(..), Signal(..), SignalRoute(..), isComplex, signalAlart, signalCaution, signalClear, signalReduce, signalStop)
+import Internal.Layout.Types.RailNode (RailNode, RailNode_(..), getNextJoint, getRouteInfo)
+import Internal.Layout.Types.Train (TrainRoute_(..), Trainset, Trainset_(..))
+import Internal.Layout.Types.Layout (Layout(..), getRailNode, getRailTraffic, isRailClear)
 
 signalSearchDepth :: Int
 signalSearchDepth = 30
@@ -64,8 +66,8 @@ updateSignalRoutes (Layout layout) =
   }
 
 
-getNextSignal :: Layout -> Trainset -> {signal :: Maybe Signal, sections :: Int, distance :: Number}
-getNextSignal (Layout layout) (Trainset trainset) =
+searchNextSignal :: Layout -> Trainset -> {signal :: Maybe Signal, sections :: Int, distance :: Number}
+searchNextSignal (Layout layout) (Trainset trainset) =
   case head trainset.route of
     Nothing -> {signal: Nothing, sections: 0, distance: 0.0}
     Just (TrainRoute {nodeid, jointid}) ->

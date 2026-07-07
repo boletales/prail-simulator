@@ -1,0 +1,18 @@
+-- レイアウト固有の構造体
+
+module Internal.Layout.TypesOld
+  ( module Ex
+  )
+  where
+
+import Internal.Layout.Types.Base (IntNode(..), IntReserve(..)) as Ex
+import Internal.Layout.Types.Layout (FloorData(..), JointData(..), Layout(..), RouteQueueElement(..), Traffic, getJointAbsPos, getJoints, getNewRailPos, getRailNode, getRailTraffic, isRailClear, selectRailNode, updateRailNodeAt) as Ex
+import Internal.Layout.Types.Signal (InvalidRoute(..), Signal(..), SignalColor, SignalRoute(..), SignalRule(..), TrainTagPattern, getTag, isComplex, signalAlart, signalCaution, signalClear, signalReduce, signalStop) as Ex
+import Internal.Layout.Types.Train (CarType(..), SignalRulePhase(..), TrainRoute, TrainRoute_(..), TrainTag(..), Trainset, Trainset_(..), signalRulePhase_fired, signalRulePhase_stoppedFired, signalRulePhase_unfired)  as Ex
+import Internal.Layout.Types.RailNode (RailNode, RailNode_(..), getNextJoint, getNodeDrawInfo, getRailJointAbsPos, getRouteInfo, refreshNodeDrawInfo) as Ex
+
+
+
+
+
+

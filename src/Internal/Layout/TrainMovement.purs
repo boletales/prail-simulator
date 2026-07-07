@@ -1,6 +1,6 @@
 -- 列車の挙動に関する関数群
 
-module Internal.Layout.Train
+module Internal.Layout.TrainMovement
   ( acceralate
   , addRouteQueue
   , getMarginFromBrakePattern
@@ -17,21 +17,19 @@ import Data.Newtype (unwrap)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Array (any, filter, find, foldl, head, unsnoc)
 import Internal.Types
-import Internal.Layout.Types (IntNode, Layout(..), RailNode, RailNode_(..), RouteQueueElement(..), Signal(..), SignalRule(..), TrainRoute_(..), TrainTag, Trainset, Trainset_(..), signalRulePhase_unfired, signalStop)
-import Internal.Layout.Helper (getNextJoint, getRailNode)
-import JS.Map.Primitive as JSM
 import Internal.Layout.Params (baseaccr, basedccr, brakePattern, speedScale, carLength, carMargin, indicationToSpeed)
-import Internal.Layout.SignalLogic (getNextSignal)
+import Internal.Layout.SignalLogic (searchNextSignal)
 import Data.Int (toNumber)
 import Data.String.Regex (test) as Re
 import Data.Foldable (sum, length, maximum)
 import Data.Number (infinity)
 import Data.Function (on)
+import Internal.Layout.Types.Base (IntNode)
+import Internal.Layout.Types.Signal (Signal(..), SignalRule(..), signalStop)
+import Internal.Layout.Types.RailNode (RailNode, RailNode_(..), getNextJoint)
+import Internal.Layout.Types.Train (TrainRoute_(..), TrainTag, Trainset, Trainset_(..), signalRulePhase_unfired)
+import Internal.Layout.Types.Layout (Layout(..), RouteQueueElement(..), getRailNode, updateRailNodeAt)
 
-updateRailNodeAt :: RailNode -> IntNode -> JSM.Map IntNode RailNode -> Maybe (JSM.Map IntNode RailNode)
-updateRailNodeAt newRail nodeid rails = do
-  _ <- JSM.lookup nodeid rails
-  Just $ JSM.insert nodeid newRail rails
 
 
 passingRailNode :: RailNode -> IntJoint -> {instance :: RailNode, newjoint :: IntJoint, shapes :: Array (RailShape Pos)}
@@ -53,12 +51,12 @@ getMaxNotchWithNextSignal nextsignal (Trainset t2) =
 
 getMaxNotch :: Layout -> Trainset -> Int
 getMaxNotch (Layout layout) (Trainset t0) =
-  let nextsignal = getNextSignal (Layout layout) (Trainset t0)
+  let nextsignal = searchNextSignal (Layout layout) (Trainset t0)
   in  getMaxNotchWithNextSignal nextsignal (Trainset t0)
 
 getMarginFromBrakePattern :: Layout -> Trainset -> Number
 getMarginFromBrakePattern (Layout layout) (Trainset t0) =
-  let nextsignal = getNextSignal (Layout layout) (Trainset t0)
+  let nextsignal = searchNextSignal (Layout layout) (Trainset t0)
   in  nextsignal.distance - brakePatternDist t0.speed nextsignal t0.tags
 
 addRouteQueue :: Layout -> IntNode -> IntJoint -> Int -> Int -> Layout

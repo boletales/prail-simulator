@@ -8,68 +8,9 @@ function intDiv(x, y) {
   return 0;
 }
 
-// output-es/Record.Unsafe/foreign.js
-var unsafeGet = function(label) {
-  return function(rec) {
-    return rec[label];
-  };
-};
-var unsafeSet = function(label) {
-  return function(value) {
-    return function(rec) {
-      var copy = {};
-      for (var key in rec) {
-        if ({}.hasOwnProperty.call(rec, key)) {
-          copy[key] = rec[key];
-        }
-      }
-      copy[label] = value;
-      return copy;
-    };
-  };
-};
-var unsafeDelete = function(label) {
-  return function(rec) {
-    var copy = {};
-    for (var key in rec) {
-      if (key !== label && {}.hasOwnProperty.call(rec, key)) {
-        copy[key] = rec[key];
-      }
-    }
-    return copy;
-  };
-};
-
 // output-es/Type.Proxy/index.js
 var $$$Proxy = () => ({ tag: "Proxy" });
 var $$Proxy = /* @__PURE__ */ $$$Proxy();
-
-// output-es/Data.Show/foreign.js
-var showIntImpl = function(n) {
-  return n.toString();
-};
-
-// output-es/Data.Generic.Rep/index.js
-var $NoArguments = () => ({ tag: "NoArguments" });
-var $Sum = (tag, _1) => ({ tag, _1 });
-var NoArguments = /* @__PURE__ */ $NoArguments();
-
-// output-es/Data.Ordering/index.js
-var $Ordering = (tag) => tag;
-var LT = /* @__PURE__ */ $Ordering("LT");
-var GT = /* @__PURE__ */ $Ordering("GT");
-var EQ = /* @__PURE__ */ $Ordering("EQ");
-
-// output-es/Data.Maybe/index.js
-var $Maybe = (tag, _1) => ({ tag, _1 });
-var Nothing = /* @__PURE__ */ $Maybe("Nothing");
-var Just = (value0) => $Maybe("Just", value0);
-var fromJust = () => (v) => {
-  if (v.tag === "Just") {
-    return v._1;
-  }
-  fail();
-};
 
 // output-es/Data.Functor/foreign.js
 var arrayMap = function(f) {
@@ -122,6 +63,96 @@ var arrayBind = typeof Array.prototype.flatMap === "function" ? function(arr) {
 
 // output-es/Control.Bind/index.js
 var identity = (x) => x;
+
+// output-es/Record.Unsafe/foreign.js
+var unsafeGet = function(label) {
+  return function(rec) {
+    return rec[label];
+  };
+};
+var unsafeSet = function(label) {
+  return function(value) {
+    return function(rec) {
+      var copy = {};
+      for (var key in rec) {
+        if ({}.hasOwnProperty.call(rec, key)) {
+          copy[key] = rec[key];
+        }
+      }
+      copy[label] = value;
+      return copy;
+    };
+  };
+};
+var unsafeDelete = function(label) {
+  return function(rec) {
+    var copy = {};
+    for (var key in rec) {
+      if (key !== label && {}.hasOwnProperty.call(rec, key)) {
+        copy[key] = rec[key];
+      }
+    }
+    return copy;
+  };
+};
+
+// output-es/Data.Show/foreign.js
+var showIntImpl = function(n) {
+  return n.toString();
+};
+
+// output-es/Data.Generic.Rep/index.js
+var $NoArguments = () => ({ tag: "NoArguments" });
+var $Sum = (tag, _1) => ({ tag, _1 });
+var NoArguments = /* @__PURE__ */ $NoArguments();
+
+// output-es/Data.Ordering/index.js
+var $Ordering = (tag) => tag;
+var LT = /* @__PURE__ */ $Ordering("LT");
+var GT = /* @__PURE__ */ $Ordering("GT");
+var EQ = /* @__PURE__ */ $Ordering("EQ");
+
+// output-es/Data.Maybe/index.js
+var $Maybe = (tag, _1) => ({ tag, _1 });
+var Nothing = /* @__PURE__ */ $Maybe("Nothing");
+var Just = (value0) => $Maybe("Just", value0);
+var functorMaybe = {
+  map: (v) => (v1) => {
+    if (v1.tag === "Just") {
+      return $Maybe("Just", v(v1._1));
+    }
+    return Nothing;
+  }
+};
+var applyMaybe = {
+  apply: (v) => (v1) => {
+    if (v.tag === "Just") {
+      if (v1.tag === "Just") {
+        return $Maybe("Just", v._1(v1._1));
+      }
+      return Nothing;
+    }
+    if (v.tag === "Nothing") {
+      return Nothing;
+    }
+    fail();
+  },
+  Functor0: () => functorMaybe
+};
+var bindMaybe = {
+  bind: (v) => (v1) => {
+    if (v.tag === "Just") {
+      return v1(v._1);
+    }
+    if (v.tag === "Nothing") {
+      return Nothing;
+    }
+    fail();
+  },
+  Apply0: () => applyMaybe
+};
+var applicativeMaybe = { pure: Just, Apply0: () => applyMaybe };
+var monadMaybe = { Applicative0: () => applicativeMaybe, Bind1: () => bindMaybe };
 
 // output-es/Data.Either/index.js
 var $Either = (tag, _1) => ({ tag, _1 });
@@ -423,6 +454,7 @@ var nubBy = (comp) => (xs) => {
   }
   return [];
 };
+var foldM = (dictMonad) => (f) => (b) => ($0) => unconsImpl((v) => dictMonad.Applicative0().pure(b), (a) => (as) => dictMonad.Bind1().bind(f(b)(a))((b$p) => foldM(dictMonad)(f)(b$p)(as)), $0);
 var insertBy = (cmp) => (x) => (ys) => {
   const $0 = _insertAt(
     Just,
@@ -685,43 +717,6 @@ var unsafeReadTagged = (dictMonad) => (tag) => (value) => {
     return applicativeExceptT(dictMonad).pure(value);
   }
   return monadThrowExceptT(dictMonad).throwError($NonEmpty($ForeignError("TypeMismatch", tag, tagOf(value)), Nil));
-};
-
-// output-es/Data.FoldableWithIndex/index.js
-var foldableWithIndexArray = {
-  foldrWithIndex: (f) => (z) => {
-    const $0 = foldrArray((v) => {
-      const $02 = v._1;
-      const $12 = v._2;
-      return (y) => f($02)($12)(y);
-    })(z);
-    const $1 = mapWithIndexArray(Tuple);
-    return (x) => $0($1(x));
-  },
-  foldlWithIndex: (f) => (z) => {
-    const $0 = foldlArray((y) => (v) => f(v._1)(y)(v._2))(z);
-    const $1 = mapWithIndexArray(Tuple);
-    return (x) => $0($1(x));
-  },
-  foldMapWithIndex: (dictMonoid) => {
-    const mempty = dictMonoid.mempty;
-    return (f) => foldableWithIndexArray.foldrWithIndex((i) => (x) => (acc) => dictMonoid.Semigroup0().append(f(i)(x))(acc))(mempty);
-  },
-  Foldable0: () => foldableArray
-};
-
-// output-es/Data.HeytingAlgebra/foreign.js
-var boolConj = function(b1) {
-  return function(b2) {
-    return b1 && b2;
-  };
-};
-
-// output-es/Data.Semiring/foreign.js
-var numAdd = function(n1) {
-  return function(n2) {
-    return n1 + n2;
-  };
 };
 
 // output-es/Internal.Types.Pos/index.js
@@ -1049,25 +1044,7 @@ var absParts = (p) => (v) => ({ color: v.color, shape: absShape(p)(v.shape) });
 var absAdditional = (p) => (v) => ({ parttype: v.parttype, pos: toAbsPos(p)(v.pos) });
 var absDrawInfo = (p) => (v) => ({ rails: arrayMap(absParts(p))(v.rails), additionals: arrayMap(absAdditional(p))(v.additionals) });
 
-// output-es/Internal.Layout/index.js
-var $SignalRule = (tag, _1, _2, _3, _4) => ({ tag, _1, _2, _3, _4 });
-var identity5 = (x) => x;
-var findWithIndex = (p) => foldableWithIndexArray.foldlWithIndex((v) => (v1) => (v2) => {
-  if (v1.tag === "Nothing" && p(v)(v2)) {
-    return $Maybe("Just", { index: v, value: v2 });
-  }
-  return v1;
-})(Nothing);
-var sum = /* @__PURE__ */ foldlArray(numAdd)(0);
-var foldM = (f) => (b0) => foldlArray((b) => (a) => {
-  if (b.tag === "Just") {
-    return f(b._1)(a);
-  }
-  if (b.tag === "Nothing") {
-    return Nothing;
-  }
-  fail();
-})($Maybe("Just", b0));
+// output-es/Internal.Layout.Helper/index.js
 var maximum = /* @__PURE__ */ foldlArray((v) => (v1) => {
   if (v.tag === "Nothing") {
     return $Maybe("Just", v1);
@@ -1077,101 +1054,6 @@ var maximum = /* @__PURE__ */ foldlArray((v) => (v1) => {
   }
   fail();
 })(Nothing);
-var min2 = (x) => (y) => {
-  const v = ordNumber.compare(x)(y);
-  if (v === "LT") {
-    return x;
-  }
-  if (v === "EQ") {
-    return x;
-  }
-  if (v === "GT") {
-    return y;
-  }
-  fail();
-};
-var max2 = (x) => (y) => {
-  const v = ordNumber.compare(x)(y);
-  if (v === "LT") {
-    return y;
-  }
-  if (v === "EQ") {
-    return x;
-  }
-  if (v === "GT") {
-    return x;
-  }
-  fail();
-};
-var allWithIndex = /* @__PURE__ */ (() => {
-  const foldMapWithIndex2 = foldableWithIndexArray.foldMapWithIndex(/* @__PURE__ */ (() => {
-    const semigroupConj1 = { append: (v) => (v1) => v && v1 };
-    return { mempty: true, Semigroup0: () => semigroupConj1 };
-  })());
-  return (t) => foldMapWithIndex2((i) => t(i));
-})();
-var min1 = (x) => (y) => {
-  const v = ordInt.compare(x)(y);
-  if (v === "LT") {
-    return x;
-  }
-  if (v === "EQ") {
-    return x;
-  }
-  if (v === "GT") {
-    return y;
-  }
-  fail();
-};
-var functorSectionArray = { map: (f) => (v) => ({ arraydata: arrayMap(f)(v.arraydata), head: v.head, end: v.end }) };
-var eqIntNode = { eq: (x) => (y) => x === y };
-var ordIntNode = { compare: (x) => (y) => ordInt.compare(x)(y), Eq0: () => eqIntNode };
-var updateTraffic = (v) => {
-  const v1 = foldlArray((v2) => {
-    const $0 = v2.isclear;
-    const $1 = v2.traffic;
-    return (v3) => foldlArray((v4) => {
-      const $2 = v4.isclear;
-      const $3 = v4.traffic;
-      return (v5) => ({
-        traffic: (() => {
-          const $4 = modifyAt(v5.nodeid)((d) => {
-            const $42 = modifyAt(v5.jointid)((v6) => [...v6, v3.trainid])(d);
-            if ($42.tag === "Nothing") {
-              return d;
-            }
-            if ($42.tag === "Just") {
-              return $42._1;
-            }
-            fail();
-          })($3);
-          if ($4.tag === "Nothing") {
-            return $3;
-          }
-          if ($4.tag === "Just") {
-            return $4._1;
-          }
-          fail();
-        })(),
-        isclear: (() => {
-          const $4 = modifyAt(v5.nodeid)((v6) => false)($2);
-          if ($4.tag === "Nothing") {
-            return $2;
-          }
-          if ($4.tag === "Just") {
-            return $4._1;
-          }
-          fail();
-        })()
-      });
-    })({ traffic: $1, isclear: $0 })(v3.route);
-  })({ traffic: arrayMap((v2) => replicateImpl(v2.rail.getJoints.length, []))(v.rails), isclear: replicateImpl(v.rails.length, true) })(v.trains);
-  return { ...v, traffic: v1.traffic, isclear: v1.isclear };
-};
-var updateReserves = (v) => ({
-  ...v,
-  activeReserves: mapMaybe((x) => x)(arrayMap((reserver) => find((reserve) => reserve.reserver === reserver)(v.activeReserves))(arrayMap((x) => x.trainid)(v.trains)))
-});
 var updateRailNode = (v) => (j) => {
   const v1 = v.rail.getNewState(j)(v.state);
   return {
@@ -1180,37 +1062,6 @@ var updateRailNode = (v) => (j) => {
     shapes: arrayMap(absShape(v.pos))(v1.shape)
   };
 };
-var shiftRailIndex_Node = (deleted) => (v) => ({
-  ...v,
-  nodeid: v.nodeid < deleted ? v.nodeid : v.nodeid - 1 | 0,
-  connections: arrayMap((c) => ({ ...c, nodeid: c.nodeid < deleted ? c.nodeid : c.nodeid - 1 | 0 }))(v.connections),
-  signals: arrayMap((v2) => ({ ...v2, nodeid: v2.nodeid < deleted ? v2.nodeid : v2.nodeid - 1 | 0 }))(v.signals),
-  invalidRoutes: arrayMap((v2) => ({ ...v2, nodeid: v2.nodeid < deleted ? v2.nodeid : v2.nodeid - 1 | 0 }))(v.invalidRoutes)
-});
-var shiftRailIndex_Train = (deleted) => (v) => ({ ...v, route: arrayMap((v2) => ({ ...v2, nodeid: v2.nodeid < deleted ? v2.nodeid : v2.nodeid - 1 | 0 }))(v.route) });
-var saModifyAt = (i) => (d) => (f) => (v) => {
-  if (i < v.head) {
-    return { arraydata: [f(Nothing), ...replicateImpl((v.head - i | 0) - 1 | 0, d), ...v.arraydata], head: i, end: v.end };
-  }
-  if (v.end <= i) {
-    return { arraydata: [...v.arraydata, ...replicateImpl(i - v.end | 0, d), f(Nothing)], head: v.head, end: i + 1 | 0 };
-  }
-  return {
-    arraydata: (() => {
-      const $0 = modifyAt(i - v.head | 0)((x) => f($Maybe("Just", x)))(v.arraydata);
-      if ($0.tag === "Nothing") {
-        return v.arraydata;
-      }
-      if ($0.tag === "Just") {
-        return $0._1;
-      }
-      fail();
-    })(),
-    head: v.head,
-    end: v.end
-  };
-};
-var saEmpty = { arraydata: [], head: 0, end: 0 };
 var instanceDrawInfos = (v) => arrayMap((x) => absDrawInfo(v.pos)(applyColorOption(v.color)(v.rail.getDrawInfo(x))))(v.rail.getStates);
 var instanceDrawInfo = (v) => {
   if (v.state >= 0 && v.state < v.drawinfos.length) {
@@ -1218,286 +1069,11 @@ var instanceDrawInfo = (v) => {
   }
   return brokenDrawInfo;
 };
-var getTag = (rule) => {
-  if (rule.tag === "RuleComment") {
-    return unsafeRegex("(?!.*)")(noFlags);
-  }
-  if (rule.tag === "RuleComplex") {
-    return unsafeRegex("(?!.*)")(noFlags);
-  }
-  if (rule.tag === "RuleSpeed") {
-    return rule._1;
-  }
-  if (rule.tag === "RuleOpen") {
-    return rule._1;
-  }
-  if (rule.tag === "RuleUpdate") {
-    return rule._1;
-  }
-  if (rule.tag === "RuleStop") {
-    return rule._1;
-  }
-  if (rule.tag === "RuleStopOpen") {
-    return rule._1;
-  }
-  if (rule.tag === "RuleStopUpdate") {
-    return rule._1;
-  }
-  if (rule.tag === "RuleReverse") {
-    return rule._1;
-  }
-  if (rule.tag === "RuleReverseUpdate") {
-    return rule._1;
-  }
-  fail();
-};
 var getRouteInfo = (v) => (j) => {
   const v1 = v.rail.getNewState(j)(v.state);
   return { newjoint: v1.newjoint, shapes: arrayMap(absShape(v.pos))(v1.shape) };
 };
-var hasTraffic = (v) => (v1) => {
-  if (v1.nodeid >= 0 && v1.nodeid < v.traffic.length && anyImpl((t) => t.length > 0, v.traffic[v1.nodeid])) {
-    return true;
-  }
-  const go = (nid) => (jid) => (depth) => {
-    if (depth > 30) {
-      return false;
-    }
-    return nid >= 0 && nid < v.rails.length && (() => {
-      if (anyImpl((x) => x.jointid === jid, v.rails[nid].signals) || anyImpl((x) => x.jointid === jid, v.rails[nid].invalidRoutes)) {
-        return false;
-      }
-      const jointexit = getRouteInfo(v.rails[nid])(jid).newjoint;
-      return nid >= 0 && nid < v.traffic.length && jointexit >= 0 && jointexit < v.traffic[nid].length && (() => {
-        if (v.traffic[nid][jointexit].length > 0) {
-          return true;
-        }
-        const v5 = find((c) => c.from === jointexit)(v.rails[nid].connections);
-        if (v5.tag === "Nothing") {
-          return false;
-        }
-        if (v5.tag === "Just") {
-          return go(v5._1.nodeid)(v5._1.jointid)(depth + 1 | 0);
-        }
-        fail();
-      })();
-    })();
-  };
-  return anyImpl(identity5, arrayMap((cdata) => go(cdata.nodeid)(cdata.jointid)(0))(v1.connections));
-};
-var setManualStop = (v) => (nodeid) => (jointid) => (stop) => {
-  if (nodeid >= 0 && nodeid < v.rails.length) {
-    const $0 = v.rails[nodeid];
-    const $1 = findWithIndex((v2) => (v3) => v3.jointid === jointid)($0.signals);
-    if ($1.tag === "Just") {
-      const $2 = _updateAt(Just, Nothing, $1._1.index, { ...$1._1.value, manualStop: stop }, $0.signals);
-      if ($2.tag === "Just") {
-        const $3 = _updateAt(Just, Nothing, nodeid, { ...$0, signals: $2._1 }, v.rails);
-        if ($3.tag === "Just") {
-          return { ...v, rails: $3._1 };
-        }
-        if ($3.tag === "Nothing") {
-          return v;
-        }
-        fail();
-      }
-      if ($2.tag === "Nothing") {
-        return v;
-      }
-      fail();
-    }
-    if ($1.tag === "Nothing") {
-      return v;
-    }
-    fail();
-  }
-  return v;
-};
-var updateSignalRoutes = (v) => ({
-  ...v,
-  rails: arrayMap((v2) => ({
-    ...v2,
-    signals: arrayMap((v4) => ({
-      ...v4,
-      routes: (() => {
-        const go = (v6) => {
-          if (v6.rails.length > 30) {
-            return [];
-          }
-          const v7 = v6.nid >= 0 && v6.nid < v.rails.length ? $Maybe("Just", v.rails[v6.nid]) : Nothing;
-          if (v7.tag === "Nothing") {
-            return [];
-          }
-          if (v7.tag === "Just") {
-            const $0 = v7._1;
-            return arrayBind(($0.rail.flipped ? reverse : identity5)(nubBy((x) => (y) => ordInt.compare(x.newjoint)(y.newjoint))(arrayMap($0.rail.getNewState(v6.jid))($0.rail.getStates))))((v8) => {
-              const $1 = v8.newjoint;
-              const v9 = find((v10) => v10.jointid === $1)($0.invalidRoutes);
-              if (v9.tag === "Nothing") {
-                const newrails = [...v6.rails, { nodeid: v6.nid, jointenter: v6.jid, jointexit: $1 }];
-                const newlen = v6.len + sum(arrayMap((x) => x.length)(v8.shape));
-                const v10 = find((v11) => v11.jointid === $1)($0.signals);
-                if (v10.tag === "Nothing") {
-                  const v11 = find((c) => c.from === $1)($0.connections);
-                  if (v11.tag === "Nothing") {
-                    return [];
-                  }
-                  if (v11.tag === "Just") {
-                    if (elem(eqIntNode)(v11._1.nodeid)(v6.rids)) {
-                      return [];
-                    }
-                    return go({
-                      nid: v11._1.nodeid,
-                      jid: v11._1.jointid,
-                      rails: newrails,
-                      rids: insertBy(ordIntNode.compare)(v11._1.nodeid)(v6.rids),
-                      isSimple: v6.isSimple && $0.rail.isSimple,
-                      len: newlen
-                    });
-                  }
-                  fail();
-                }
-                if (v10.tag === "Just") {
-                  return [{ nextsignal: { nodeid: v6.nid, jointid: $1 }, rails: newrails, isSimple: v6.isSimple, length: newlen }];
-                }
-                fail();
-              }
-              if (v9.tag === "Just") {
-                return [];
-              }
-              fail();
-            });
-          }
-          fail();
-        };
-        if (v4.nodeid >= 0 && v4.nodeid < v.rails.length) {
-          const v7 = find((c) => c.from === v4.jointid)(v.rails[v4.nodeid].connections);
-          if (v7.tag === "Nothing") {
-            return [];
-          }
-          if (v7.tag === "Just") {
-            return go({ nid: v7._1.nodeid, jid: v7._1.jointid, rails: [], rids: [], isSimple: true, len: 0 });
-          }
-          fail();
-        }
-        return [];
-      })()
-    }))(v2.signals)
-  }))(v.rails)
-});
-var removeSignal = (v) => (nodeid) => (jointid) => updateSignalRoutes({
-  ...v,
-  updatecount: v.updatecount + 1 | 0,
-  rails: (() => {
-    const $0 = modifyAt(nodeid)((v2) => ({ ...v2, signals: filterImpl((v4) => v4.jointid !== jointid, v2.signals), invalidRoutes: filterImpl((v4) => v4.jointid !== jointid, v2.invalidRoutes) }))(v.rails);
-    if ($0.tag === "Nothing") {
-      return v.rails;
-    }
-    if ($0.tag === "Just") {
-      return $0._1;
-    }
-    fail();
-  })()
-});
-var removeRail = (v) => (nodeid) => {
-  const v1 = nodeid >= 0 && nodeid < v.rails.length ? $Maybe("Just", v.rails[nodeid]) : Nothing;
-  const layout$p = (() => {
-    if (v1.tag === "Just") {
-      return foldlArray((l) => (j) => removeSignal(l)(nodeid)(j))(v)(v1._1.rail.getJoints);
-    }
-    if (v1.tag === "Nothing") {
-      return v;
-    }
-    fail();
-  })();
-  return updateSignalRoutes({
-    ...layout$p,
-    updatecount: layout$p.updatecount + 1 | 0,
-    rails: arrayMap((v2) => shiftRailIndex_Node(nodeid)({ ...v2, connections: filterImpl((v4) => v4.nodeid !== nodeid, v2.connections) }))((() => {
-      const $0 = _deleteAt(Just, Nothing, nodeid, layout$p.rails);
-      if ($0.tag === "Nothing") {
-        return layout$p.rails;
-      }
-      if ($0.tag === "Just") {
-        return $0._1;
-      }
-      fail();
-    })()),
-    jointData: {
-      arraydata: arrayMap(functorSectionArray.map(functorSectionArray.map((() => {
-        const $0 = filter((v2) => v2.nodeid !== nodeid);
-        const $1 = arrayMap((v2) => ({ ...v2, nodeid: v2.nodeid < nodeid ? v2.nodeid : v2.nodeid - 1 | 0 }));
-        return (x) => $1($0(x));
-      })())))(layout$p.jointData.arraydata),
-      head: layout$p.jointData.head,
-      end: layout$p.jointData.end
-    },
-    trains: arrayMap(shiftRailIndex_Train(nodeid))(layout$p.trains)
-  });
-};
 var getRailJointAbsPos = (v) => (jointid) => toAbsPos(v.pos)(v.rail.getJointPos(jointid));
-var getNextSignal = (v) => (v1) => {
-  const v2 = 0 < v1.route.length ? $Maybe("Just", v1.route[0]) : Nothing;
-  if (v2.tag === "Nothing") {
-    return { signal: Nothing, sections: 0, distance: 0 };
-  }
-  if (v2.tag === "Just") {
-    const go = (go$a0$copy) => (go$a1$copy) => (go$a2$copy) => (go$a3$copy) => (go$a4$copy) => {
-      let go$a0 = go$a0$copy, go$a1 = go$a1$copy, go$a2 = go$a2$copy, go$a3 = go$a3$copy, go$a4 = go$a4$copy, go$c = true, go$r;
-      while (go$c) {
-        const nid = go$a0, jid = go$a1, sectionsold = go$a2, distanceold = go$a3, isfirst = go$a4;
-        if (sectionsold > 30) {
-          go$c = false;
-          go$r = { signal: Nothing, sections: sectionsold, distance: distanceold };
-          continue;
-        }
-        if (nid >= 0 && nid < v.rails.length) {
-          const sections = sectionsold + 1 | 0;
-          const next = getRouteInfo(v.rails[nid])(jid);
-          const distance = isfirst ? distanceold : distanceold + sum(arrayMap(shapeLength)(next.shapes));
-          const v4 = find((v5) => v5.jointid === next.newjoint)(v.rails[nid].invalidRoutes);
-          if (v4.tag === "Nothing") {
-            const v5 = find((v6) => v6.jointid === next.newjoint)(v.rails[nid].signals);
-            if (v5.tag === "Nothing") {
-              const v6 = find((c) => c.from === next.newjoint)(v.rails[nid].connections);
-              if (v6.tag === "Nothing") {
-                go$c = false;
-                go$r = { signal: Nothing, sections, distance };
-                continue;
-              }
-              if (v6.tag === "Just") {
-                go$a0 = v6._1.nodeid;
-                go$a1 = v6._1.jointid;
-                go$a2 = sections;
-                go$a3 = distance;
-                go$a4 = false;
-                continue;
-              }
-              fail();
-            }
-            if (v5.tag === "Just") {
-              go$c = false;
-              go$r = { signal: $Maybe("Just", v5._1), sections, distance };
-              continue;
-            }
-            fail();
-          }
-          if (v4.tag === "Just") {
-            go$c = false;
-            go$r = { signal: Nothing, sections, distance };
-            continue;
-          }
-          fail();
-        }
-        go$c = false;
-        go$r = { signal: Nothing, sections: sectionsold, distance: distanceold };
-      }
-      return go$r;
-    };
-    return go(v2._1.nodeid)(v2._1.jointid)(0)(v1.distanceToNext)(true);
-  }
-  fail();
-};
 var getJoints = (v) => (joint) => arrayBind(arrayApply(arrayApply(arrayMap((x) => (y) => (z) => {
   const $0 = z - v.jointData.head | 0;
   if ($0 >= 0 && $0 < v.jointData.arraydata.length) {
@@ -1545,7 +1121,7 @@ var getJointAbsPos = (v) => (nodeid) => (jointid) => {
   return Nothing;
 };
 var getNewRailPos = (v) => (v1) => {
-  const $0 = foldM((mposofzero) => (v2) => {
+  const $0 = foldM(monadMaybe)((mposofzero) => (v2) => {
     if (mposofzero.tag === "Nothing") {
       return $Maybe(
         "Just",
@@ -1583,31 +1159,6 @@ var getNewRailPos = (v) => (v1) => {
   }
   fail();
 };
-var forceUpdate = (v) => ({ ...v, updatecount: v.updatecount + 1 | 0 });
-var setRailColor = (v) => (nodeid) => (coloroption) => ({
-  ...v,
-  rails: (() => {
-    const $0 = modifyAt(nodeid)((v2) => {
-      const $02 = { ...v2, color: coloroption };
-      return { ...$02, drawinfos: instanceDrawInfos($02) };
-    })(v.rails);
-    if ($0.tag === "Nothing") {
-      return v.rails;
-    }
-    if ($0.tag === "Just") {
-      return $0._1;
-    }
-    fail();
-  })(),
-  updatecount: v.updatecount + 1 | 0
-});
-var flipTrain = (v) => ({
-  ...v,
-  route: reverse(arrayMap((v2) => ({ ...v2, jointid: v2.railinstance.rail.getNewState(v2.jointid)(v2.railinstance.state).newjoint, shapes: reverseShapes(v2.shapes) }))(v.route)),
-  distanceToNext: v.distanceFromOldest,
-  distanceFromOldest: v.distanceToNext,
-  flipped: !v.flipped
-});
 var digestIndication = (signal) => {
   if (signal.manualStop || signal.restraint) {
     return 0;
@@ -1637,244 +1188,120 @@ var signalToSpeed = (x) => {
   }
   return 2.5;
 };
-var getRestriction = (tags) => (signal) => foldlArray((s) => (r) => {
-  if (r.tag === "RuleSpeed" && anyImpl(test(r._1), arrayMap(unsafeCoerce)(tags))) {
-    return min2(s)(toNumber(r._2) * 0.025);
-  }
-  return s;
-})(signal.manualStop || signal.restraint ? 0 : signalToSpeed(signal))(signal.rules);
-var movefoward = (movefoward$a0$copy) => (movefoward$a1$copy) => (movefoward$a2$copy) => {
-  let movefoward$a0 = movefoward$a0$copy, movefoward$a1 = movefoward$a1$copy, movefoward$a2 = movefoward$a2$copy, movefoward$c = true, movefoward$r;
-  while (movefoward$c) {
-    const v = movefoward$a0, v1 = movefoward$a1, dt = movefoward$a2;
-    const dx = dt * v1.speed;
-    const $0 = { ...v1, distanceToNext: v1.distanceToNext - dx, distanceFromOldest: v1.distanceFromOldest + dx };
-    const v4 = unsnoc($0.route);
-    const $1 = (() => {
-      if (v4.tag === "Nothing") {
-        return $0;
-      }
-      if (v4.tag === "Just") {
-        if ($0.distanceFromOldest <= v4._1.last.length) {
-          return $0;
-        }
-        return { ...$0, route: v4._1.init, distanceFromOldest: $0.distanceFromOldest - v4._1.last.length };
-      }
-      fail();
-    })();
-    if (0 <= $1.distanceToNext) {
-      movefoward$c = false;
-      movefoward$r = { newlayout: v, newtrainset: $1 };
-      continue;
-    }
-    const $2 = 0 < $1.route.length ? $Maybe("Just", $1.route[0]) : Nothing;
-    if ($2.tag === "Just") {
-      const jointexit = $2._1.railinstance.rail.getNewState($2._1.jointid)($2._1.railinstance.state).newjoint;
-      const $3 = find((c) => c.from === jointexit)($2._1.railinstance.connections);
-      if ($3.tag === "Just") {
-        const $4 = $3._1.nodeid >= 0 && $3._1.nodeid < v.rails.length ? $Maybe("Just", v.rails[$3._1.nodeid]) : Nothing;
-        if ($4.tag === "Just") {
-          const updatedroute = updateRailNode($4._1)($3._1.jointid);
-          const newinstance = { ...updatedroute.instance, reserves: filterImpl((r$p) => r$p.jointid !== $3._1.jointid, updatedroute.instance.reserves) };
-          const slength = sum(arrayMap(shapeLength)(updatedroute.shapes));
-          movefoward$c = false;
-          movefoward$r = {
-            newlayout: $3._1.nodeid >= 0 && $3._1.nodeid < v.rails.length && v.rails[$3._1.nodeid].state === updatedroute.instance.state ? {
-              ...v,
-              rails: (() => {
-                const $5 = _updateAt(Just, Nothing, $3._1.nodeid, newinstance, v.rails);
-                if ($5.tag === "Nothing") {
-                  return v.rails;
-                }
-                if ($5.tag === "Just") {
-                  return $5._1;
-                }
-                fail();
-              })()
-            } : {
-              ...v,
-              updatecount: v.updatecount + 1 | 0,
-              rails: (() => {
-                const $5 = _updateAt(Just, Nothing, $3._1.nodeid, newinstance, v.rails);
-                if ($5.tag === "Nothing") {
-                  return v.rails;
-                }
-                if ($5.tag === "Just") {
-                  return $5._1;
-                }
-                fail();
-              })()
-            },
-            newtrainset: {
-              ...$1,
-              route: [{ nodeid: $3._1.nodeid, jointid: $3._1.jointid, railinstance: $4._1, shapes: updatedroute.shapes, length: slength }, ...$1.route],
-              distanceToNext: $1.distanceToNext + slength,
-              signalRestriction: max2(0.375)((() => {
-                const $5 = find((v7) => v7.jointid === jointexit)($2._1.railinstance.signals);
-                if ($5.tag === "Nothing") {
-                  return $1.signalRestriction;
-                }
-                if ($5.tag === "Just") {
-                  return getRestriction($1.tags)($5._1);
-                }
-                fail();
-              })()),
-              signalRulePhase: anyImpl((v7) => v7.jointid === jointexit, $2._1.railinstance.signals) ? 0 : $1.signalRulePhase
-            }
-          };
-          continue;
-        }
-        if ($4.tag === "Nothing") {
-          if ($1.distanceToNext <= 0) {
-            movefoward$c = false;
-            movefoward$r = { newlayout: v, newtrainset: v1 };
-            continue;
-          }
-          movefoward$a0 = v;
-          movefoward$a1 = v1;
-          movefoward$a2 = v1.distanceToNext / v1.speed * 0.9;
-          continue;
-        }
-        fail();
-      }
-      if ($3.tag === "Nothing") {
-        if ($1.distanceToNext <= 0) {
-          movefoward$c = false;
-          movefoward$r = { newlayout: v, newtrainset: v1 };
-          continue;
-        }
-        movefoward$a0 = v;
-        movefoward$a1 = v1;
-        movefoward$a2 = v1.distanceToNext / v1.speed * 0.9;
-        continue;
-      }
-      fail();
-    }
-    if ($2.tag === "Nothing") {
-      if ($1.distanceToNext <= 0) {
-        movefoward$c = false;
-        movefoward$r = { newlayout: v, newtrainset: v1 };
-        continue;
-      }
-      movefoward$a0 = v;
-      movefoward$a1 = v1;
-      movefoward$a2 = v1.distanceToNext / v1.speed * 0.9;
-      continue;
-    }
-    fail();
-  }
-  return movefoward$r;
+
+// output-es/Data.FoldableWithIndex/index.js
+var foldableWithIndexArray = {
+  foldrWithIndex: (f) => (z) => {
+    const $0 = foldrArray((v) => {
+      const $02 = v._1;
+      const $12 = v._2;
+      return (y) => f($02)($12)(y);
+    })(z);
+    const $1 = mapWithIndexArray(Tuple);
+    return (x) => $0($1(x));
+  },
+  foldlWithIndex: (f) => (z) => {
+    const $0 = foldlArray((y) => (v) => f(v._1)(y)(v._2))(z);
+    const $1 = mapWithIndexArray(Tuple);
+    return (x) => $0($1(x));
+  },
+  foldMapWithIndex: (dictMonoid) => {
+    const mempty = dictMonoid.mempty;
+    return (f) => foldableWithIndexArray.foldrWithIndex((i) => (x) => (acc) => dictMonoid.Semigroup0().append(f(i)(x))(acc))(mempty);
+  },
+  Foldable0: () => foldableArray
 };
-var trainsetDrawInfo = (v) => {
-  const shapes = arrayBind(v.route)((v1) => reverse(v1.shapes));
-  const getpos$p = (getpos$p$a0$copy) => (getpos$p$a1$copy) => (getpos$p$a2$copy) => {
-    let getpos$p$a0 = getpos$p$a0$copy, getpos$p$a1 = getpos$p$a1$copy, getpos$p$a2 = getpos$p$a2$copy, getpos$p$c = true, getpos$p$r;
-    while (getpos$p$c) {
-      const w = getpos$p$a0, d$p = getpos$p$a1, i = getpos$p$a2;
-      if (i >= 0 && i < shapes.length) {
-        if (shapes[i].length < d$p) {
-          getpos$p$a0 = w;
-          getpos$p$a1 = d$p - shapes[i].length;
-          getpos$p$a2 = i + 1 | 0;
-          continue;
-        }
-        getpos$p$c = false;
-        getpos$p$r = getDividingPoint_rel(shapes[i].start)(shapes[i].end)(w)(1 - d$p / shapes[i].length);
-        continue;
-      }
-      getpos$p$c = false;
-      getpos$p$r = poszero;
-    }
-    return getpos$p$r;
-  };
-  return {
-    tags: v.tags,
-    note: v.note,
-    flipped: v.flipped,
-    trainid: v.trainid,
-    cars: mapWithIndexArray((i) => (ct) => {
-      const d = toNumber(i) * 0.5140186915887851 + v.distanceToNext;
-      const dh = d + 0.09345794392523366;
-      const dt = d + 0.4672897196261683 - 0.09345794392523366;
-      return {
-        type: ct,
-        head: { r: getpos$p(-0.07943925233644861)(dh)(0), l: getpos$p(0.07943925233644861)(dh)(0), m: getpos$p(0)(dh)(0) },
-        tail: { r: getpos$p(-0.07943925233644861)(dt)(0), l: getpos$p(0.07943925233644861)(dt)(0), m: getpos$p(0)(dt)(0) }
-      };
-    })(v.types)
+
+// output-es/Data.HeytingAlgebra/foreign.js
+var boolConj = function(b1) {
+  return function(b2) {
+    return b1 && b2;
   };
 };
-var layoutDrawInfo = (v) => ({
-  rails: arrayMap((r) => {
-    const $0 = instanceDrawInfo(r);
-    return { rails: $0.rails, additionals: $0.additionals, joints: arrayMap(getRailJointAbsPos(r))(r.rail.getJoints), instance: r };
-  })(v.rails),
-  signals: arrayMap((v1) => arrayMap((v2) => ({
-    indication: v2.indication,
-    pos: (() => {
-      const $0 = getJointAbsPos(v)(v2.nodeid)(v2.jointid);
-      if ($0.tag === "Nothing") {
-        return poszero;
-      }
-      if ($0.tag === "Just") {
-        return $0._1;
-      }
-      fail();
-    })(),
-    signal: v2
-  }))(v1.signals))(v.rails),
-  invalidRoutes: arrayMap((v1) => arrayMap((v2) => ({
-    pos: (() => {
-      const $0 = getJointAbsPos(v)(v2.nodeid)(v2.jointid);
-      if ($0.tag === "Nothing") {
-        return poszero;
-      }
-      if ($0.tag === "Just") {
-        return $0._1;
-      }
-      fail();
-    })(),
-    signal: v2
-  }))(v1.invalidRoutes))(v.rails),
-  trains: arrayMap(trainsetDrawInfo)(v.trains),
-  floor: v.floor
-});
-var trainsetLength = (v) => toNumber(v.types.length) * 0.5140186915887851 - 0.04672897196261683;
+
+// output-es/Data.Semiring/foreign.js
+var numAdd = function(n1) {
+  return function(n2) {
+    return n1 + n2;
+  };
+};
+
+// output-es/Internal.Layout.Params/index.js
+var max2 = (x) => (y) => {
+  const v = ordNumber.compare(x)(y);
+  if (v === "LT") {
+    return y;
+  }
+  if (v === "EQ") {
+    return x;
+  }
+  if (v === "GT") {
+    return x;
+  }
+  fail();
+};
 var brakePattern = (speed) => (finalspeed) => {
   const t = (speed - finalspeed) / 0.6;
   return 0.2 + max2(0)(finalspeed * t + 0.3 * t * t);
 };
-var brakePatternDist = (speed) => (signaldata) => (tags) => {
-  const restriction = (() => {
-    if (signaldata.signal.tag === "Nothing") {
-      return 15;
-    }
-    if (signaldata.signal.tag === "Just") {
-      return getRestriction(tags)(signaldata.signal._1);
-    }
-    fail();
-  })();
-  if (speed < restriction) {
-    return -infinity;
+
+// output-es/Internal.Layout.Types/index.js
+var $SignalRule = (tag, _1, _2, _3, _4) => ({ tag, _1, _2, _3, _4 });
+var eqIntNode = { eq: (x) => (y) => x === y };
+var ordIntNode = { compare: (x) => (y) => ordInt.compare(x)(y), Eq0: () => eqIntNode };
+var getTag = (rule) => {
+  if (rule.tag === "RuleComment") {
+    return unsafeRegex("(?!.*)")(noFlags);
   }
-  return brakePattern(speed)(restriction);
-};
-var getMaxNotch_ = (nextsignal) => (v) => {
-  if (v.respectSignals) {
-    if (v.signalRestriction < v.speed || nextsignal.distance < brakePatternDist(v.speed)(nextsignal)(v.tags)) {
-      return -8;
-    }
-    if (v.signalRestriction < v.speed + 0.125) {
-      return 0;
-    }
+  if (rule.tag === "RuleComplex") {
+    return unsafeRegex("(?!.*)")(noFlags);
   }
-  return 5;
+  if (rule.tag === "RuleSpeed") {
+    return rule._1;
+  }
+  if (rule.tag === "RuleOpen") {
+    return rule._1;
+  }
+  if (rule.tag === "RuleUpdate") {
+    return rule._1;
+  }
+  if (rule.tag === "RuleStop") {
+    return rule._1;
+  }
+  if (rule.tag === "RuleStopOpen") {
+    return rule._1;
+  }
+  if (rule.tag === "RuleStopUpdate") {
+    return rule._1;
+  }
+  if (rule.tag === "RuleReverse") {
+    return rule._1;
+  }
+  if (rule.tag === "RuleReverseUpdate") {
+    return rule._1;
+  }
+  fail();
 };
-var getMaxNotch = (v) => (v1) => getMaxNotch_(getNextSignal(v)(v1))(v1);
-var getMarginFromBrakePattern = (v) => (v1) => {
-  const nextsignal = getNextSignal(v)(v1);
-  return nextsignal.distance - brakePatternDist(v1.speed)(nextsignal)(v1.tags);
-};
+
+// output-es/Internal.Layout.Signal/index.js
+var allWithIndex = /* @__PURE__ */ (() => {
+  const foldMapWithIndex2 = foldableWithIndexArray.foldMapWithIndex(/* @__PURE__ */ (() => {
+    const semigroupConj1 = { append: (v) => (v1) => v && v1 };
+    return { mempty: true, Semigroup0: () => semigroupConj1 };
+  })());
+  return (t) => foldMapWithIndex2((i) => t(i));
+})();
+var identity5 = (x) => x;
+var maximum2 = /* @__PURE__ */ foldlArray((v) => (v1) => {
+  if (v.tag === "Nothing") {
+    return $Maybe("Just", v1);
+  }
+  if (v.tag === "Just") {
+    return $Maybe("Just", v._1 > v1 ? v._1 : v1);
+  }
+  fail();
+})(Nothing);
+var sum = /* @__PURE__ */ foldlArray(numAdd)(0);
 var updateSignalIndication = (changeManualStop) => (v) => {
   const blockingData = arrayMap((v1) => ({
     rail: v1,
@@ -1984,7 +1411,7 @@ var updateSignalIndication = (changeManualStop) => (v) => {
                     continue;
                   }
                   go$c = false;
-                  go$r = maximum(filterImpl(
+                  go$r = maximum2(filterImpl(
                     (color) => len >= brakePattern((() => {
                       if (color === 0) {
                         return 0;
@@ -2006,7 +1433,7 @@ var updateSignalIndication = (changeManualStop) => (v) => {
                 }
                 if (v4.tag === "Nothing") {
                   go$c = false;
-                  go$r = maximum(filterImpl(
+                  go$r = maximum2(filterImpl(
                     (color) => len >= brakePattern((() => {
                       if (color === 0) {
                         return 0;
@@ -2045,7 +1472,366 @@ var updateSignalIndication = (changeManualStop) => (v) => {
     }))(blockingData)
   };
 };
+var updateSignalRoutes = (v) => ({
+  ...v,
+  rails: arrayMap((v2) => ({
+    ...v2,
+    signals: arrayMap((v4) => ({
+      ...v4,
+      routes: (() => {
+        const go = (v6) => {
+          if (v6.rails.length > 30) {
+            return [];
+          }
+          const v7 = v6.nid >= 0 && v6.nid < v.rails.length ? $Maybe("Just", v.rails[v6.nid]) : Nothing;
+          if (v7.tag === "Nothing") {
+            return [];
+          }
+          if (v7.tag === "Just") {
+            const $0 = v7._1;
+            return arrayBind(($0.rail.flipped ? reverse : identity5)(nubBy((x) => (y) => ordInt.compare(x.newjoint)(y.newjoint))(arrayMap($0.rail.getNewState(v6.jid))($0.rail.getStates))))((v8) => {
+              const $1 = v8.newjoint;
+              const v9 = find((v10) => v10.jointid === $1)($0.invalidRoutes);
+              if (v9.tag === "Nothing") {
+                const newrails = [...v6.rails, { nodeid: v6.nid, jointenter: v6.jid, jointexit: $1 }];
+                const newlen = v6.len + sum(arrayMap((x) => x.length)(v8.shape));
+                const v10 = find((v11) => v11.jointid === $1)($0.signals);
+                if (v10.tag === "Nothing") {
+                  const v11 = find((c) => c.from === $1)($0.connections);
+                  if (v11.tag === "Nothing") {
+                    return [];
+                  }
+                  if (v11.tag === "Just") {
+                    if (elem(eqIntNode)(v11._1.nodeid)(v6.rids)) {
+                      return [];
+                    }
+                    return go({
+                      nid: v11._1.nodeid,
+                      jid: v11._1.jointid,
+                      rails: newrails,
+                      rids: insertBy(ordIntNode.compare)(v11._1.nodeid)(v6.rids),
+                      isSimple: v6.isSimple && $0.rail.isSimple,
+                      len: newlen
+                    });
+                  }
+                  fail();
+                }
+                if (v10.tag === "Just") {
+                  return [{ nextsignal: { nodeid: v6.nid, jointid: $1 }, rails: newrails, isSimple: v6.isSimple, length: newlen }];
+                }
+                fail();
+              }
+              if (v9.tag === "Just") {
+                return [];
+              }
+              fail();
+            });
+          }
+          fail();
+        };
+        if (v4.nodeid >= 0 && v4.nodeid < v.rails.length) {
+          const v7 = find((c) => c.from === v4.jointid)(v.rails[v4.nodeid].connections);
+          if (v7.tag === "Nothing") {
+            return [];
+          }
+          if (v7.tag === "Just") {
+            return go({ nid: v7._1.nodeid, jid: v7._1.jointid, rails: [], rids: [], isSimple: true, len: 0 });
+          }
+          fail();
+        }
+        return [];
+      })()
+    }))(v2.signals)
+  }))(v.rails)
+});
+var hasTraffic = (v) => (v1) => {
+  if (v1.nodeid >= 0 && v1.nodeid < v.traffic.length && anyImpl((t) => t.length > 0, v.traffic[v1.nodeid])) {
+    return true;
+  }
+  const go = (nid) => (jid) => (depth) => {
+    if (depth > 30) {
+      return false;
+    }
+    return nid >= 0 && nid < v.rails.length && (() => {
+      if (anyImpl((x) => x.jointid === jid, v.rails[nid].signals) || anyImpl((x) => x.jointid === jid, v.rails[nid].invalidRoutes)) {
+        return false;
+      }
+      const jointexit = getRouteInfo(v.rails[nid])(jid).newjoint;
+      return nid >= 0 && nid < v.traffic.length && jointexit >= 0 && jointexit < v.traffic[nid].length && (() => {
+        if (v.traffic[nid][jointexit].length > 0) {
+          return true;
+        }
+        const v5 = find((c) => c.from === jointexit)(v.rails[nid].connections);
+        if (v5.tag === "Nothing") {
+          return false;
+        }
+        if (v5.tag === "Just") {
+          return go(v5._1.nodeid)(v5._1.jointid)(depth + 1 | 0);
+        }
+        fail();
+      })();
+    })();
+  };
+  return anyImpl(identity5, arrayMap((cdata) => go(cdata.nodeid)(cdata.jointid)(0))(v1.connections));
+};
+var getNextSignal = (v) => (v1) => {
+  const v2 = 0 < v1.route.length ? $Maybe("Just", v1.route[0]) : Nothing;
+  if (v2.tag === "Nothing") {
+    return { signal: Nothing, sections: 0, distance: 0 };
+  }
+  if (v2.tag === "Just") {
+    const go = (go$a0$copy) => (go$a1$copy) => (go$a2$copy) => (go$a3$copy) => (go$a4$copy) => {
+      let go$a0 = go$a0$copy, go$a1 = go$a1$copy, go$a2 = go$a2$copy, go$a3 = go$a3$copy, go$a4 = go$a4$copy, go$c = true, go$r;
+      while (go$c) {
+        const nid = go$a0, jid = go$a1, sectionsold = go$a2, distanceold = go$a3, isfirst = go$a4;
+        if (sectionsold > 30) {
+          go$c = false;
+          go$r = { signal: Nothing, sections: sectionsold, distance: distanceold };
+          continue;
+        }
+        if (nid >= 0 && nid < v.rails.length) {
+          const sections = sectionsold + 1 | 0;
+          const next = getRouteInfo(v.rails[nid])(jid);
+          const distance = isfirst ? distanceold : distanceold + sum(arrayMap(shapeLength)(next.shapes));
+          const v4 = find((v5) => v5.jointid === next.newjoint)(v.rails[nid].invalidRoutes);
+          if (v4.tag === "Nothing") {
+            const v5 = find((v6) => v6.jointid === next.newjoint)(v.rails[nid].signals);
+            if (v5.tag === "Nothing") {
+              const v6 = find((c) => c.from === next.newjoint)(v.rails[nid].connections);
+              if (v6.tag === "Nothing") {
+                go$c = false;
+                go$r = { signal: Nothing, sections, distance };
+                continue;
+              }
+              if (v6.tag === "Just") {
+                go$a0 = v6._1.nodeid;
+                go$a1 = v6._1.jointid;
+                go$a2 = sections;
+                go$a3 = distance;
+                go$a4 = false;
+                continue;
+              }
+              fail();
+            }
+            if (v5.tag === "Just") {
+              go$c = false;
+              go$r = { signal: $Maybe("Just", v5._1), sections, distance };
+              continue;
+            }
+            fail();
+          }
+          if (v4.tag === "Just") {
+            go$c = false;
+            go$r = { signal: Nothing, sections, distance };
+            continue;
+          }
+          fail();
+        }
+        go$c = false;
+        go$r = { signal: Nothing, sections: sectionsold, distance: distanceold };
+      }
+      return go$r;
+    };
+    return go(v2._1.nodeid)(v2._1.jointid)(0)(v1.distanceToNext)(true);
+  }
+  fail();
+};
+
+// output-es/Internal.Types.SectionArray/index.js
+var functorSectionArray = { map: (f) => (v) => ({ arraydata: arrayMap(f)(v.arraydata), head: v.head, end: v.end }) };
+var saModifyAt = (i) => (d) => (f) => (v) => {
+  if (i < v.head) {
+    return { arraydata: [f(Nothing), ...replicateImpl((v.head - i | 0) - 1 | 0, d), ...v.arraydata], head: i, end: v.end };
+  }
+  if (v.end <= i) {
+    return { arraydata: [...v.arraydata, ...replicateImpl(i - v.end | 0, d), f(Nothing)], head: v.head, end: i + 1 | 0 };
+  }
+  return {
+    arraydata: (() => {
+      const $0 = modifyAt(i - v.head | 0)((x) => f($Maybe("Just", x)))(v.arraydata);
+      if ($0.tag === "Nothing") {
+        return v.arraydata;
+      }
+      if ($0.tag === "Just") {
+        return $0._1;
+      }
+      fail();
+    })(),
+    head: v.head,
+    end: v.end
+  };
+};
+var saEmpty = { arraydata: [], head: 0, end: 0 };
+
+// output-es/Internal.Layout.Operation/index.js
+var findWithIndex = (p) => foldableWithIndexArray.foldlWithIndex((v) => (v1) => (v2) => {
+  if (v1.tag === "Nothing" && p(v)(v2)) {
+    return $Maybe("Just", { index: v, value: v2 });
+  }
+  return v1;
+})(Nothing);
+var foldM2 = (f) => (b0) => foldlArray((b) => (a) => {
+  if (b.tag === "Just") {
+    return f(b._1)(a);
+  }
+  if (b.tag === "Nothing") {
+    return Nothing;
+  }
+  fail();
+})($Maybe("Just", b0));
+var sum2 = /* @__PURE__ */ foldlArray(numAdd)(0);
+var updateTraffic = (v) => {
+  const v1 = foldlArray((v2) => {
+    const $0 = v2.isclear;
+    const $1 = v2.traffic;
+    return (v3) => foldlArray((v4) => {
+      const $2 = v4.isclear;
+      const $3 = v4.traffic;
+      return (v5) => ({
+        traffic: (() => {
+          const $4 = modifyAt(v5.nodeid)((d) => {
+            const $42 = modifyAt(v5.jointid)((v6) => [...v6, v3.trainid])(d);
+            if ($42.tag === "Nothing") {
+              return d;
+            }
+            if ($42.tag === "Just") {
+              return $42._1;
+            }
+            fail();
+          })($3);
+          if ($4.tag === "Nothing") {
+            return $3;
+          }
+          if ($4.tag === "Just") {
+            return $4._1;
+          }
+          fail();
+        })(),
+        isclear: (() => {
+          const $4 = modifyAt(v5.nodeid)((v6) => false)($2);
+          if ($4.tag === "Nothing") {
+            return $2;
+          }
+          if ($4.tag === "Just") {
+            return $4._1;
+          }
+          fail();
+        })()
+      });
+    })({ traffic: $1, isclear: $0 })(v3.route);
+  })({ traffic: arrayMap((v2) => replicateImpl(v2.rail.getJoints.length, []))(v.rails), isclear: replicateImpl(v.rails.length, true) })(v.trains);
+  return { ...v, traffic: v1.traffic, isclear: v1.isclear };
+};
+var updateReserves = (v) => ({
+  ...v,
+  activeReserves: mapMaybe((x) => x)(arrayMap((reserver) => find((reserve) => reserve.reserver === reserver)(v.activeReserves))(arrayMap((x) => x.trainid)(v.trains)))
+});
+var shiftRailIndex_Node = (deleted) => (v) => ({
+  ...v,
+  nodeid: v.nodeid < deleted ? v.nodeid : v.nodeid - 1 | 0,
+  connections: arrayMap((c) => ({ ...c, nodeid: c.nodeid < deleted ? c.nodeid : c.nodeid - 1 | 0 }))(v.connections),
+  signals: arrayMap((v2) => ({ ...v2, nodeid: v2.nodeid < deleted ? v2.nodeid : v2.nodeid - 1 | 0 }))(v.signals),
+  invalidRoutes: arrayMap((v2) => ({ ...v2, nodeid: v2.nodeid < deleted ? v2.nodeid : v2.nodeid - 1 | 0 }))(v.invalidRoutes)
+});
+var shiftRailIndex_Train = (deleted) => (v) => ({ ...v, route: arrayMap((v2) => ({ ...v2, nodeid: v2.nodeid < deleted ? v2.nodeid : v2.nodeid - 1 | 0 }))(v.route) });
+var setManualStop = (v) => (nodeid) => (jointid) => (stop) => {
+  if (nodeid >= 0 && nodeid < v.rails.length) {
+    const $0 = v.rails[nodeid];
+    const $1 = findWithIndex((v2) => (v3) => v3.jointid === jointid)($0.signals);
+    if ($1.tag === "Just") {
+      const $2 = _updateAt(Just, Nothing, $1._1.index, { ...$1._1.value, manualStop: stop }, $0.signals);
+      if ($2.tag === "Just") {
+        const $3 = _updateAt(Just, Nothing, nodeid, { ...$0, signals: $2._1 }, v.rails);
+        if ($3.tag === "Just") {
+          return { ...v, rails: $3._1 };
+        }
+        if ($3.tag === "Nothing") {
+          return v;
+        }
+        fail();
+      }
+      if ($2.tag === "Nothing") {
+        return v;
+      }
+      fail();
+    }
+    if ($1.tag === "Nothing") {
+      return v;
+    }
+    fail();
+  }
+  return v;
+};
+var removeSignal = (v) => (nodeid) => (jointid) => updateSignalRoutes({
+  ...v,
+  updatecount: v.updatecount + 1 | 0,
+  rails: (() => {
+    const $0 = modifyAt(nodeid)((v2) => ({ ...v2, signals: filterImpl((v4) => v4.jointid !== jointid, v2.signals), invalidRoutes: filterImpl((v4) => v4.jointid !== jointid, v2.invalidRoutes) }))(v.rails);
+    if ($0.tag === "Nothing") {
+      return v.rails;
+    }
+    if ($0.tag === "Just") {
+      return $0._1;
+    }
+    fail();
+  })()
+});
+var removeRail = (v) => (nodeid) => {
+  const v1 = nodeid >= 0 && nodeid < v.rails.length ? $Maybe("Just", v.rails[nodeid]) : Nothing;
+  const layout$p = (() => {
+    if (v1.tag === "Just") {
+      return foldlArray((l) => (j) => removeSignal(l)(nodeid)(j))(v)(v1._1.rail.getJoints);
+    }
+    if (v1.tag === "Nothing") {
+      return v;
+    }
+    fail();
+  })();
+  return updateSignalRoutes({
+    ...layout$p,
+    updatecount: layout$p.updatecount + 1 | 0,
+    rails: arrayMap((v2) => shiftRailIndex_Node(nodeid)({ ...v2, connections: filterImpl((v4) => v4.nodeid !== nodeid, v2.connections) }))((() => {
+      const $0 = _deleteAt(Just, Nothing, nodeid, layout$p.rails);
+      if ($0.tag === "Nothing") {
+        return layout$p.rails;
+      }
+      if ($0.tag === "Just") {
+        return $0._1;
+      }
+      fail();
+    })()),
+    jointData: {
+      arraydata: arrayMap(functorSectionArray.map(functorSectionArray.map((() => {
+        const $0 = filter((v2) => v2.nodeid !== nodeid);
+        const $1 = arrayMap((v2) => ({ ...v2, nodeid: v2.nodeid < nodeid ? v2.nodeid : v2.nodeid - 1 | 0 }));
+        return (x) => $1($0(x));
+      })())))(layout$p.jointData.arraydata),
+      head: layout$p.jointData.head,
+      end: layout$p.jointData.end
+    },
+    trains: arrayMap(shiftRailIndex_Train(nodeid))(layout$p.trains)
+  });
+};
+var layoutUpdate_NoManualStop = (x) => updateSignalIndication(false)(updateReserves(updateTraffic(x)));
 var layoutUpdate = (x) => updateSignalIndication(true)(updateReserves(updateTraffic(x)));
+var forceUpdate = (v) => ({ ...v, updatecount: v.updatecount + 1 | 0 });
+var setRailColor = (v) => (nodeid) => (coloroption) => ({
+  ...v,
+  rails: (() => {
+    const $0 = modifyAt(nodeid)((v2) => {
+      const $02 = { ...v2, color: coloroption };
+      return { ...$02, drawinfos: instanceDrawInfos($02) };
+    })(v.rails);
+    if ($0.tag === "Nothing") {
+      return v.rails;
+    }
+    if ($0.tag === "Just") {
+      return $0._1;
+    }
+    fail();
+  })(),
+  updatecount: v.updatecount + 1 | 0
+});
 var tryOpenRouteFor = (v) => (nodeidHere) => (jointidHere) => (routeid) => (reserver) => {
   const $0 = nodeidHere >= 0 && nodeidHere < v.rails.length ? $Maybe("Just", v.rails[nodeidHere]) : Nothing;
   if ($0.tag === "Just") {
@@ -2091,7 +1877,7 @@ var tryOpenRouteFor = (v) => (nodeidHere) => (jointidHere) => (routeid) => (rese
           }
           return go$r;
         };
-        const $3 = foldM((v4) => {
+        const $3 = foldM2((v4) => {
           const $32 = v4.newrails;
           const $4 = v4.traffic;
           return (v5) => {
@@ -2193,22 +1979,13 @@ var tryOpenRouteFor_ffi = (v) => (nodeid) => (jointid) => (routeid) => {
   }
   fail();
 };
-var layoutUpdate_NoManualStop = (x) => updateSignalIndication(false)(updateReserves(updateTraffic(x)));
-var calcAcceralation = (notch) => (speed) => -speed * speed * 1e-3 + (() => {
-  if (notch === 0) {
-    return 0;
-  }
-  if (notch > 0) {
-    if (speed / 0.025 / 21 < toNumber(notch) - 0.5) {
-      if (speed / 0.025 < 40) {
-        return 0.4;
-      }
-      return 0.4 / (speed / 0.025 / 40);
-    }
-    return 0.4 / (speed / 0.025 / 40) * max2(0)((toNumber(notch) - 0.5 - speed / 0.025 / 21) * 2 + 1);
-  }
-  return 0.6 * toNumber(notch) / 8;
-})();
+var flipTrain = (v) => ({
+  ...v,
+  route: reverse(arrayMap((v2) => ({ ...v2, jointid: v2.railinstance.rail.getNewState(v2.jointid)(v2.railinstance.state).newjoint, shapes: reverseShapes(v2.shapes) }))(v.route)),
+  distanceToNext: v.distanceFromOldest,
+  distanceFromOldest: v.distanceToNext,
+  flipped: !v.flipped
+});
 var addTrainset = (v) => (nodeid) => (jointid) => (types) => {
   const go = (go$a0$copy) => (go$a1$copy) => (go$a2$copy) => (go$a3$copy) => {
     let go$a0 = go$a0$copy, go$a1 = go$a1$copy, go$a2 = go$a2$copy, go$a3 = go$a3$copy, go$c = true, go$r;
@@ -2217,7 +1994,7 @@ var addTrainset = (v) => (nodeid) => (jointid) => (types) => {
       if (nid >= 0 && nid < v.rails.length) {
         const $0 = v.rails[nid];
         const info = getRouteInfo($0)(jid);
-        const lenhere = sum(arrayMap(shapeLength)(info.shapes));
+        const lenhere = sum2(arrayMap(shapeLength)(info.shapes));
         if (lenhere < len) {
           const $1 = find((c) => c.from === info.newjoint)($0.connections);
           if ($1.tag === "Just") {
@@ -2309,7 +2086,6 @@ var addSignal = (v) => (nodeid) => (jointid) => {
   }
   return v;
 };
-var addRouteQueue = (l) => (n) => (j) => (r) => (t) => ({ ...l, routequeue: [...l.routequeue, { jointid: j, nodeid: n, routeid: r, time: l.time, retryafter: l.time, trainid: t }] });
 var addJoint = (v) => (pos) => (nodeid) => (jointid) => ({
   ...v,
   jointData: saModifyAt(unsafeClamp(round(pos.coord.z)))(saEmpty)((() => {
@@ -2473,226 +2249,6 @@ var addInvalidRoute = (v) => (nodeid) => (jointid) => {
     fail();
   }
   return v;
-};
-var acceralate = (v) => (notch) => (dt) => ({ ...v, speed: max2(0)(v.speed + dt * calcAcceralation(notch)(v.speed)) });
-var trainTick = (v) => (v1) => (dt) => {
-  const nextsignal = getNextSignal(v)(v1);
-  if (nextsignal.signal.tag === "Nothing") {
-    const $0 = {
-      ...v1,
-      signalRestriction: max2(v1.signalRestriction)((() => {
-        if (nextsignal.signal.tag === "Nothing") {
-          return 0.625;
-        }
-        if (nextsignal.signal.tag === "Just") {
-          return signalToSpeed(nextsignal.signal._1);
-        }
-        fail();
-      })())
-    };
-    const notch = min1($0.notch)(getMaxNotch_(nextsignal)($0));
-    const $1 = $0.realAcceralation ? acceralate($0)(notch)(dt) : $0;
-    return movefoward(v)({
-      ...$1,
-      route: mapMaybe((x) => x)(arrayMap((v7) => {
-        if (v7.nodeid >= 0 && v7.nodeid < v.rails.length) {
-          return $Maybe("Just", { ...v7, railinstance: v.rails[v7.nodeid] });
-        }
-        return Nothing;
-      })($1.route))
-    })(dt);
-  }
-  if (nextsignal.signal.tag === "Just") {
-    if (v1.signalRulePhase === 0) {
-      const $02 = foldlArray((v3) => {
-        const $03 = v3.l;
-        const $13 = v3.t;
-        return (r) => {
-          if (anyImpl(test(getTag(r)), arrayMap(unsafeCoerce)(v1.tags))) {
-            if (r.tag === "RuleComment") {
-              return { l: $03, t: $13 };
-            }
-            if (r.tag === "RuleComplex") {
-              return { l: $03, t: $13 };
-            }
-            if (r.tag === "RuleSpeed") {
-              return { l: $03, t: $13 };
-            }
-            if (r.tag === "RuleOpen") {
-              return { l: addRouteQueue($03)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(r._2)(v1.trainid), t: $13 };
-            }
-            if (r.tag === "RuleUpdate") {
-              const $22 = r._2;
-              const $32 = r._3;
-              return { l: $03, t: { ...$13, tags: arrayMap((told) => replace2($22)($32)(told))($13.tags) } };
-            }
-            if (r.tag === "RuleStop") {
-              return { l: setManualStop($03)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(true), t: $13 };
-            }
-            if (r.tag === "RuleStopOpen") {
-              return { l: setManualStop($03)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(true), t: $13 };
-            }
-            if (r.tag === "RuleStopUpdate") {
-              return { l: setManualStop($03)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(true), t: $13 };
-            }
-            if (r.tag === "RuleReverse") {
-              return { l: setManualStop($03)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(true), t: $13 };
-            }
-            if (r.tag === "RuleReverseUpdate") {
-              return { l: setManualStop($03)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(true), t: $13 };
-            }
-            fail();
-          }
-          return { l: $03, t: $13 };
-        };
-      })({ l: v, t: v1 })(nextsignal.signal._1.rules);
-      const $12 = $02.l;
-      const $2 = {
-        ...$02.t,
-        signalRestriction: max2($02.t.signalRestriction)((() => {
-          if (nextsignal.signal.tag === "Nothing") {
-            return 0.625;
-          }
-          if (nextsignal.signal.tag === "Just") {
-            return signalToSpeed(nextsignal.signal._1);
-          }
-          fail();
-        })()),
-        signalRulePhase: 1
-      };
-      const notch2 = min1($2.notch)(getMaxNotch_(nextsignal)($2));
-      const $3 = $2.realAcceralation ? acceralate($2)(notch2)(dt) : $2;
-      return movefoward($12)({
-        ...$3,
-        route: mapMaybe((x) => x)(arrayMap((v7) => {
-          if (v7.nodeid >= 0 && v7.nodeid < $12.rails.length) {
-            return $Maybe("Just", { ...v7, railinstance: $12.rails[v7.nodeid] });
-          }
-          return Nothing;
-        })($3.route))
-      })(dt);
-    }
-    if (v1.signalRulePhase === 1 && v1.speed === 0) {
-      const $02 = foldlArray((v3) => {
-        const $03 = v3.f;
-        const $13 = v3.l;
-        const $22 = v3.t;
-        return (r) => {
-          if (anyImpl(test(getTag(r)), arrayMap(unsafeCoerce)(v1.tags))) {
-            if (r.tag === "RuleComment") {
-              return { f: $03, l: $13, t: $22 };
-            }
-            if (r.tag === "RuleComplex") {
-              return { f: $03, l: $13, t: $22 };
-            }
-            if (r.tag === "RuleSpeed") {
-              return { f: $03, l: $13, t: $22 };
-            }
-            if (r.tag === "RuleOpen") {
-              return { f: $03, l: $13, t: $22 };
-            }
-            if (r.tag === "RuleUpdate") {
-              return { f: $03, l: $13, t: $22 };
-            }
-            if (r.tag === "RuleStop") {
-              return { f: $03, l: $13, t: $22 };
-            }
-            if (r.tag === "RuleStopOpen") {
-              return { f: $03, l: addRouteQueue($13)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(r._2)(v1.trainid), t: $22 };
-            }
-            if (r.tag === "RuleStopUpdate") {
-              const $32 = r._2;
-              const $4 = r._3;
-              return { f: $03, l: $13, t: { ...$22, tags: arrayMap((told) => replace2($32)($4)(told))($22.tags) } };
-            }
-            if (r.tag === "RuleReverse") {
-              return { f: true, l: $13, t: { ...$22, signalRulePhase: 0 } };
-            }
-            if (r.tag === "RuleReverseUpdate") {
-              const $32 = r._2;
-              const $4 = r._3;
-              return { f: true, l: $13, t: { ...$22, tags: arrayMap((told) => replace2($32)($4)(told))($22.tags), signalRulePhase: 0 } };
-            }
-            fail();
-          }
-          return { f: $03, l: $13, t: $22 };
-        };
-      })({ f: false, l: v, t: v1 })(nextsignal.signal._1.rules);
-      const $12 = $02.l;
-      const $2 = {
-        ...($02.f ? flipTrain : identity5)($02.t.signalRulePhase === 1 ? { ...$02.t, signalRulePhase: 3 } : $02.t),
-        signalRestriction: max2(($02.f ? flipTrain : identity5)($02.t.signalRulePhase === 1 ? { ...$02.t, signalRulePhase: 3 } : $02.t).signalRestriction)((() => {
-          if (nextsignal.signal.tag === "Nothing") {
-            return 0.625;
-          }
-          if (nextsignal.signal.tag === "Just") {
-            return signalToSpeed(nextsignal.signal._1);
-          }
-          fail();
-        })())
-      };
-      const notch2 = min1($2.notch)(getMaxNotch_(nextsignal)($2));
-      const $3 = $2.realAcceralation ? acceralate($2)(notch2)(dt) : $2;
-      return movefoward($12)({
-        ...$3,
-        route: mapMaybe((x) => x)(arrayMap((v7) => {
-          if (v7.nodeid >= 0 && v7.nodeid < $12.rails.length) {
-            return $Maybe("Just", { ...v7, railinstance: $12.rails[v7.nodeid] });
-          }
-          return Nothing;
-        })($3.route))
-      })(dt);
-    }
-    const $0 = {
-      ...v1,
-      signalRestriction: max2(v1.signalRestriction)((() => {
-        if (nextsignal.signal.tag === "Nothing") {
-          return 0.625;
-        }
-        if (nextsignal.signal.tag === "Just") {
-          return signalToSpeed(nextsignal.signal._1);
-        }
-        fail();
-      })())
-    };
-    const notch = min1($0.notch)(getMaxNotch_(nextsignal)($0));
-    const $1 = $0.realAcceralation ? acceralate($0)(notch)(dt) : $0;
-    return movefoward(v)({
-      ...$1,
-      route: mapMaybe((x) => x)(arrayMap((v7) => {
-        if (v7.nodeid >= 0 && v7.nodeid < v.rails.length) {
-          return $Maybe("Just", { ...v7, railinstance: v.rails[v7.nodeid] });
-        }
-        return Nothing;
-      })($1.route))
-    })(dt);
-  }
-  fail();
-};
-var moveTrains = (dt) => (v) => foldlArray((l) => (t) => {
-  const v1 = trainTick(l)(t)(dt);
-  return { ...v1.newlayout, trains: [...v1.newlayout.trains, v1.newtrainset] };
-})({ ...v, trains: [] })(v.trains);
-var layoutTick = (v) => {
-  const $0 = updateSignalIndication(true)(updateReserves(updateTraffic(moveTrains(v.speed / 60)(v))));
-  const $1 = foldlArray((v2) => {
-    const $12 = v2.layout;
-    const $2 = v2.queuenew;
-    return (v3) => {
-      if ($0.time < v3.retryafter) {
-        return { layout: $12, queuenew: [...$2, v3] };
-      }
-      const v4 = tryOpenRouteFor($12)(v3.nodeid)(v3.jointid)(v3.routeid)(v3.trainid);
-      if (v4.tag === "Nothing") {
-        return { layout: $12, queuenew: [...$2, { ...v3, retryafter: $0.time + 0.25 }] };
-      }
-      if (v4.tag === "Just") {
-        return { layout: setManualStop(v4._1.layout)(v3.nodeid)(v3.jointid)(false), queuenew: $2 };
-      }
-      fail();
-    };
-  })({ layout: $0, queuenew: [] })($0.routequeue);
-  return { ...$1.layout, routequeue: $1.queuenew, time: v.time + v.speed / 60 };
 };
 
 // output-es/Data.EuclideanRing/foreign.js
@@ -6321,7 +5877,544 @@ var decodeLayout = (v) => decodeLayout$p({
   activeReserves: isArray(v.activeReserves) ? v.activeReserves : []
 });
 
+// output-es/Internal.Layout.DrawInfo/index.js
+var trainsetDrawInfo = (v) => {
+  const shapes = arrayBind(v.route)((v1) => reverse(v1.shapes));
+  const getpos$p = (getpos$p$a0$copy) => (getpos$p$a1$copy) => (getpos$p$a2$copy) => {
+    let getpos$p$a0 = getpos$p$a0$copy, getpos$p$a1 = getpos$p$a1$copy, getpos$p$a2 = getpos$p$a2$copy, getpos$p$c = true, getpos$p$r;
+    while (getpos$p$c) {
+      const w = getpos$p$a0, d$p = getpos$p$a1, i = getpos$p$a2;
+      if (i >= 0 && i < shapes.length) {
+        if (shapes[i].length < d$p) {
+          getpos$p$a0 = w;
+          getpos$p$a1 = d$p - shapes[i].length;
+          getpos$p$a2 = i + 1 | 0;
+          continue;
+        }
+        getpos$p$c = false;
+        getpos$p$r = getDividingPoint_rel(shapes[i].start)(shapes[i].end)(w)(1 - d$p / shapes[i].length);
+        continue;
+      }
+      getpos$p$c = false;
+      getpos$p$r = poszero;
+    }
+    return getpos$p$r;
+  };
+  return {
+    tags: v.tags,
+    note: v.note,
+    flipped: v.flipped,
+    trainid: v.trainid,
+    cars: mapWithIndexArray((i) => (ct) => {
+      const d = toNumber(i) * 0.5140186915887851 + v.distanceToNext;
+      const dh = d + 0.09345794392523366;
+      const dt = d + 0.4672897196261683 - 0.09345794392523366;
+      return {
+        type: ct,
+        head: { r: getpos$p(-0.07943925233644861)(dh)(0), l: getpos$p(0.07943925233644861)(dh)(0), m: getpos$p(0)(dh)(0) },
+        tail: { r: getpos$p(-0.07943925233644861)(dt)(0), l: getpos$p(0.07943925233644861)(dt)(0), m: getpos$p(0)(dt)(0) }
+      };
+    })(v.types)
+  };
+};
+var layoutDrawInfo = (v) => ({
+  rails: arrayMap((r) => {
+    const $0 = instanceDrawInfo(r);
+    return { rails: $0.rails, additionals: $0.additionals, joints: arrayMap(getRailJointAbsPos(r))(r.rail.getJoints), instance: r };
+  })(v.rails),
+  signals: arrayMap((v1) => arrayMap((v2) => ({
+    indication: v2.indication,
+    pos: (() => {
+      const $0 = getJointAbsPos(v)(v2.nodeid)(v2.jointid);
+      if ($0.tag === "Nothing") {
+        return poszero;
+      }
+      if ($0.tag === "Just") {
+        return $0._1;
+      }
+      fail();
+    })(),
+    signal: v2
+  }))(v1.signals))(v.rails),
+  invalidRoutes: arrayMap((v1) => arrayMap((v2) => ({
+    pos: (() => {
+      const $0 = getJointAbsPos(v)(v2.nodeid)(v2.jointid);
+      if ($0.tag === "Nothing") {
+        return poszero;
+      }
+      if ($0.tag === "Just") {
+        return $0._1;
+      }
+      fail();
+    })(),
+    signal: v2
+  }))(v1.invalidRoutes))(v.rails),
+  trains: arrayMap(trainsetDrawInfo)(v.trains),
+  floor: v.floor
+});
+
+// output-es/Internal.Layout.Train/index.js
+var length3 = /* @__PURE__ */ foldlArray((c) => (v) => 1 + c | 0)(0);
+var min2 = (x) => (y) => {
+  const v = ordNumber.compare(x)(y);
+  if (v === "LT") {
+    return x;
+  }
+  if (v === "EQ") {
+    return x;
+  }
+  if (v === "GT") {
+    return y;
+  }
+  fail();
+};
+var sum3 = /* @__PURE__ */ foldlArray(numAdd)(0);
+var max4 = (x) => (y) => {
+  const v = ordNumber.compare(x)(y);
+  if (v === "LT") {
+    return y;
+  }
+  if (v === "EQ") {
+    return x;
+  }
+  if (v === "GT") {
+    return x;
+  }
+  fail();
+};
+var trainsetLength = (v) => toNumber(length3(v.types)) * 0.5140186915887851 - 0.04672897196261683;
+var getRestriction = (tags) => (signal) => foldlArray((s) => (r) => {
+  if (r.tag === "RuleSpeed" && anyImpl(test(r._1), arrayMap(unsafeCoerce)(tags))) {
+    return min2(s)(toNumber(r._2) * 0.025);
+  }
+  return s;
+})(signal.manualStop || signal.restraint ? 0 : signalToSpeed(signal))(signal.rules);
+var movefoward = (movefoward$a0$copy) => (movefoward$a1$copy) => (movefoward$a2$copy) => {
+  let movefoward$a0 = movefoward$a0$copy, movefoward$a1 = movefoward$a1$copy, movefoward$a2 = movefoward$a2$copy, movefoward$c = true, movefoward$r;
+  while (movefoward$c) {
+    const v = movefoward$a0, v1 = movefoward$a1, dt = movefoward$a2;
+    const dx = dt * v1.speed;
+    const $0 = { ...v1, distanceToNext: v1.distanceToNext - dx, distanceFromOldest: v1.distanceFromOldest + dx };
+    const v4 = unsnoc($0.route);
+    const $1 = (() => {
+      if (v4.tag === "Nothing") {
+        return $0;
+      }
+      if (v4.tag === "Just") {
+        if ($0.distanceFromOldest <= v4._1.last.length) {
+          return $0;
+        }
+        return { ...$0, route: v4._1.init, distanceFromOldest: $0.distanceFromOldest - v4._1.last.length };
+      }
+      fail();
+    })();
+    if (0 <= $1.distanceToNext) {
+      movefoward$c = false;
+      movefoward$r = { newlayout: v, newtrainset: $1 };
+      continue;
+    }
+    const $2 = 0 < $1.route.length ? $Maybe("Just", $1.route[0]) : Nothing;
+    if ($2.tag === "Just") {
+      const jointexit = $2._1.railinstance.rail.getNewState($2._1.jointid)($2._1.railinstance.state).newjoint;
+      const $3 = find((c) => c.from === jointexit)($2._1.railinstance.connections);
+      if ($3.tag === "Just") {
+        const $4 = $3._1.nodeid >= 0 && $3._1.nodeid < v.rails.length ? $Maybe("Just", v.rails[$3._1.nodeid]) : Nothing;
+        if ($4.tag === "Just") {
+          const updatedroute = updateRailNode($4._1)($3._1.jointid);
+          const newinstance = { ...updatedroute.instance, reserves: filterImpl((r$p) => r$p.jointid !== $3._1.jointid, updatedroute.instance.reserves) };
+          const slength = sum3(arrayMap(shapeLength)(updatedroute.shapes));
+          movefoward$c = false;
+          movefoward$r = {
+            newlayout: $3._1.nodeid >= 0 && $3._1.nodeid < v.rails.length && v.rails[$3._1.nodeid].state === updatedroute.instance.state ? {
+              ...v,
+              rails: (() => {
+                const $5 = _updateAt(Just, Nothing, $3._1.nodeid, newinstance, v.rails);
+                if ($5.tag === "Nothing") {
+                  return v.rails;
+                }
+                if ($5.tag === "Just") {
+                  return $5._1;
+                }
+                fail();
+              })()
+            } : {
+              ...v,
+              updatecount: v.updatecount + 1 | 0,
+              rails: (() => {
+                const $5 = _updateAt(Just, Nothing, $3._1.nodeid, newinstance, v.rails);
+                if ($5.tag === "Nothing") {
+                  return v.rails;
+                }
+                if ($5.tag === "Just") {
+                  return $5._1;
+                }
+                fail();
+              })()
+            },
+            newtrainset: {
+              ...$1,
+              route: [{ nodeid: $3._1.nodeid, jointid: $3._1.jointid, railinstance: $4._1, shapes: updatedroute.shapes, length: slength }, ...$1.route],
+              distanceToNext: $1.distanceToNext + slength,
+              signalRestriction: max4(0.375)((() => {
+                const $5 = find((v7) => v7.jointid === jointexit)($2._1.railinstance.signals);
+                if ($5.tag === "Nothing") {
+                  return $1.signalRestriction;
+                }
+                if ($5.tag === "Just") {
+                  return getRestriction($1.tags)($5._1);
+                }
+                fail();
+              })()),
+              signalRulePhase: anyImpl((v7) => v7.jointid === jointexit, $2._1.railinstance.signals) ? 0 : $1.signalRulePhase
+            }
+          };
+          continue;
+        }
+        if ($4.tag === "Nothing") {
+          if ($1.distanceToNext <= 0) {
+            movefoward$c = false;
+            movefoward$r = { newlayout: v, newtrainset: v1 };
+            continue;
+          }
+          movefoward$a0 = v;
+          movefoward$a1 = v1;
+          movefoward$a2 = v1.distanceToNext / v1.speed * 0.9;
+          continue;
+        }
+        fail();
+      }
+      if ($3.tag === "Nothing") {
+        if ($1.distanceToNext <= 0) {
+          movefoward$c = false;
+          movefoward$r = { newlayout: v, newtrainset: v1 };
+          continue;
+        }
+        movefoward$a0 = v;
+        movefoward$a1 = v1;
+        movefoward$a2 = v1.distanceToNext / v1.speed * 0.9;
+        continue;
+      }
+      fail();
+    }
+    if ($2.tag === "Nothing") {
+      if ($1.distanceToNext <= 0) {
+        movefoward$c = false;
+        movefoward$r = { newlayout: v, newtrainset: v1 };
+        continue;
+      }
+      movefoward$a0 = v;
+      movefoward$a1 = v1;
+      movefoward$a2 = v1.distanceToNext / v1.speed * 0.9;
+      continue;
+    }
+    fail();
+  }
+  return movefoward$r;
+};
+var calcAcceralation = (notch) => (speed) => -speed * speed * 1e-3 + (() => {
+  if (notch === 0) {
+    return 0;
+  }
+  if (notch > 0) {
+    if (speed / 0.025 / 21 < toNumber(notch) - 0.5) {
+      if (speed / 0.025 < 40) {
+        return 0.4;
+      }
+      return 0.4 / (speed / 0.025 / 40);
+    }
+    return 0.4 / (speed / 0.025 / 40) * max4(0)((toNumber(notch) - 0.5 - speed / 0.025 / 21) * 2 + 1);
+  }
+  return 0.6 * toNumber(notch) / 8;
+})();
+var brakePatternDist = (speed) => (signaldata) => (tags) => {
+  const restriction = (() => {
+    if (signaldata.signal.tag === "Nothing") {
+      return 15;
+    }
+    if (signaldata.signal.tag === "Just") {
+      return getRestriction(tags)(signaldata.signal._1);
+    }
+    fail();
+  })();
+  if (speed < restriction) {
+    return -infinity;
+  }
+  return brakePattern(speed)(restriction);
+};
+var getMarginFromBrakePattern = (v) => (v1) => {
+  const nextsignal = getNextSignal(v)(v1);
+  return nextsignal.distance - brakePatternDist(v1.speed)(nextsignal)(v1.tags);
+};
+var getMaxNotchWithNextSignal = (nextsignal) => (v) => {
+  if (v.respectSignals) {
+    if (v.signalRestriction < v.speed || nextsignal.distance < brakePatternDist(v.speed)(nextsignal)(v.tags)) {
+      return -8;
+    }
+    if (v.signalRestriction < v.speed + 0.125) {
+      return 0;
+    }
+  }
+  return 5;
+};
+var getMaxNotch = (v) => (v1) => getMaxNotchWithNextSignal(getNextSignal(v)(v1))(v1);
+var addRouteQueue = (l) => (n) => (j) => (r) => (t) => ({ ...l, routequeue: [...l.routequeue, { jointid: j, nodeid: n, routeid: r, time: l.time, retryafter: l.time, trainid: t }] });
+var acceralate = (v) => (notch) => (dt) => ({ ...v, speed: max4(0)(v.speed + dt * calcAcceralation(notch)(v.speed)) });
+
+// output-es/Internal.Layout.Tick/index.js
+var identity7 = (x) => x;
+var max5 = (x) => (y) => {
+  const v = ordNumber.compare(x)(y);
+  if (v === "LT") {
+    return y;
+  }
+  if (v === "EQ") {
+    return x;
+  }
+  if (v === "GT") {
+    return x;
+  }
+  fail();
+};
+var min3 = (x) => (y) => {
+  const v = ordInt.compare(x)(y);
+  if (v === "LT") {
+    return x;
+  }
+  if (v === "EQ") {
+    return x;
+  }
+  if (v === "GT") {
+    return y;
+  }
+  fail();
+};
+var trainTick = (v) => (v1) => (dt) => {
+  const nextsignal = getNextSignal(v)(v1);
+  if (nextsignal.signal.tag === "Nothing") {
+    const $0 = {
+      ...v1,
+      signalRestriction: max5(v1.signalRestriction)((() => {
+        if (nextsignal.signal.tag === "Nothing") {
+          return 0.625;
+        }
+        if (nextsignal.signal.tag === "Just") {
+          return signalToSpeed(nextsignal.signal._1);
+        }
+        fail();
+      })())
+    };
+    const notch = min3($0.notch)(getMaxNotchWithNextSignal(nextsignal)($0));
+    const $1 = $0.realAcceralation ? acceralate($0)(notch)(dt) : $0;
+    return movefoward(v)({
+      ...$1,
+      route: mapMaybe((x) => x)(arrayMap((v7) => {
+        if (v7.nodeid >= 0 && v7.nodeid < v.rails.length) {
+          return $Maybe("Just", { ...v7, railinstance: v.rails[v7.nodeid] });
+        }
+        return Nothing;
+      })($1.route))
+    })(dt);
+  }
+  if (nextsignal.signal.tag === "Just") {
+    if (v1.signalRulePhase === 0) {
+      const $02 = foldlArray((v3) => {
+        const $03 = v3.l;
+        const $13 = v3.t;
+        return (r) => {
+          if (anyImpl(test(getTag(r)), arrayMap(unsafeCoerce)(v1.tags))) {
+            if (r.tag === "RuleComment") {
+              return { l: $03, t: $13 };
+            }
+            if (r.tag === "RuleComplex") {
+              return { l: $03, t: $13 };
+            }
+            if (r.tag === "RuleSpeed") {
+              return { l: $03, t: $13 };
+            }
+            if (r.tag === "RuleOpen") {
+              return { l: addRouteQueue($03)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(r._2)(v1.trainid), t: $13 };
+            }
+            if (r.tag === "RuleUpdate") {
+              const $22 = r._2;
+              const $32 = r._3;
+              return { l: $03, t: { ...$13, tags: arrayMap((told) => replace2($22)($32)(told))($13.tags) } };
+            }
+            if (r.tag === "RuleStop") {
+              return { l: setManualStop($03)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(true), t: $13 };
+            }
+            if (r.tag === "RuleStopOpen") {
+              return { l: setManualStop($03)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(true), t: $13 };
+            }
+            if (r.tag === "RuleStopUpdate") {
+              return { l: setManualStop($03)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(true), t: $13 };
+            }
+            if (r.tag === "RuleReverse") {
+              return { l: setManualStop($03)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(true), t: $13 };
+            }
+            if (r.tag === "RuleReverseUpdate") {
+              return { l: setManualStop($03)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(true), t: $13 };
+            }
+            fail();
+          }
+          return { l: $03, t: $13 };
+        };
+      })({ l: v, t: v1 })(nextsignal.signal._1.rules);
+      const $12 = $02.l;
+      const $2 = {
+        ...$02.t,
+        signalRestriction: max5($02.t.signalRestriction)((() => {
+          if (nextsignal.signal.tag === "Nothing") {
+            return 0.625;
+          }
+          if (nextsignal.signal.tag === "Just") {
+            return signalToSpeed(nextsignal.signal._1);
+          }
+          fail();
+        })()),
+        signalRulePhase: 1
+      };
+      const notch2 = min3($2.notch)(getMaxNotchWithNextSignal(nextsignal)($2));
+      const $3 = $2.realAcceralation ? acceralate($2)(notch2)(dt) : $2;
+      return movefoward($12)({
+        ...$3,
+        route: mapMaybe((x) => x)(arrayMap((v7) => {
+          if (v7.nodeid >= 0 && v7.nodeid < $12.rails.length) {
+            return $Maybe("Just", { ...v7, railinstance: $12.rails[v7.nodeid] });
+          }
+          return Nothing;
+        })($3.route))
+      })(dt);
+    }
+    if (v1.signalRulePhase === 1 && v1.speed === 0) {
+      const $02 = foldlArray((v3) => {
+        const $03 = v3.f;
+        const $13 = v3.l;
+        const $22 = v3.t;
+        return (r) => {
+          if (anyImpl(test(getTag(r)), arrayMap(unsafeCoerce)(v1.tags))) {
+            if (r.tag === "RuleComment") {
+              return { f: $03, l: $13, t: $22 };
+            }
+            if (r.tag === "RuleComplex") {
+              return { f: $03, l: $13, t: $22 };
+            }
+            if (r.tag === "RuleSpeed") {
+              return { f: $03, l: $13, t: $22 };
+            }
+            if (r.tag === "RuleOpen") {
+              return { f: $03, l: $13, t: $22 };
+            }
+            if (r.tag === "RuleUpdate") {
+              return { f: $03, l: $13, t: $22 };
+            }
+            if (r.tag === "RuleStop") {
+              return { f: $03, l: $13, t: $22 };
+            }
+            if (r.tag === "RuleStopOpen") {
+              return { f: $03, l: addRouteQueue($13)(nextsignal.signal._1.nodeid)(nextsignal.signal._1.jointid)(r._2)(v1.trainid), t: $22 };
+            }
+            if (r.tag === "RuleStopUpdate") {
+              const $32 = r._2;
+              const $4 = r._3;
+              return { f: $03, l: $13, t: { ...$22, tags: arrayMap((told) => replace2($32)($4)(told))($22.tags) } };
+            }
+            if (r.tag === "RuleReverse") {
+              return { f: true, l: $13, t: { ...$22, signalRulePhase: 0 } };
+            }
+            if (r.tag === "RuleReverseUpdate") {
+              const $32 = r._2;
+              const $4 = r._3;
+              return { f: true, l: $13, t: { ...$22, tags: arrayMap((told) => replace2($32)($4)(told))($22.tags), signalRulePhase: 0 } };
+            }
+            fail();
+          }
+          return { f: $03, l: $13, t: $22 };
+        };
+      })({ f: false, l: v, t: v1 })(nextsignal.signal._1.rules);
+      const $12 = $02.l;
+      const $2 = {
+        ...($02.f ? flipTrain : identity7)($02.t.signalRulePhase === 1 ? { ...$02.t, signalRulePhase: 3 } : $02.t),
+        signalRestriction: max5(($02.f ? flipTrain : identity7)($02.t.signalRulePhase === 1 ? { ...$02.t, signalRulePhase: 3 } : $02.t).signalRestriction)((() => {
+          if (nextsignal.signal.tag === "Nothing") {
+            return 0.625;
+          }
+          if (nextsignal.signal.tag === "Just") {
+            return signalToSpeed(nextsignal.signal._1);
+          }
+          fail();
+        })())
+      };
+      const notch2 = min3($2.notch)(getMaxNotchWithNextSignal(nextsignal)($2));
+      const $3 = $2.realAcceralation ? acceralate($2)(notch2)(dt) : $2;
+      return movefoward($12)({
+        ...$3,
+        route: mapMaybe((x) => x)(arrayMap((v7) => {
+          if (v7.nodeid >= 0 && v7.nodeid < $12.rails.length) {
+            return $Maybe("Just", { ...v7, railinstance: $12.rails[v7.nodeid] });
+          }
+          return Nothing;
+        })($3.route))
+      })(dt);
+    }
+    const $0 = {
+      ...v1,
+      signalRestriction: max5(v1.signalRestriction)((() => {
+        if (nextsignal.signal.tag === "Nothing") {
+          return 0.625;
+        }
+        if (nextsignal.signal.tag === "Just") {
+          return signalToSpeed(nextsignal.signal._1);
+        }
+        fail();
+      })())
+    };
+    const notch = min3($0.notch)(getMaxNotchWithNextSignal(nextsignal)($0));
+    const $1 = $0.realAcceralation ? acceralate($0)(notch)(dt) : $0;
+    return movefoward(v)({
+      ...$1,
+      route: mapMaybe((x) => x)(arrayMap((v7) => {
+        if (v7.nodeid >= 0 && v7.nodeid < v.rails.length) {
+          return $Maybe("Just", { ...v7, railinstance: v.rails[v7.nodeid] });
+        }
+        return Nothing;
+      })($1.route))
+    })(dt);
+  }
+  fail();
+};
+var moveTrains = (dt) => (v) => foldlArray((l) => (t) => {
+  const v1 = trainTick(l)(t)(dt);
+  return { ...v1.newlayout, trains: [...v1.newlayout.trains, v1.newtrainset] };
+})({ ...v, trains: [] })(v.trains);
+var layoutTick = (v) => {
+  const $0 = updateSignalIndication(true)(updateReserves(updateTraffic(moveTrains(v.speed / 60)(v))));
+  const $1 = foldlArray((v2) => {
+    const $12 = v2.layout;
+    const $2 = v2.queuenew;
+    return (v3) => {
+      if ($0.time < v3.retryafter) {
+        return { layout: $12, queuenew: [...$2, v3] };
+      }
+      const v4 = tryOpenRouteFor($12)(v3.nodeid)(v3.jointid)(v3.routeid)(v3.trainid);
+      if (v4.tag === "Nothing") {
+        return { layout: $12, queuenew: [...$2, { ...v3, retryafter: $0.time + 0.25 }] };
+      }
+      if (v4.tag === "Just") {
+        return { layout: setManualStop(v4._1.layout)(v3.nodeid)(v3.jointid)(false), queuenew: $2 };
+      }
+      fail();
+    };
+  })({ layout: $0, queuenew: [] })($0.routequeue);
+  return { ...$1.layout, routequeue: $1.queuenew, time: v.time + v.speed / 60 };
+};
+
 // output-es/Main/index.js
+var fromJust1 = (v) => {
+  if (v.tag === "Just") {
+    return v._1;
+  }
+  fail();
+};
 var turnOutRPlusRail2 = turnOutRPlusRail;
 var turnOutLPlusRail2 = turnOutLPlusRail;
 var tryOpenRouteFor_ffi2 = tryOpenRouteFor_ffi;
@@ -6337,7 +6430,7 @@ var speedScale = 0.025;
 var slopeRail2 = slopeRail;
 var slopeCurveRRail2 = slopeCurveRRail;
 var slopeCurveLRail2 = slopeCurveLRail;
-var slipShapes2 = slipShapes;
+var slipShapes2 = () => slipShapes();
 var shapeToData2 = shapeToData;
 var shapeLength2 = shapeLength;
 var setRailColor2 = setRailColor;
@@ -6366,7 +6459,7 @@ var getMarginFromBrakePattern2 = getMarginFromBrakePattern;
 var getJoints2 = getJoints;
 var getJointAbsPos2 = getJointAbsPos;
 var getDividingPoint_rel2 = getDividingPoint_rel;
-var fromJust2 = fromJust;
+var fromJust = () => fromJust1;
 var forceUpdate2 = forceUpdate;
 var flipTrain2 = flipTrain;
 var flipRail2 = flipRail;
@@ -6438,7 +6531,8 @@ export {
   flipRail2 as flipRail,
   flipTrain2 as flipTrain,
   forceUpdate2 as forceUpdate,
-  fromJust2 as fromJust,
+  fromJust,
+  fromJust1,
   getDividingPoint_rel2 as getDividingPoint_rel,
   getJointAbsPos2 as getJointAbsPos,
   getJoints2 as getJoints,

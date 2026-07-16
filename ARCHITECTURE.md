@@ -10,27 +10,27 @@
 
 ```mermaid
 graph TD
-    subgraph Client [クライアント (ブラウザ)]
+    subgraph Client ["クライアント (ブラウザ)"]
         HTML[index.html / 2d.html]
         JS_Draw[2d.js / 3d.js]
         JS_Ctrl[control.js]
     end
 
-    subgraph Server [Node.js サーバー]
+    subgraph Server ["Node.js サーバー"]
         IndexMJS[server/index.mjs]
         DataJSON[(data/*.json)]
     end
 
-    subgraph Core [シミュレーションコア (PureScript)]
+    subgraph Core ["シミュレーションコア (PureScript)"]
         MainPS[src/Main.purs]
         LayoutPS[src/Internal/Layout.purs]
         JSONPS[src/Internal/JSON.purs]
     end
 
-    IndexMJS -- HTTP/WebSocket -- HTML
-    JS_Ctrl -- 描画用データ要求 -- JS_Draw
-    IndexMJS -- import -- Core
-    JS_Ctrl -- import -- Core
+    IndexMJS -->|HTTP/WebSocket| HTML
+    JS_Ctrl -->|描画用データ要求| JS_Draw
+    IndexMJS -->|import| MainPS
+    JS_Ctrl -->|import| MainPS
 ```
 
 - **シミュレータコア (PureScript)**
@@ -144,8 +144,3 @@ prail/purs/
   - `L.setSyncMethod` に登録されたコールバックを通じ、キー入力や操作イベントはすべて WebSocket（`socket.emit("key", ...)`）経由でサーバー（`server/index.mjs`）へ転送されます。
   - サーバーは受信したキー入力を処理して状態を変化させ、最新の状態を `fflate` で圧縮した上で、全接続クライアントに一斉配信（`sync`）します。
   - クライアントは `sync` を受信すると、受け取ったペイロードを展開して `L.loadfrom` で読み込み、描画を更新します。
-
-### 重要な注意事項
-- **シリアライズの同期**:
-  - `Layout` や `Trainset` などのデータモデルを変更した場合、必ず [JSON.purs](src/Internal/JSON.purs) に定義されているシリアライズ（`encode`）およびデシリアライズ（`decode`）関数を同時に修正してください。
-  - 修正を怠ると、WebSocket経由の同期崩れや、保存したJSONファイル（`server/data/` または `docs/preset/`）の読み込みエラーが発生します。

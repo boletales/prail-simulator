@@ -87,5 +87,9 @@ fetch("./preset/presets.json").then(res=>res.json()).then(presets=>{
         L.loadfrom(()=>(clearCache()), t);
       });
     }
+  }else if(localStorage.getItem("layout") == null){ // load pretest for the first time
+    fetch("./preset/layout/akane.json").then(res=>res.text()).then(t=>{
+      L.loadfrom(()=>(clearCache()), t);
+    });
   }
 });

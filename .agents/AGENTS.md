@@ -12,7 +12,7 @@
 - **`server/`**: Node.js (Express + Socket.IO) で構成されたWebサーバー。コンパイルされたPureScriptのJavaScript成果物を読み込んで動作します。
 - **`server/docs/`**: 静的アセット、HTML、およびブラウザ側で描画を行うJavaScript（3D, 2D表示、入力制御など）が含まれます。
 
-※ プロジェクトのより詳細な内部構造、主要モジュールの構成、およびデータ同期フローについては、プロジェクトルートの [ARCHITECTURE.md](file:///home/boletales/garage/prail/purs/ARCHITECTURE.md) を参照してください。
+※ プロジェクトのより詳細な内部構造、主要モジュールの構成、およびデータ同期フローについては、プロジェクトルートの [ARCHITECTURE.md](../ARCHITECTURE.md) を参照してください。
 
 ---
 
@@ -21,7 +21,7 @@
 コードの変更を行った際は、以下の手順でビルドおよび動作検証を行ってください。
 
 ### 2.1. PureScript のビルド
-PureScriptコードのビルドおよびJavaScript成果物のバンドルは、プロジェクトルートにある [build.sh](file:///home/boletales/garage/prail/purs/build.sh) を使用して行います。
+PureScriptコードのビルドおよびJavaScript成果物のバンドルは、プロジェクトルートにある [build.sh](../build.sh) を使用して行います。
 ```bash
 ./build.sh
 ```
@@ -53,8 +53,8 @@ node index.mjs
 - **FFI (Foreign Function Interface)**: JavaScript側との連携部分（`Foreign` 等）は、データの型安全性に留意し、不整合が発生しないように注意してください。
 
 ### 3.2. データモデル（Layout・Train等）の設計
-- シミュレータのメインデータ構造は [Layout.purs](file:///home/boletales/garage/prail/purs/src/Internal/Layout/Types/Layout.purs) の `Layout` レコードで定義されています。
-- `Layout` はサーバー・クライアント間でJSONシリアライズ（[JSON.purs](file:///home/boletales/garage/prail/purs/src/Internal/JSON.purs)）され、Socket.IO を介して同期されます。
+- シミュレータのメインデータ構造は [Layout.purs](../src/Internal/Layout/Types/Layout.purs) の `Layout` レコードで定義されています。
+- `Layout` はサーバー・クライアント間でJSONシリアライズ（[JSON.purs](../src/Internal/JSON.purs)）され、Socket.IO を介して同期されます。
 - `Layout` や `Trainset`、`RailNode` などの中心的なデータ構造にフィールドを追加・削除する際は、必ず **シリアライズ/デシリアライズ処理（`encodeLayout` / `decodeLayout` 等）の修正** をセットで行ってください。同期崩れの原因になります。
   - 特に、既存のセーブデータ（`docs/preset/layout/*.json`）の後方互換性は維持する必要があります。セーブデータのフォーマットが変わる際は、必ずマイグレーションの処理について検討してください。
 
@@ -69,4 +69,6 @@ node index.mjs
 3. **ファイルリンクの活用**:
    - ユーザーとのチャットでは、ファイル名や関数・型名に必ず Markdown 形式のファイルリンク（例: `[Layout.purs](file:///home/boletales/garage/prail/purs/src/Internal/Layout/Types/Layout.purs)`）を付与して説明してください。
 4. **ドキュメントの追従 (ARCHITECTURE.mdの更新)**:
-   - ディレクトリ構造の変更、主要コンポーネントの追加・削除、あるいはデータ同期フローの仕様変更を伴うリファクタリングなどを行った際は、必ずプロジェクトルートの [ARCHITECTURE.md](file:///home/boletales/garage/prail/purs/ARCHITECTURE.md) もあわせて更新し、常に現状と一致するように維持してください。
+   - ディレクトリ構造の変更、主要コンポーネントの追加・削除、あるいはデータ同期フローの仕様変更を伴うリファクタリングなどを行った際は、必ずプロジェクトルートの [ARCHITECTURE.md](../ARCHITECTURE.md) もあわせて更新し、常に現状と一致するように維持してください。
+5. **ドキュメント内リンクの相対パス化**:
+   - リポジトリ内の各種ドキュメント（`README.md`, `ARCHITECTURE.md`, `AGENTS.md` 等）に他のファイルやコードへのリンクを記述する際は、絶対パスや `file:///` スキームを使用せず、リポジトリ内の相対パスを使用してください。これにより、公開リポジトリ（GitHubなど）でドキュメントを表示した際にも正しくリンクが機能する状態を維持してください。

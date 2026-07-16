@@ -83,7 +83,7 @@ prail/purs/
 
 ## 3. 主要な状態定義とデータモデル
 
-シミュレータの状態データは、[Layout.purs](file:///home/boletales/garage/prail/purs/src/Internal/Layout/Types/Layout.purs) の `Layout` レコードに集約されています。
+シミュレータの状態データは、[Layout.purs](src/Internal/Layout/Types/Layout.purs) の `Layout` レコードに集約されています。
 
 ### 3.1. `Layout` レコード
 `Layout` はシミュレータにおける世界の全状態を保持します。
@@ -93,14 +93,14 @@ prail/purs/
 - `routequeue`: 開通待ちの進路要求キュー。
 
 ### 3.2. `Trainset` レコード
-列車の状態を保持するレコード（[Train.purs](file:///home/boletales/garage/prail/purs/src/Internal/Layout/Types/Train.purs)）。
+列車の状態を保持するレコード（[Train.purs](src/Internal/Layout/Types/Train.purs)）。
 - `route`: 列車が現在占有または進路を確保しているレール経路の配列。
 - `speed` / `notch`: 現在の速度および加速ノッチ。
 - `distanceToNext`: 次の進路境界または停止位置までの残りの距離。
 - `tags`: 列車の自動制御などで使われるタグ情報。
 
 ### 3.3. `RailNode` レコード
-敷設された個々のレールを表すデータ（[RailNode.purs](file:///home/boletales/garage/prail/purs/src/Internal/Layout/Types/RailNode.purs)）。
+敷設された個々のレールを表すデータ（[RailNode.purs](src/Internal/Layout/Types/RailNode.purs)）。
 - `joints`: レール接合点（他のレールとの接続関係）。
 - `state`: レール内の分岐器（ポイント）などの開通状態。
 - `isclear`: レール上に列車がいないかどうかのフラグ。
@@ -137,15 +137,15 @@ prail/purs/
 
 シミュレータの動作モード（通常/オンライン）は、読み込まれる `load.js` によって制御の受け渡し方法が異なります。
 
-- **通常モード ([load.js](file:///home/boletales/garage/prail/purs/server/docs/load.js))**:
+- **通常モード ([load.js](server/docs/load.js))**:
   - キー入力（`document.onkeydown`）や lil.GUI のコントローラー操作イベントは、直接クライアント上のローカルインスタンス（`L.onkey`）に適用されます。
   - 作例（Presets）の読み込みやローカルファイルのアップロードは、ブラウザ内のJS処理として完結し、サーバーを介さずに読み込まれます。
-- **オンライン同期モード ([online/load.js](file:///home/boletales/garage/prail/purs/server/docs/online/load.js))**:
+- **オンライン同期モード ([online/load.js](server/docs/online/load.js))**:
   - `L.setSyncMethod` に登録されたコールバックを通じ、キー入力や操作イベントはすべて WebSocket（`socket.emit("key", ...)`）経由でサーバー（`server/index.mjs`）へ転送されます。
   - サーバーは受信したキー入力を処理して状態を変化させ、最新の状態を `fflate` で圧縮した上で、全接続クライアントに一斉配信（`sync`）します。
   - クライアントは `sync` を受信すると、受け取ったペイロードを展開して `L.loadfrom` で読み込み、描画を更新します。
 
 ### 重要な注意事項
 - **シリアライズの同期**:
-  - `Layout` や `Trainset` などのデータモデルを変更した場合、必ず [JSON.purs](file:///home/boletales/garage/prail/purs/src/Internal/JSON.purs) に定義されているシリアライズ（`encode`）およびデシリアライズ（`decode`）関数を同時に修正してください。
+  - `Layout` や `Trainset` などのデータモデルを変更した場合、必ず [JSON.purs](src/Internal/JSON.purs) に定義されているシリアライズ（`encode`）およびデシリアライズ（`decode`）関数を同時に修正してください。
   - 修正を怠ると、WebSocket経由の同期崩れや、保存したJSONファイル（`server/data/` または `docs/preset/`）の読み込みエラーが発生します。
